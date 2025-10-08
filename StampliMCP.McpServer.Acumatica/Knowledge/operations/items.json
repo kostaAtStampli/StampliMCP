@@ -1,0 +1,117 @@
+{
+  "category": "items",
+  "operations": [
+    {
+      "method": "getItemSearchList",
+      "enumName": "GET_ITEM_SEARCH_LIST",
+      "summary": "Retrieves items for search. Merges stock items and non-stock items from two separate API calls.",
+      "category": "items",
+      
+      "requiredFields": {},
+      
+      "optionalFields": {
+        "filteringFieldsData": { "type": "Map<String,List<String>>", "description": "Field filters" },
+        "locale": { "type": "Locale", "description": "Locale for formatting" },
+        "glAccountCategories": { "type": "List<String>", "description": "GL account category filters" },
+        "itemTypes": { "type": "List<String>", "description": "Item type filters (use AcumaticaItemType enum values)" },
+        "itemCategories": { "type": "List<String>", "description": "Item category filters" }
+      },
+      
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/GetItemSearchListRequest.java",
+        "lines": "8-40",
+        "purpose": "See full DTO structure extending GetFieldSearchListRequest"
+      },
+      
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/GetItemSearchListResponse.java",
+        "lines": "1-20",
+        "purpose": "See List<Item> structure"
+      },
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "160-180",
+          "what": "Creates TWO import helpers (STOCK_ITEM + NON_STOCK_ITEM endpoints), merges results"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaImportHelper",
+          "usage": "Called twice - once for STOCK_ITEM endpoint, once for NON_STOCK_ITEM endpoint",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+            "lines": "64-120"
+          },
+          "purpose": "Import helper with pagination"
+        },
+        {
+          "class": "StockItemResponseAssembler",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/assembler/StockItemResponseAssembler.java",
+            "lines": "1-150"
+          },
+          "purpose": "Assembles stock item responses"
+        },
+        {
+          "class": "NonStockItemResponseAssembler",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/assembler/NonStockItemResponseAssembler.java",
+            "lines": "1-150"
+          },
+          "purpose": "Assembles non-stock item responses"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entities": ["StockItem", "NonStockItem"],
+        "method": "GET",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/StockItem?... then https://{hostname}/entity/{apiVersion}/NonStockItem?...",
+        "note": "Two separate API calls, results merged",
+        "pagination": true
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "160-180",
+          "purpose": "See dual-call pattern - STOCK_ITEM + NON_STOCK_ITEM merge logic"
+        }
+      ],
+      
+      "goldenTest": {
+        "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverITest.java",
+        "lines": "198-220",
+        "keyTests": [
+          {
+            "method": "testGetItems",
+            "lines": "198-220",
+            "purpose": "Item search test"
+          }
+        ]
+      },
+      
+      "errorCatalogRef": null
+    },
+    
+    {
+      "method": "getItemCategoriesSearchList",
+      "enumName": "GET_ITEM_CATEGORIES_SEARCH_LIST",
+      "summary": "Retrieves item categories for filtering.",
+      "category": "items",
+      "pattern": "Follows getVendors import pattern",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "390-395",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    }
+  ]
+}

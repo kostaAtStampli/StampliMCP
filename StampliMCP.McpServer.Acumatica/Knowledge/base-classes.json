@@ -1,0 +1,58 @@
+{
+  "baseClasses": {
+    "request": {
+      "class": "FinSysBridgeBaseRequest",
+      "location": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/FinSysBridgeBaseRequest.java",
+        "lines": "15-40",
+        "purpose": "Base class for all requests - see inherited fields"
+      },
+      "inheritedFields": {
+        "bridgeExecuterName": { "type": "String", "description": "Bridge executer name for bridge mode" },
+        "driverName": { "type": "String", "description": "Driver class name" },
+        "assemblyName": { "type": "String", "description": "Assembly name for bridge mode" },
+        "dualDriverName": { "type": "String", "description": "Dual driver name for SaaS mode" },
+        "subsidiary": { "type": "String", "description": "Company/subsidiary name", "required": true },
+        "finSysBridgeTransferredObject": { "type": "FinSysBridgeTransferredObject", "description": "Metadata object for delta sync, custom fields, etc." },
+        "connectionProperties": { "type": "Map<String,String>", "description": "Connection properties (hostname, user, password)", "required": true },
+        "interCompanyConnectionProperties": { "type": "Map<String,Map<String,String>>", "description": "Inter-company connection properties" }
+      },
+      "note": "All request DTOs extend this base class and inherit these fields"
+    },
+    
+    "response": {
+      "class": "FinSysBridgeBaseResponse",
+      "location": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/FinSysBridgeBaseResponse.java",
+        "lines": "16-50",
+        "purpose": "Base class for all responses - see inherited fields"
+      },
+      "inheritedFields": {
+        "finSysBridgeTransferredObject": { "type": "FinSysBridgeTransferredObject", "description": "Metadata object" },
+        "responseCode": { "type": "int", "description": "Response code (typically 200)" },
+        "error": { "type": "String", "description": "Error message if operation failed" },
+        "messageCode": { "type": "String", "description": "Message code for i18n" },
+        "messageParams": { "type": "Map<String,Object>", "description": "Parameters for message formatting" },
+        "logToS3Map": { "type": "Map<String,String>", "description": "S3 log storage metadata" },
+        "originRequest": { "type": "Object", "description": "Original request for debugging" },
+        "companyStatus": { "type": "Map<String,String>", "description": "Company status information" },
+        "relations": { "type": "Map<String,SearchFieldRelatedData>", "description": "Related field data" },
+        "relationsList": { "type": "Map<String,Set<String>>", "description": "Relations list" },
+        "invalidCredentials": { "type": "boolean", "description": "Flag for invalid credentials" }
+      },
+      "note": "All response DTOs extend this base class and inherit these fields. Check error field first for failures."
+    },
+    
+    "commonPatterns": {
+      "requestSetup": {
+        "description": "Standard pattern for setting up any request",
+        "code": "XxxRequest request = new XxxRequest(params);\nrequest.setSubsidiary(SUBSIDIARY);\nrequest.setConnectionProperties(connectionProperties);\nrequest.setFinSysBridgeTransferredObject(new FinSysBridgeTransferredObject());"
+      },
+      "responseHandling": {
+        "description": "Standard pattern for handling any response",
+        "code": "XxxResponse response = driver.xxx(request);\nAssert.assertNull(\"Unexpected error: \" + response.getError(), response.getError());\nAssert.assertNotNull(response.getResponse());"
+      }
+    }
+  }
+}
+

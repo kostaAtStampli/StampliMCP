@@ -1,0 +1,71 @@
+{
+  "category": "other",
+  "operations": [
+    {
+      "method": "exportAPTransaction",
+      "enumName": "EXPORT",
+      "summary": "Exports AP transaction (invoice or payment receipt) to Acumatica. Routes to exportInvoice or exportPaymentReceipt based on TransactionType.",
+      "category": "other",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/ExportRequest.java",
+        "lines": "1-50",
+        "purpose": "See export request structure with ApTransaction"
+      },
+      
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/ExportResponse.java",
+        "lines": "1-20",
+        "purpose": "See export response structure"
+      },
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "212-226",
+          "what": "Routes based on TransactionType - PAID_INVOICE → exportPaymentReceipt, else → exportInvoice"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaExportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
+            "lines": "20-150"
+          },
+          "purpose": "Orchestrates export - POST/PUT, tax recompute, release, link stamping"
+        },
+        {
+          "class": "AcumaticaExportUtil",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportUtil.java",
+            "lines": "1-100"
+          },
+          "purpose": "Export utilities and logging"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Bill",
+        "method": "PUT/POST",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Bill (or PaymentReceipt based on type)"
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "212-226",
+          "purpose": "Main method - see TransactionType routing logic"
+        }
+      ],
+      
+      "goldenTest": null
+    }
+  ]
+}
+

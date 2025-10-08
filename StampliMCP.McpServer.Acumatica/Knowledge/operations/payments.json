@@ -1,0 +1,118 @@
+{
+  "category": "payments",
+  "operations": [
+    {
+      "method": "exportBillPayment",
+      "enumName": "EXPORT_BILL_PAYMENT",
+      "summary": "Exports bill payment (check or quick check) to Acumatica. Includes payment serialization, validation, and release operations.",
+      "category": "payments",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "400-420",
+          "what": "Routes to payment export via export manager wrapper"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaPaymentSerializer",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentSerializer.java",
+            "lines": "1-200"
+          },
+          "purpose": "Serializes payment data for checks/quick checks"
+        },
+        {
+          "class": "AcumaticaExportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
+            "lines": "20-150"
+          },
+          "purpose": "Orchestrates export with release and post-operations"
+        },
+        {
+          "class": "AcumaticaExportValidator",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportValidator.java",
+            "lines": "1-100"
+          },
+          "purpose": "Validates payment data before export"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Check",
+        "method": "PUT",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Check (or Payment based on type)"
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "400-420",
+          "purpose": "Main method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    {
+      "method": "getPaidBills",
+      "enumName": "GET_PAID_BILLS",
+      "summary": "Retrieves paid bills from Acumatica.",
+      "category": "payments",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "120-140",
+          "what": "Uses import helper with payment assemblers"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaImportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+            "lines": "64-120"
+          },
+          "purpose": "Import helper pattern"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Bill",
+        "method": "GET",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Bill?$filter=...",
+        "pagination": true
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "120-140",
+          "purpose": "Main method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    { "method": "deletePayment", "enumName": "DELETE_PAYMENT", "summary": "Deletes a payment.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "440-460", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "voidPayment", "enumName": "VOID_PAYMENT", "summary": "Voids a payment.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "480-500", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "voidPaymentWithMessage", "enumName": "VOID_PAYMENT_WITH_MESSAGE", "summary": "Voids a payment with a message.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "505-525", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "retrieveCredits", "enumName": "RETRIEVE_CREDITS", "summary": "Retrieves credits.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "540-560", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "retrieveBills", "enumName": "RETRIEVE_BILLS", "summary": "Retrieves bills.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "580-600", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

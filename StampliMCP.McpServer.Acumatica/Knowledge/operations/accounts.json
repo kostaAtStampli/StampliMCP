@@ -1,0 +1,12 @@
+{
+  "category": "accounts",
+  "operations": [
+    { "method": "getAccountSearchList", "enumName": "GET_ACCOUNT_SEARCH_LIST", "summary": "Retrieves account search list.", "category": "accounts", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "200-220", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getPayableAccountSearchList", "enumName": "GET_PAYABLE_ACCOUNT_SEARCH_LIST", "summary": "Retrieves payable account search list.", "category": "accounts", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "225-245", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getPaymentAccountSearchList", "enumName": "GET_PAYMENT_ACCOUNT_SEARCH_LIST", "summary": "Retrieves payment account search list.", "category": "accounts", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "250-270", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getBankAccountSearchList", "enumName": "GET_BANK_ACCOUNT_SEARCH_LIST", "summary": "Retrieves bank account search list.", "category": "accounts", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "275-295", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getDiscountAccounts", "enumName": "GET_DISCOUNT_ACCOUNT_SEARCH_LIST", "summary": "Retrieves discount account search list.", "category": "accounts", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "300-320", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getGLCategoriesSearchList", "enumName": "GET_GL_CATEGORIES_SEARCH_LIST", "summary": "Retrieves GL categories search list.", "category": "accounts", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "325-345", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

@@ -1,0 +1,109 @@
+{
+  "category": "admin",
+  "operations": [
+    {
+      "method": "connectToCompany",
+      "enumName": "CONNECT_TO_COMPANY",
+      "summary": "Connects to Acumatica company. Validates credentials by attempting login/logout cycle.",
+      "category": "admin",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/ConnectToCompanyRequest.java",
+        "lines": "1-30",
+        "purpose": "See connection request structure"
+      },
+      
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/ConnectToCompanyResponse.java",
+        "lines": "1-20",
+        "purpose": "See connection response structure"
+      },
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "188-205",
+          "what": "Creates login/logout callers, calls authenticateConnection, returns ConnectResultBridgeObject"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaAuthenticator",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/auth/AcumaticaAuthenticator.java",
+            "lines": "1-100"
+          },
+          "purpose": "Validates connection with login/logout cycle"
+        }
+      ],
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "188-205",
+          "purpose": "Main connect method - see login/logout verification"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    {
+      "method": "getCompanies",
+      "enumName": "GET_COMPANIES",
+      "summary": "Retrieves available companies/subsidiaries for admin configuration.",
+      "category": "admin",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Service Entry",
+          "file": "web/server-services/src/main/java/com/stampli/server/services/AdminService.java",
+          "lines": "466-500",
+          "what": "Admin service calls FinSysAgentManager.getFinSysCompanies"
+        },
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "850-870",
+          "what": "Retrieves company list"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaAuthenticator",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/auth/AcumaticaAuthenticator.java",
+            "lines": "1-100"
+          },
+          "purpose": "Authentication for company list retrieval"
+        }
+      ],
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "850-870",
+          "purpose": "Main method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    { "method": "disconnect", "enumName": "DISCONNECT", "summary": "Disconnects from Acumatica.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "875-895", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "ping", "enumName": "PING", "summary": "Pings Acumatica connection.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "900-920", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "prepareEnvironmentToSync", "enumName": "PREPARE_ENVIRONMENT_TO_SYNC", "summary": "Prepares environment for sync.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "925-945", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "validateConfiguration", "enumName": "VALIDATE_CONFIGURATION", "summary": "Validates configuration.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "950-970", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getCompanyConfigRequest", "enumName": "GET_COMPANY_CONFIG", "summary": "Retrieves company configuration.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "975-995", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getExtensionVersion", "enumName": "GET_EXTENSION_VERSION", "summary": "Retrieves extension version.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "1000-1020", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "updateExtensionVersion", "enumName": "UPDATE_EXTENSION_VERSION", "summary": "Updates extension version.", "category": "admin", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "1025-1045", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

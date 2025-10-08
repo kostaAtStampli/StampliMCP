@@ -1,0 +1,74 @@
+{
+  "testCustomer": {
+    "baseUrl": "http://63.32.187.185/StampliAcumaticaDB",
+    "username": "admin",
+    "password": "Password1",
+    "subsidiary": "StampliCompany",
+    "description": "Default Acumatica test environment with full dataset"
+  },
+  
+  "credentialsSetupPattern": {
+    "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverITest.java",
+    "lines": "20-45",
+    "purpose": "Copy this exact pattern for test credentials setup",
+    "javaCode": "private static final String BASE_URL = \"http://63.32.187.185/StampliAcumaticaDB\";\nprivate static final String USERNAME = \"admin\";\nprivate static final String PASSWORD = \"Password1\";\nprivate static final String SUBSIDIARY = \"StampliCompany\";\n\nprivate AcumaticaDriver driver;\nprivate Map<String, String> connectionProperties;\n\n@Before\npublic void setUp() {\n    driver = new AcumaticaDriver();\n    connectionProperties = new HashMap<>();\n    connectionProperties.put(\"hostname\", BASE_URL);\n    connectionProperties.put(\"user\", USERNAME);\n    connectionProperties.put(\"password\", PASSWORD);\n}"
+  },
+  
+  "goldenExamples": {
+    "vendor_export": {
+      "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverCreateVendorITest.java",
+      "lines": "30-300",
+      "keyTests": [
+        {
+          "method": "test_createVendorSuccessfully",
+          "lines": "60-90",
+          "purpose": "Basic vendor creation - copy this pattern"
+        },
+        {
+          "method": "test_idempotencyReturnsExistingVendor",
+          "lines": "140-165",
+          "purpose": "Duplicate handling - vendor already exists with same link"
+        },
+        {
+          "method": "test_exportWithDifferentLinkFails",
+          "lines": "206-220",
+          "purpose": "Link mismatch error - vendor exists with different link"
+        },
+        {
+          "method": "test_missingStampliLinkReturnsError",
+          "lines": "250-265",
+          "purpose": "Validation error - required field missing"
+        }
+      ]
+    },
+    "vendor_import": {
+      "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverITest.java",
+      "lines": "28-60",
+      "keyTests": [
+        {
+          "method": "testGetVendors",
+          "lines": "28-60",
+          "purpose": "Import pattern with pagination"
+        }
+      ]
+    },
+    "item_search": {
+      "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverITest.java",
+      "lines": "198-220",
+      "keyTests": [
+        {
+          "method": "testGetItems",
+          "lines": "198-220",
+          "purpose": "Search pattern with filters"
+        }
+      ]
+    }
+  },
+  
+  "commonAssertions": {
+    "success": "Assert.assertNull(\"Unexpected error: \" + response.getError(), response.getError());\nAssert.assertNotNull(response.getResponse());",
+    "error": "Assert.assertNotNull(\"Expected error\", response.getError());",
+    "notEmpty": "Assert.assertTrue(response.getResponse().size() > 0);"
+  }
+}
+

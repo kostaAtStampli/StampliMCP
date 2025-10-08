@@ -1,0 +1,320 @@
+{
+  "category": "vendors",
+  "operations": [
+    {
+      "method": "exportVendor",
+      "enumName": "EXPORT_VENDOR",
+      "summary": "Creates or updates vendor in Acumatica. Performs risk control check for duplicates and Stampli link mismatches. Returns idempotent success if vendor already exists with same link.",
+      "category": "vendors",
+      
+      "requiredFields": {
+        "vendorName": { "type": "string", "maxLength": 60 },
+        "stampliurl": { "type": "string", "aliases": ["stampliUrl", "stampliLink"] }
+      },
+      
+      "optionalFields": {
+        "vendorId": { "type": "string", "maxLength": 15 },
+        "vendorClass": { "type": "string" },
+        "terms": { "type": "string" },
+        "currencyId": { "type": "string" },
+        "apAccount": { "type": "string" },
+        "apSubaccount": { "type": "string" }
+      },
+      
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/ExportVendorRequest.java",
+        "lines": "15-45",
+        "purpose": "See full DTO structure, fields, validation method"
+      },
+      
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/ExportResponse.java",
+        "lines": "1-20",
+        "purpose": "See CsvLinkBridgeObject structure (id, erpTransactionId, content, error, errorCode)"
+      },
+      
+      "flowTrace": [
+        {
+          "layer": "Service Entry",
+          "file": "web/server-services/src/main/java/com/stampli/synchronization/bridge/BridgeSynchronizationAgent.java",
+          "lines": "514-552",
+          "what": "Bridge agent builds ExportVendorRequest DTO, adds custom fields, creates TaskDTORequest"
+        },
+        {
+          "layer": "Router",
+          "file": "web/server-services/src/main/java/com/stampli/synchronization/bridge/DualBridgeSaaSRouter.java",
+          "lines": "66-88",
+          "what": "Routes to SaaS (DriverEngine) or Bridge (queue) based on isBridgeMode flag"
+        },
+        {
+          "layer": "Driver Entry",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "386-398",
+          "what": "Calls risk control check, then delegates to CreateVendorHandler"
+        },
+        {
+          "layer": "Risk Control",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "412-470",
+          "what": "Searches for existing vendor by Stampli link, checks for mismatch, returns idempotent success or error"
+        },
+        {
+          "layer": "Handler",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+          "lines": "22-90",
+          "what": "Validates required fields and max lengths, builds JSON payload, makes PUT call, parses response"
+        },
+        {
+          "layer": "Payload Mapper",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
+          "lines": "11-80",
+          "what": "Maps Java Map to Acumatica JSON structure, adds 'Stampli Link: {url}' to note field"
+        },
+        {
+          "layer": "API Call",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/RestApiCaller.java",
+          "lines": "48-120",
+          "what": "HTTP PUT with authentication wrapper (login/call/logout)"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "CreateVendorHandler",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+            "lines": "22-90"
+          },
+          "purpose": "Main handler - validates, builds payload, makes API call"
+        },
+        {
+          "class": "VendorPayloadMapper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
+            "lines": "11-80"
+          },
+          "purpose": "Maps request data to Acumatica JSON format"
+        },
+        {
+          "class": "AcumaticaAuthenticator",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/auth/AcumaticaAuthenticator.java",
+            "lines": "1-100"
+          },
+          "purpose": "Wraps API calls with login/logout session management"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Vendor",
+        "method": "PUT",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Vendor",
+        "requestBodyExample": "{ \"VendorName\": { \"value\": \"MMM\" }, \"VendorID\": { \"value\": \"POC12345\" }, \"note\": { \"value\": \"Stampli Link: https://...\" }, \"VendorClass\": { \"value\": \"PRODUCT\" }, \"Terms\": { \"value\": \"NET30\" }, \"CurrencyID\": { \"value\": \"USD\" }, \"APAccount\": { \"value\": \"20000\" }, \"APSubaccount\": { \"value\": \"000000\" } }",
+        "responseExample": "{ \"id\": \"...\", \"VendorID\": { \"value\": \"POC12345\" }, \"LastModifiedDateTime\": { \"value\": \"...\" } }",
+        "errorResponseExample": "{ \"error\": \"Inserting 'AP Transactions' record raised at least one error. Please review the errors.\" }"
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "386-398",
+          "purpose": "Main export method entry point"
+        },
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "412-470",
+          "purpose": "Risk control - duplicate and link mismatch check logic (CRITICAL for duplicate handling)"
+        },
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+          "lines": "22-90",
+          "purpose": "Handler - validation, payload building, API call"
+        },
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
+          "lines": "11-80",
+          "purpose": "Payload mapping - see how Stampli link is added to note field"
+        }
+      ],
+      
+      "goldenTest": {
+        "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverCreateVendorITest.java",
+        "lines": "30-300",
+        "keyTests": [
+          {
+            "method": "test_createVendorSuccessfully",
+            "lines": "60-90",
+            "purpose": "Basic vendor creation test"
+          },
+          {
+            "method": "test_idempotencyReturnsExistingVendor",
+            "lines": "140-165",
+            "purpose": "Test duplicate vendor returns existing (no error)"
+          },
+          {
+            "method": "test_exportWithDifferentLinkFails",
+            "lines": "206-220",
+            "purpose": "Test link mismatch returns error"
+          },
+          {
+            "method": "test_missingStampliLinkReturnsError",
+            "lines": "250-265",
+            "purpose": "Test validation error for missing required field"
+          }
+        ]
+      },
+      
+      "errorCatalogRef": "See error-catalog.json → operationErrors.exportVendor for complete list"
+    },
+    
+    {
+      "method": "getVendors",
+      "enumName": "GET_VENDORS",
+      "summary": "Retrieves all vendors from Acumatica. Supports delta import via lastModifiedVendors timestamp.",
+      "category": "vendors",
+      
+      "requiredFields": {},
+      
+      "optionalFields": {
+        "filteringFieldsData": { "type": "Map<String,List<String>>", "description": "Field filters" },
+        "customFieldsInfo": { "type": "Map<String,CustomFieldDefinition>", "description": "Custom field metadata" }
+      },
+      
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/GetVendorsRequest.java",
+        "lines": "1-30",
+        "purpose": "See full DTO structure"
+      },
+      
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/GetVendorsResponse.java",
+        "lines": "1-20",
+        "purpose": "See List<CsvVendorWithAddressesBridgeObject> structure"
+      },
+      
+      "flowTrace": [
+        {
+          "layer": "Service Entry",
+          "file": "web/server-services/src/main/java/com/stampli/synchronization/bridge/BridgeSynchronizationAgent.java",
+          "lines": "583-605",
+          "what": "Bridge entry with delta support via lastModifiedVendors"
+        },
+        {
+          "layer": "Router",
+          "file": "web/server-services/src/main/java/com/stampli/synchronization/bridge/DualBridgeSaaSRouter.java",
+          "lines": "66-88",
+          "what": "Routes to SaaS or Bridge"
+        },
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "102-118",
+          "what": "Uses AcumaticaImportHelper pattern with VendorResponseAssembler, calls getDeletedVendors for delta"
+        },
+        {
+          "layer": "Import Helper",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+          "lines": "64-120",
+          "what": "Handles pagination, auth wrapper, response assembly"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaImportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+            "lines": "64-120"
+          },
+          "purpose": "Generic import pattern with pagination"
+        },
+        {
+          "class": "VendorResponseAssembler",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/assembler/VendorResponseAssembler.java",
+            "lines": "1-200"
+          },
+          "purpose": "Assembles vendor response objects from Acumatica JSON"
+        },
+        {
+          "class": "AcumaticaApiCallHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiCallHelper.java",
+            "lines": "1-100"
+          },
+          "purpose": "Helper for delta imports (getDeletedVendors)"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Vendor",
+        "method": "GET",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Vendor?$filter=...&$expand=PrimaryContact/Address,MainContact/Address&$top=5000",
+        "pagination": true,
+        "deltaSupport": true,
+        "responseExample": "[{ \"VendorID\": { \"value\": \"ACME01\" }, \"VendorName\": { \"value\": \"Acme Corporation\" }, \"Status\": { \"value\": \"Active\" }, \"CurrencyID\": { \"value\": \"USD\" }, ... }]"
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "102-118",
+          "purpose": "Main getVendors method - see import helper pattern"
+        },
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+          "lines": "64-120",
+          "purpose": "Import helper - pagination logic, auth wrapper, response assembly"
+        }
+      ],
+      
+      "goldenTest": {
+        "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverITest.java",
+        "lines": "28-60",
+        "keyTests": [
+          {
+            "method": "testGetVendors",
+            "lines": "28-60",
+            "purpose": "Basic vendor import test with assertions"
+          }
+        ]
+      },
+      
+      "errorCatalogRef": null
+    },
+    
+    {
+      "method": "getVendorCreditSearchList",
+      "enumName": "GET_VENDOR_CREDIT_SEARCH_LIST",
+      "summary": "Retrieves vendor credits available for payment application.",
+      "category": "vendors",
+      "pattern": "Follows getVendors import pattern - scan getVendors for reference",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "300-320",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    },
+    
+    {
+      "method": "getVendorPaymentData",
+      "enumName": "GET_PAYMENT_VENDORS",
+      "summary": "Retrieves vendor payment data for bill payment processing.",
+      "category": "vendors",
+      "pattern": "Follows getVendors import pattern - scan getVendors for reference",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "350-370",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    }
+  ]
+}

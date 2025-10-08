@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="StampliMCP.ApiService/StampliMCP.ApiService.csproj" />
+  <Project Path="StampliMCP.AppHost/StampliMCP.AppHost.csproj" />
+  <Project Path="StampliMCP.McpServer.Acumatica.Tests/StampliMCP.McpServer.Acumatica.Tests.csproj" />
+  <Project Path="StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj" />
+  <Project Path="StampliMCP.ServiceDefaults/StampliMCP.ServiceDefaults.csproj" />
+  <Project Path="StampliMCP.Tests/StampliMCP.Tests.csproj" />
+  <Project Path="StampliMCP.Web/StampliMCP.Web.csproj" />
+</Solution>

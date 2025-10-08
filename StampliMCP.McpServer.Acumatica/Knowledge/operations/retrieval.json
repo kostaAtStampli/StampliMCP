@@ -1,0 +1,10 @@
+{
+  "category": "retrieval",
+  "operations": [
+    { "method": "CheckDuplications", "enumName": "CHECK_DUPLICATIONS", "summary": "Checks for duplications.", "category": "retrieval", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "1050-1070", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getPoMatchingDataForVendors", "enumName": "GET_PO_DATA_FOR_VENDORS_PO_MATCHING", "summary": "Gets PO matching data for vendors.", "category": "retrieval", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "280-300", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getPoMatchingDataWithClosedPOs", "enumName": "GET_PO_DATA_WITH_CLOSED_POS_PO_MATCHING", "summary": "Gets PO matching data with closed POs.", "category": "retrieval", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "305-325", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getPoDataForPoMatching", "enumName": "GET_PO_DATA_FOR_PO_MATCHING", "summary": "Gets PO data for matching.", "category": "retrieval", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "330-350", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

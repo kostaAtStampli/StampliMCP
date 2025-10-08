@@ -1,0 +1,185 @@
+{
+  "category": "purchaseOrders",
+  "operations": [
+    {
+      "method": "getPurchaseOrderSearchList",
+      "enumName": "GET_PURCHASE_ORDER_SEARCH_LIST",
+      "summary": "Retrieves purchase orders for search and matching.",
+      "category": "purchaseOrders",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/GetPurchaseOrderSearchListRequest.java",
+        "lines": "1-30",
+        "purpose": "See full DTO structure"
+      },
+      
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/GetPurchaseOrderSearchListResponse.java",
+        "lines": "1-20",
+        "purpose": "See PO list structure"
+      },
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "248-258",
+          "what": "Uses AcumaticaPurchaseOrderImportHelper"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaPurchaseOrderImportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderImportHelper.java",
+            "lines": "1-200"
+          },
+          "purpose": "PO-specific import helper"
+        },
+        {
+          "class": "PurchaseOrderResponseAssemblerUtil",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/assembler/PurchaseOrderResponseAssemblerUtil.java",
+            "lines": "1-150"
+          },
+          "purpose": "Assembles PO responses"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "PurchaseOrder",
+        "method": "GET",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/PurchaseOrder?$filter=Status eq 'Open'&$expand=Details&$top=5000",
+        "pagination": true
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "248-258",
+          "purpose": "Main method using PO import helper"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    
+    {
+      "method": "getItemsListsPerPO",
+      "enumName": "GET_ITEMS_LISTS_PER_PO",
+      "summary": "Retrieves item lists per purchase order.",
+      "category": "purchaseOrders",
+      "pattern": "Follows getPurchaseOrderSearchList pattern",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "260-270",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    },
+    
+    {
+      "method": "exportPurchaseOrder",
+      "enumName": "EXPORT_PURCHASE_ORDER",
+      "summary": "Exports purchase order to Acumatica.",
+      "category": "purchaseOrders",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "210-226",
+          "what": "Calls exportPO method"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaExportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
+            "lines": "20-150"
+          },
+          "purpose": "Export orchestration - POST/PUT, release, rollback"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "PurchaseOrder",
+        "method": "PUT",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/PurchaseOrder"
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "210-226",
+          "purpose": "Main export method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    
+    {
+      "method": "getPoMatchingDataForVendors",
+      "enumName": "GET_PO_DATA_FOR_VENDORS_PO_MATCHING",
+      "summary": "Gets PO matching data for vendors.",
+      "category": "purchaseOrders",
+      "pattern": "PO matching pattern",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "280-300",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    },
+    
+    {
+      "method": "getPoMatchingDataWithClosedPOs",
+      "enumName": "GET_PO_DATA_WITH_CLOSED_POS_PO_MATCHING",
+      "summary": "Gets PO matching data including closed POs.",
+      "category": "purchaseOrders",
+      "pattern": "PO matching pattern",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "305-325",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    },
+    
+    {
+      "method": "getPoDataForPoMatching",
+      "enumName": "GET_PO_DATA_FOR_PO_MATCHING",
+      "summary": "Gets PO data for matching operations.",
+      "category": "purchaseOrders",
+      "pattern": "PO matching pattern",
+      "requiredFields": {},
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "330-350",
+          "purpose": "Main method"
+        }
+      ],
+      "goldenTest": null
+    }
+  ]
+}

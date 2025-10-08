@@ -1,0 +1,101 @@
+{
+  "enums": [
+    {
+      "name": "VendorStatus",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/assembler/VendorResponseAssembler.java",
+        "lines": "165-180",
+        "purpose": "Vendor status enum definition"
+      },
+      "mappings": {
+        "ACTIVE": "Active",
+        "HOLD_PAYMENTS": "Hold Payments",
+        "ONE_TIME": "One-Time",
+        "INACTIVE": "Inactive"
+      }
+    },
+    {
+      "name": "AcumaticaItemType",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaItemType.java",
+        "lines": "11-30",
+        "purpose": "Item type enum definition"
+      },
+      "mappings": {
+        "GI": "Goods for IN",
+        "GS": "Goods for SO",
+        "GF": "Goods for FS",
+        "GR": "Goods for RP",
+        "GP": "Goods for Drop-Ship",
+        "NP": "Non-Stock for Drop-Ship",
+        "NO": "Non-Stock for SO",
+        "NF": "Non-Stock for FS",
+        "PG": "Goods for Project",
+        "PN": "Non-Stock for Project",
+        "NS": "Non-Stock",
+        "SV": "Service",
+        "FT": "Freight",
+        "DN": "Description"
+      }
+    },
+    {
+      "name": "PurchaseOrderStatus",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderImportHelper.java",
+        "lines": "182-200",
+        "purpose": "Purchase order status enum definition"
+      },
+      "mappings": {
+        "PO_STATUS_COMPLETED": "Completed",
+        "PO_STATUS_OPEN": "Open",
+        "PR_STATUS_RELEASED": "Released",
+        "PO_STATUS_PENDING_EMAIL": "Pending Email",
+        "PO_STATUS_CANCELED": "Canceled",
+        "PO_STATUS_CLOSED": "Closed"
+      }
+    },
+    {
+      "name": "TransactionType",
+      "location": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/contracts/TransactionType.java",
+        "lines": "5-15",
+        "purpose": "Transaction type enum definition"
+      },
+      "mappings": {
+        "BILL": "Invoice",
+        "REFUND": "Credit Memo",
+        "PAID_INVOICE": "Payment Receipt",
+        "CREDIT_CARD_CREDIT": "Credit Card Credit",
+        "PURCHASE_ORDER": "Purchase Order"
+      }
+    },
+    {
+      "name": "ExportErrorCodeBridgeObject",
+      "location": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/contracts/objects/ExportErrorCodeBridgeObject.java",
+        "lines": "3-10",
+        "purpose": "Export error code enum definition"
+      },
+      "mappings": {
+        "EXCEPTION": "Exception",
+        "DUPLICATE": "Duplicate",
+        "TEMPORARY": "Temporary",
+        "ITEM_RECEIPT_DELETED": "Item Receipt Deleted"
+      }
+    },
+    {
+      "name": "Operator",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaUrlSuffixAssembler.java",
+        "lines": "96-105",
+        "purpose": "URL filter operator enum definition"
+      },
+      "mappings": {
+        "EQUAL": "eq",
+        "GT": "gt",
+        "LE": "le"
+      }
+    }
+  ]
+}
+

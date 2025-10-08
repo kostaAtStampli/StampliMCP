@@ -1,0 +1,82 @@
+{
+  "category": "fields",
+  "operations": [
+    {
+      "method": "getFieldSearchList",
+      "enumName": "GET_FIELD_SEARCH_LIST",
+      "summary": "Retrieves field search list for general fields.",
+      "category": "fields",
+      "pattern": "Follows getVendors import pattern",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "600-620",
+          "what": "Uses import helper for field retrieval"
+        }
+      ],
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "600-620",
+          "purpose": "Main method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    { "method": "getFieldSearchListForBilly", "enumName": "GET_FIELD_SEARCH_LIST_FOR_BILLY", "summary": "Retrieves field search list for Billy.", "category": "fields", "pattern": "Follows getVendors import pattern", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "625-645", "purpose": "Main method" }], "goldenTest": null },
+    {
+      "method": "getCustomFieldSearchList",
+      "enumName": "GET_CUSTOM_FIELD_SEARCH_LIST",
+      "summary": "Retrieves custom field definitions for Acumatica entities. Critical for understanding available custom fields.",
+      "category": "fields",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "650-670",
+          "what": "Retrieves custom field metadata"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaImportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+            "lines": "64-120"
+          },
+          "purpose": "Import helper pattern"
+        }
+      ],
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "650-670",
+          "purpose": "Main method - custom field retrieval"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    { "method": "getCostCodeSearchListRequest", "enumName": "GET_COST_CODE_SEARCH_LIST", "summary": "Retrieves cost code search list.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "675-695", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getCostTypeSearchListRequest", "enumName": "GET_COST_TYPE_SEARCH_LIST", "summary": "Retrieves cost type search list.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "700-720", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getJobNumberSearchListRequest", "enumName": "GET_JOB_NUMBER_SEARCH_LIST", "summary": "Retrieves job number search list.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "725-745", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getClassSearchList", "enumName": "GET_CLASS_SEARCH_LIST", "summary": "Retrieves class search list.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "750-770", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getCustomerSearchList", "enumName": "GET_CUSTOMER_SEARCH_LIST", "summary": "Retrieves customer search list.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "775-795", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getUnitSearchList", "enumName": "GET_UNIT_SEARCH_LIST", "summary": "Retrieves unit search list.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "800-820", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "getFilteringFieldsForField", "enumName": "GET_FILTERING_FIELDS_FOR_FIELD", "summary": "Retrieves filtering fields.", "category": "fields", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "825-845", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

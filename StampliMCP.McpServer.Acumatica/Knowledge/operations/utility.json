@@ -1,0 +1,8 @@
+{
+  "category": "utility",
+  "operations": [
+    { "method": "debuggingToolsExecuteRequest", "enumName": "DEBUGGING_TOOLS", "summary": "Executes debugging tools.", "category": "utility", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "1075-1095", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "testingRequest", "enumName": "TESTING_REQUEST", "summary": "Executes testing request.", "category": "utility", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "1100-1120", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

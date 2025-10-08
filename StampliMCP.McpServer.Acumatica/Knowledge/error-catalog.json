@@ -1,0 +1,132 @@
+{
+  "authenticationErrors": [
+    {
+      "type": "InvalidCredentials",
+      "message": "login failed, status: {code}",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/authentication/AuthenticationRestApiCaller.java",
+        "lines": "29-59"
+      },
+      "testAssertion": "Assert.assertTrue(response.getError().contains(\"login failed\"));"
+    },
+    {
+      "type": "SessionTimeout",
+      "message": "Failed to refresh connection",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaConnectionManager.java",
+        "lines": "60-80"
+      },
+      "testAssertion": "Assert.assertTrue(response.getError().contains(\"Failed to refresh\"));"
+    }
+  ],
+  
+  "operationErrors": {
+    "exportVendor": {
+      "validation": [
+        {
+          "field": "vendorName",
+          "condition": "missing",
+          "message": "vendorName is required",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+            "lines": "36"
+          },
+          "testAssertion": "Assert.assertNotNull(\"Expected error for missing vendorName\", response.getError());"
+        },
+        {
+          "field": "vendorName",
+          "condition": "tooLong",
+          "message": "vendorName exceeds maximum length of 60 characters",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+            "lines": "46"
+          },
+          "testAssertion": "Assert.assertTrue(response.getError().contains(\"exceeds maximum length\"));"
+        },
+        {
+          "field": "stampliurl",
+          "condition": "missing",
+          "message": "stampliurl is required",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+            "lines": "42"
+          },
+          "testAssertion": "Assert.assertTrue(response.getError().contains(\"stampliurl is required\"));"
+        },
+        {
+          "field": "vendorId",
+          "condition": "tooLong",
+          "message": "vendorId exceeds maximum length of 15 characters",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+            "lines": "52"
+          },
+          "testAssertion": "Assert.assertTrue(response.getError().contains(\"vendorId exceeds\"));"
+        }
+      ],
+      "businessLogic": [
+        {
+          "type": "linkMismatch",
+          "message": "Vendor already exists in Acumatica with a different Stampli link (expected: {expected}, found: {actual})",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+            "lines": "1016-1031"
+          },
+          "testExample": {
+            "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverCreateVendorITest.java",
+            "lines": "206-220",
+            "method": "test_exportWithDifferentLinkFails"
+          },
+          "testAssertion": "Assert.assertNotNull(\"Expected link mismatch error\", response.getError());"
+        },
+        {
+          "type": "duplicateSuccess",
+          "message": "No error - returns existing VendorID",
+          "description": "When vendor exists with same Stampli link, returns success with existing VendorID (idempotent behavior)",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+            "lines": "412-470"
+          },
+          "testExample": {
+            "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverCreateVendorITest.java",
+            "lines": "140-165",
+            "method": "test_idempotencyReturnsExistingVendor"
+          },
+          "testAssertion": "Assert.assertNull(\"Should not have error for duplicate\", response.getError()); Assert.assertNotNull(response.getResponse().getId());"
+        }
+      ]
+    }
+  },
+  
+  "apiErrors": [
+    {
+      "code": 400,
+      "message": "Bad Request - validation failed on Acumatica side",
+      "handling": "Parse error message from response body",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/RestApiCaller.java",
+        "lines": "124-160"
+      }
+    },
+    {
+      "code": 401,
+      "message": "Unauthorized - invalid credentials",
+      "handling": "Check connectionProperties are set correctly (hostname, user, password)",
+      "location": {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/authentication/AuthenticationRestApiCaller.java",
+        "lines": "29-59"
+      }
+    },
+    {
+      "code": 404,
+      "message": "Not Found - resource doesn't exist",
+      "handling": "Verify VendorID/entity exists in Acumatica"
+    },
+    {
+      "code": 500,
+      "message": "Internal Server Error",
+      "handling": "Check Acumatica server logs"
+    }
+  ]
+}
+
