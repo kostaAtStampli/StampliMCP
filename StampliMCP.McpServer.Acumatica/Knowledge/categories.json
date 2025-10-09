@@ -1,13 +1,14 @@
 {
+  "note": "47 operations in AgentOpCode.java (exportVendor is POC, not in AgentOpCode). Total with POC = 48.",
   "categories": [
-    { "name": "vendors", "count": 4, "description": "Vendor import/export/search operations" },
+    { "name": "vendors", "count": 3, "countWithPOC": 4, "description": "Vendor import/export/search operations" },
     { "name": "items", "count": 2, "description": "Item search and categories" },
     { "name": "purchaseOrders", "count": 6, "description": "PO operations and matching" },
     { "name": "payments", "count": 7, "description": "Bill payments, voids, credits" },
     { "name": "accounts", "count": 6, "description": "GL/bank/payable account searches" },
     { "name": "fields", "count": 10, "description": "Custom fields, cost codes, classes" },
     { "name": "admin", "count": 9, "description": "Connect, config, validation" },
-    { "name": "retrieval", "count": 4, "description": "Duplicate checks, PO matching" },
+    { "name": "retrieval", "count": 1, "description": "Duplicate checks" },
     { "name": "utility", "count": 2, "description": "Debug and test tools" },
     { "name": "other", "count": 1, "description": "General AP transaction export" }
   ]

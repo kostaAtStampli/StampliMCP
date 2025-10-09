@@ -188,7 +188,7 @@ public sealed class RichMetadataTests
         }
 
         // Assert
-        allOps.Should().HaveCountGreaterThanOrEqualTo(49, "should have all operations across all categories");
+        allOps.Should().HaveCountGreaterThanOrEqualTo(47, "should have all operations from AgentOpCode (47) plus POCs");
         allOps.Should().OnlyContain(op => op.ScanThese.Any(), "every operation must have at least one code pointer");
     }
 }

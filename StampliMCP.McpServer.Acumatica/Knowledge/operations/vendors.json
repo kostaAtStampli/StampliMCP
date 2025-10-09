@@ -1,9 +1,12 @@
 {
   "category": "vendors",
+  "note": "exportVendor is NOT in AgentOpCode - it's a POC method at AcumaticaDriver:949. Use with caution or add to AgentOpCode first.",
   "operations": [
     {
       "method": "exportVendor",
       "enumName": "EXPORT_VENDOR",
+      "isPOC": true,
+      "notInAgentOpCode": true,
       "summary": "Creates or updates vendor in Acumatica. Performs risk control check for duplicates and Stampli link mismatches. Returns idempotent success if vendor already exists with same link.",
       "category": "vendors",
       
