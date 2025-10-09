@@ -1,0 +1,563 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aiFeaturePrompt version="1.0">
+  <id>04_AI_FEATURE_TDD</id>
+  <title>AI Feature Implementation - Generic TDD Prompt</title>
+  
+  <purpose>
+    Universal template for implementing ANY ERP feature via TDD.
+    Forces MCP intelligence usage, pattern copying, test-first development.
+    Works for Acumatica, NetSuite, QuickBooks, or any of 15 ERPs.
+  </purpose>
+
+  <promptTemplate><![CDATA[
+TASK: Implement ERP Harness Feature via Test-Driven Development
+
+MANDATORY WORKFLOW - DO NOT SKIP STEPS:
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: QUERY MCP FOR INTELLIGENCE (REQUIRED BEFORE ANY CODE)
+═══════════════════════════════════════════════════════════════════════════════
+
+You MUST query the MCP server to understand operations before writing code.
+
+Query 1: List operations in category
+Tool: mcp_acumatica.list_operations
+Parameters: { "category": "{CATEGORY}" }
+Purpose: Discover what operations exist
+
+Query 2: Get operation details (for EACH operation you'll use)
+Tool: mcp_acumatica.get_operation  
+Parameters: { "methodName": "{OPERATION}" }
+Returns:
+- Summary of what operation does
+- Required fields with validation rules (maxLength, required, etc.)
+- Optional fields
+- Flow trace (service→driver→API layers)
+- Helper classes used
+- Code pointers (file paths + line ranges to scan)
+- Golden test examples
+- Error catalog reference
+
+Query 3: Get error catalog
+Tool: mcp_acumatica.get_errors
+Parameters: { "operation": "{OPERATION}" }
+Returns:
+- Validation errors with exact messages
+- Business logic errors
+- API errors
+- Test assertions to use
+
+Query 4: Get base classes (if using DTOs)
+Tool: mcp_acumatica.get_base_classes
+Returns:
+- FinSysBridgeBaseRequest/Response inheritance
+- Common fields all requests/responses have
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: SCAN LEGACY CODE (via MCP pointers)
+═══════════════════════════════════════════════════════════════════════════════
+
+MCP gives you file paths + line ranges. Read those files from legacy codebase:
+
+From Step 1, you got code pointers like:
+- "file": "finsys-drivers/acumatica/.../AcumaticaDriver.java", "lines": "102-118"
+- "file": "finsys-drivers/acumatica/.../CreateVendorHandler.java", "lines": "22-90"
+
+Scan these files to understand:
+- How the operation actually works
+- What helper classes do
+- What validations happen
+- How errors are constructed
+- Flow through layers
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: IDENTIFY NEEDED COMPONENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+Based on feature requirements and MCP intelligence:
+
+DTOs needed:
+- Does feature use existing SharedVendor, SharedAccount, etc.?
+- Or need new shared DTO? (copy existing pattern)
+- Does adapter need new ERP-specific DTO? (copy Acumatica pattern)
+
+Mappers needed:
+- Copy VendorMapper.kt pattern (GOLDEN)
+- 4 methods: toShared, fromShared, toLegacyMap, fromLegacyResponse
+
+Adapter methods needed:
+- Which capability interface methods will feature use?
+- Are they implemented or need implementation?
+- Copy getVendors/exportVendor pattern from AcumaticaAdapter
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: WRITE TEST FIRST (TDD RED PHASE)
+═══════════════════════════════════════════════════════════════════════════════
+
+Location: erp-harness-features-tests/src/test/kotlin/erpharness/features/{FeatureName}Test.kt
+
+Copy from GOLDEN EXAMPLE: BulkVendorImportTest.kt
+
+Pattern:
+```kotlin
+package erpharness.features
+
+import erpharness.common.TestCustomers
+import erpharness.common.shouldBeSuccess
+import erpharness.common.shouldBeFailure
+import erpharness.adapters.{erp}.{Erp}Adapter
+import erpharness.domain.shared.{DTO}
+import erpharness.features.shared.{FeatureName}
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
+
+class {FeatureName}Test : StringSpec({
+    
+    val adapter = {Erp}Adapter(TestCustomers.{erp}1)
+    val feature = {FeatureName}(adapter)
+    
+    "{describe success case}" {
+        // Arrange
+        val input = ...
+        
+        // Act
+        val result = feature.{method}(input).shouldBeSuccess()
+        
+        // Assert
+        result.{property} shouldBe {expected}
+    }
+    
+    "{describe validation error case}" {
+        val invalid = ...
+        
+        val failure = feature.{method}(invalid).shouldBeFailure()
+        
+        // Use exact error message from MCP error catalog
+        failure.error shouldContain "{error message from MCP}"
+    }
+    
+    "{describe edge case}" {
+        // Test boundary conditions, duplicates, etc.
+    }
+})
+```
+
+CRITICAL:
+- Use error messages from MCP (get_errors tool)
+- Use validation rules from MCP (get_operation tool)
+- Copy assertion patterns from golden tests
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5: RUN TEST - VERIFY FAILURE (TDD Requirement)
+═══════════════════════════════════════════════════════════════════════════════
+
+Command: ./gradlew :erp-harness-features-tests:test --tests {FeatureName}Test
+
+Expected: Test FAILS because feature doesn't exist yet
+
+If test passes → you skipped TDD, go back to step 4
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6: IMPLEMENT FEATURE (TDD GREEN PHASE)
+═══════════════════════════════════════════════════════════════════════════════
+
+Location: erp-harness/src/main/kotlin/erpharness/features/{scope}/{FeatureName}.kt
+
+Where {scope} is:
+- shared/ if feature works for ALL ERPs (uses capability interface)
+- cross-erp/ if feature orchestrates multiple ERPs
+- {erp}/ if feature is ERP-specific (uses concrete adapter)
+
+Pattern for SHARED features:
+```kotlin
+package erpharness.features.shared
+
+import erpharness.capabilities.{CapabilityInterface}
+import erpharness.domain.shared.{SharedDTO}
+import erpharness.common.ErpResult
+import erpharness.common.ErrorCode
+import kotlinx.coroutines.coroutineScope
+
+class {FeatureName}(private val {ops}: {CapabilityInterface}) {
+    
+    suspend fun {method}(input: {InputType}): ErpResult<{ResultType}> = coroutineScope {
+        
+        // Validate inputs
+        if (input.invalid) {
+            return@coroutineScope ErpResult.Failure(
+                "Validation error message",
+                ErrorCode.VALIDATION_ERROR
+            )
+        }
+        
+        // Use capability interface methods
+        val result = {ops}.{operation}(...)
+        
+        when (result) {
+            is ErpResult.Success -> {
+                // Process success
+                // Aggregate/transform as needed
+                ErpResult.Success({resultData})
+            }
+            is ErpResult.Failure -> result
+        }
+    }
+}
+
+data class {ResultType}(
+    // Result fields
+)
+```
+
+CRITICAL:
+- Use capability interface (VendorOperations, AccountOperations, etc.) NOT concrete adapter
+- Handle ErpResult properly (Success/Failure)
+- Use coroutines for parallel operations
+- Return standard ErrorCode values
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 7: RUN TEST - VERIFY SUCCESS (TDD Requirement)
+═══════════════════════════════════════════════════════════════════════════════
+
+Command: ./gradlew :erp-harness-features-tests:test --tests {FeatureName}Test
+
+Expected: Test PASSES
+
+If test still fails → debug and fix until green
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 8: CREATE JAVA FACADE (for AdminService integration)
+═══════════════════════════════════════════════════════════════════════════════
+
+Location: erp-harness/src/main/kotlin/erpharness/facades/{FeatureName}Facade.kt
+
+Pattern:
+```kotlin
+package erpharness.facades
+
+import erpharness.capabilities.{CapabilityInterface}
+import erpharness.features.shared.{FeatureName}
+import erpharness.common.FeatureGate
+import erpharness.common.FeatureDisabledException
+import kotlinx.coroutines.runBlocking
+
+@file:JvmName("{FeatureName}Facades")
+
+object {FeatureName}Facade {
+    
+    @JvmStatic
+    fun run(
+        request: {FeatureName}RequestJava,
+        {ops}: {CapabilityInterface},
+        featureGate: FeatureGate
+    ): {FeatureName}ResultJava {
+        
+        // Feature flag check
+        if (!featureGate.isEnabled("{feature-flag-name}")) {
+            throw FeatureDisabledException("{feature-flag-name}")
+        }
+        
+        // Convert Java POJOs to Kotlin
+        val input = convertFromJava(request)
+        
+        // Run feature
+        val result = runBlocking {
+            val feature = {FeatureName}({ops})
+            feature.{method}(input)
+        }
+        
+        // Convert Kotlin result to Java POJO
+        return convertToJava(result)
+    }
+}
+
+// Java POJO request (no Kotlin types exposed)
+data class {FeatureName}RequestJava(
+    // Fields that Java can construct
+)
+
+// Java POJO result (no Kotlin types exposed)
+data class {FeatureName}ResultJava(
+    val success: Boolean,
+    // Other fields
+    val errorMessage: String?
+)
+```
+
+CRITICAL:
+- Use @file:JvmName and @JvmStatic
+- Accept Java POJOs only (no Kotlin-specific types)
+- Return Java POJOs only
+- Feature flag check at entry
+- runBlocking for coroutine→Java bridge
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 9: CREATE/UPDATE ADAPTER METHODS (if needed)
+═══════════════════════════════════════════════════════════════════════════════
+
+If feature uses operations not yet implemented in adapter:
+
+Location: erp-harness/src/main/kotlin/erpharness/adapters/{erp}/{Erp}Adapter.kt
+
+Copy pattern from existing implemented methods (getVendors, exportVendor)
+
+Steps:
+1. Query MCP for operation details
+2. Build legacy request object
+3. Call agent.{operation}(request)
+4. Parse legacy response
+5. Map to shared DTO
+6. Return ErpResult
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 10: RECORD WIREMOCK STUBS (for hermetic testing)
+═══════════════════════════════════════════════════════════════════════════════
+
+Command: ./gradlew :erp-harness-features-tests:test --tests {FeatureName}Test -Derp.recording=RECORD
+
+What happens:
+- WireMock proxy captures HTTP calls to ERP
+- Generates JSON stubs in src/test/resources/wiremock/mappings/{erp}/
+- Commit these stubs to git
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 11: RUN HERMETIC TEST (verify no network dependency)
+═══════════════════════════════════════════════════════════════════════════════
+
+Command: ./gradlew :erp-harness-features-tests:test --tests {FeatureName}Test -Derp.recording=REPLAY
+
+Expected:
+- Test runs WITHOUT network
+- Uses WireMock stubs
+- Fast (<1 second)
+- Reliable (no flaky network issues)
+
+This is how CI will run tests.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 12: COMMIT & DOCUMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Files to commit:
+- Feature test: erp-harness-features-tests/.../
+{FeatureName}Test.kt
+- Feature implementation: erp-harness/.../features/{scope}/{FeatureName}.kt
+- Java facade: erp-harness/.../facades/{FeatureName}Facade.kt
+- Any new DTOs/mappers
+- WireMock stubs: src/test/resources/wiremock/mappings/{erp}/
+
+═══════════════════════════════════════════════════════════════════════════════
+YOUR SPECIFIC TASK
+═══════════════════════════════════════════════════════════════════════════════
+
+Feature Name: {FEATURE_NAME}
+
+Feature Description:
+{FEATURE_DESCRIPTION}
+
+Target ERP: {ERP_NAME}
+
+Operations Needed (best guess):
+{OPERATIONS_LIST}
+
+Capability Interfaces Needed:
+{INTERFACES_LIST}
+
+Expected Inputs:
+{INPUTS}
+
+Expected Outputs:
+{OUTPUTS}
+
+Error Cases to Handle:
+{ERROR_CASES}
+
+Feature Scope:
+[ ] Shared (works for all ERPs via interface)
+[ ] Cross-ERP (orchestrates multiple ERPs)
+[ ] ERP-specific (only for {ERP_NAME})
+
+Production Integration:
+[ ] Called from AdminService.java via facade
+[ ] Called from batch job
+[ ] Called from API endpoint
+[ ] Internal only (no external callers)
+
+═══════════════════════════════════════════════════════════════════════════════
+CONSTRAINTS & REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ MUST query MCP before writing ANY code
+✅ MUST write test FIRST (TDD red phase)
+✅ MUST copy golden patterns:
+   - Test pattern: BulkVendorImportTest.kt
+   - Feature pattern: BulkVendorImport.kt
+   - Facade pattern: BulkVendorImportFacade.kt
+   - Mapper pattern: VendorMapper.kt (if new DTOs needed)
+✅ MUST use capability interfaces (NOT concrete adapters) in shared features
+✅ MUST use standard Kotlin (no custom DSL)
+✅ MUST handle ErpResult<T> properly
+✅ MUST use exact error messages from MCP error catalog
+✅ MUST validate using rules from MCP (maxLength, required, etc.)
+✅ MUST create Java facade with @JvmStatic if AdminService integration needed
+✅ NO modifications to legacy Java code
+✅ NO value objects (plain String, Int, Boolean)
+✅ Sealed classes ONLY for state (Status, Type enums)
+
+═══════════════════════════════════════════════════════════════════════════════
+GOLDEN PATTERNS TO REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+Domain DTO:
+- Shared: erpharness/domain/shared/SharedVendor.kt (4 fields: externalId, name, email, phone)
+- ERP-specific: erpharness/domain/acumatica/AcumaticaVendor.kt (15 fields)
+
+Mapper (⭐ COPY THIS PATTERN):
+- erpharness/mappers/acumatica/VendorMapper.kt
+- 4 methods: toShared(), fromShared(), toLegacyMap(), fromLegacyResponse()
+
+Adapter:
+- erpharness/adapters/acumatica/AcumaticaAdapter.kt
+- Implements capability interfaces
+- Wraps FinSysSyncAgent
+- Methods: getVendors(), exportVendor() (copy these patterns)
+
+Feature (shared):
+- erpharness/features/shared/BulkVendorImport.kt
+- Takes capability interface parameter
+- Uses coroutines for parallel ops
+- Returns ErpResult<{CustomResultType}>
+
+Feature test:
+- erp-harness-features-tests/.../BulkVendorImportTest.kt
+- Standard Kotest StringSpec
+- Uses shouldBeSuccess(), shouldBeFailure()
+- Tests success, validation errors, edge cases
+
+Java facade:
+- erpharness/facades/BulkVendorImportFacade.kt
+- @file:JvmName, @JvmStatic
+- Accepts Java POJOs
+- Returns Java POJOs
+- Feature flag check at entry
+
+═══════════════════════════════════════════════════════════════════════════════
+DELIVERABLES (in this order)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. MCP Query Results (show what you learned from MCP)
+
+2. Test File: erp-harness-features-tests/src/test/kotlin/erpharness/features/{FeatureName}Test.kt
+   - At least 3 test cases (success, validation error, edge case)
+   - Uses exact error messages from MCP
+
+3. Feature Implementation: erp-harness/src/main/kotlin/erpharness/features/{scope}/{FeatureName}.kt
+   - Uses capability interface
+   - Handles ErpResult properly
+   - Includes result data class
+
+4. Java Facade: erp-harness/src/main/kotlin/erpharness/facades/{FeatureName}Facade.kt
+   - @JvmStatic entry point
+   - Java POJO request/result classes
+   - Feature flag integration
+
+5. Any New DTOs/Mappers (if needed)
+   - Copy golden patterns
+   - Document why new DTO was needed
+
+6. Test Execution Proof
+   - Show test failing (TDD red)
+   - Show test passing (TDD green)
+   - Show hermetic test (REPLAY mode)
+
+7. Integration Instructions
+   - How AdminService.java calls the facade
+   - Sample Java code
+
+═══════════════════════════════════════════════════════════════════════════════
+MCP INTELLIGENCE USAGE CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Before submitting, verify you:
+[ ] Queried mcp.list_operations for the category
+[ ] Queried mcp.get_operation for EACH operation used
+[ ] Queried mcp.get_errors for operations with validation
+[ ] Scanned code files via MCP pointers (show which files you read)
+[ ] Used exact error messages from MCP in validations
+[ ] Used exact field requirements from MCP (maxLength, required, etc.)
+[ ] Referenced golden test examples from MCP
+[ ] Copied patterns from golden examples
+
+If any checkbox is unchecked → you didn't follow the workflow properly
+
+═══════════════════════════════════════════════════════════════════════════════
+BEGIN IMPLEMENTATION NOW
+═══════════════════════════════════════════════════════════════════════════════
+  ]]></promptTemplate>
+
+  <exampleUsage>
+    <scenario>
+      <featureName>VendorDuplicateDetection</featureName>
+      <description>
+        Before exporting vendor, search existing vendors by name similarity (fuzzy match).
+        If match found with >80% similarity, return possible duplicates for user review.
+        Supports configurable similarity threshold and field weighting.
+      </description>
+      <erp>acumatica</erp>
+      <category>vendors</category>
+      <operations>getVendors</operations>
+      <interfaces>VendorOperations</interfaces>
+      <inputs>SharedVendor, similarityThreshold (default 0.8)</inputs>
+      <outputs>DuplicateCheckResult (noDuplicates | possibleDuplicates with matches | confirmed)</outputs>
+      <errorCases>Network failure, invalid threshold (must be 0.0-1.0), empty vendor name</errorCases>
+      <scope>shared</scope>
+      <integration>AdminService.java via VendorDuplicateDetectionFacade.check()</integration>
+    </scenario>
+  </exampleUsage>
+
+  <filledPromptExample><![CDATA[
+TASK: Implement ERP Harness Feature via Test-Driven Development
+
+Feature Name: VendorDuplicateDetection
+
+Feature Description:
+Before exporting vendor, search existing vendors by name similarity (fuzzy match).
+If match found with >80% similarity, return possible duplicates for user review.
+Supports configurable similarity threshold and field weighting.
+
+Target ERP: acumatica
+
+Operations Needed: getVendors
+
+Capability Interfaces Needed: VendorOperations
+
+Expected Inputs: SharedVendor, similarityThreshold (Double, default 0.8)
+
+Expected Outputs: DuplicateCheckResult sealed class
+- NoDuplicates
+- PossibleDuplicates(matches: List<DuplicateMatch>)
+
+Error Cases:
+- Invalid threshold (not in 0.0-1.0 range)
+- Empty vendor name (can't match on empty string)
+- Network failure from getVendors
+
+Feature Scope: [X] Shared (works for all ERPs via interface)
+
+Production Integration: [X] Called from AdminService.java via VendorDuplicateDetectionFacade.check()
+
+[AI would then execute the full workflow as specified above]
+  ]]></filledPromptExample>
+
+  <notes>
+    <note>This prompt works for ANY feature in ANY of 15 ERPs</note>
+    <note>Forces MCP usage (step 1-2 mandatory)</note>
+    <note>Forces TDD (test first, verify failure, then implement)</note>
+    <note>Forces pattern copying (references golden examples)</note>
+    <note>Generic - user fills in placeholders, AI executes</note>
+    <note>Enforces capability interface usage for shared features</note>
+    <note>Includes Java facade creation for AdminService integration</note>
+    <note>WireMock recording optional but encouraged</note>
+  </notes>
+</aiFeaturePrompt>
+
