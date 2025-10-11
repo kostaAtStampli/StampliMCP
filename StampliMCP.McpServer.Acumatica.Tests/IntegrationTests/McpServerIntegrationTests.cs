@@ -114,13 +114,14 @@ public sealed class McpServerIntegrationTests : IAsyncLifetime
         var tools = result?.GetProperty("tools").EnumerateArray().ToList();
 
         tools.Should().NotBeNullOrEmpty();
-        tools.Should().Contain(t => t.GetProperty("name").GetString() == "get_operation");
-        tools.Should().Contain(t => t.GetProperty("name").GetString() == "list_operations");
-        tools.Should().Contain(t => t.GetProperty("name").GetString() == "get_operation_flow");
+        tools.Should().Contain(t => t.GetProperty("name").GetString() == "get_operation_details");
+        tools.Should().Contain(t => t.GetProperty("name").GetString() == "implement_kotlin_feature");
+        tools.Should().Contain(t => t.GetProperty("name").GetString() == "list_categories");
+        tools.Should().Contain(t => t.GetProperty("name").GetString() == "search_operations");
     }
 
     [Fact]
-    public async Task Tool_GetOperation_Should_Return_Operation_Details()
+    public async Task Tool_GetOperationDetails_Should_Return_Operation_Details()
     {
         // Arrange
         await InitializeServer();
@@ -132,7 +133,7 @@ public sealed class McpServerIntegrationTests : IAsyncLifetime
             method = "tools/call",
             @params = new
             {
-                name = "get_operation",
+                name = "get_operation_details",
                 arguments = new
                 {
                     methodName = "exportVendor"
@@ -161,7 +162,7 @@ public sealed class McpServerIntegrationTests : IAsyncLifetime
         operationData.Should().ContainKey("scanThese");
     }
 
-    [Theory]
+    [Theory(Skip = "list_operations tool removed in Nuclear MCP 2025 refactor - use list_categories + get_operation_details instead")]
     [InlineData("vendors", 4)]
     [InlineData("items", 3)]
     [InlineData("purchaseOrders", 4)]

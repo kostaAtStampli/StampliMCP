@@ -100,6 +100,108 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
                 return config;
             }) ?? new { };
     }
+
+    public async Task<object> GetKotlinErrorPatternsAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-error-patterns",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var json = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "error-patterns-kotlin.json"), ct);
+                var patterns = JsonSerializer.Deserialize<object>(json) ?? new { };
+                logger.LogInformation("Loaded Kotlin error patterns");
+                return patterns;
+            }) ?? new { };
+    }
+
+    public async Task<object> GetKotlinIntegrationAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-integration",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var json = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "kotlin-integration.json"), ct);
+                var integration = JsonSerializer.Deserialize<object>(json) ?? new { };
+                logger.LogInformation("Loaded Kotlin integration strategy");
+                return integration;
+            }) ?? new { };
+    }
+
+    public async Task<object> GetKotlinMethodSignaturesAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-method-signatures",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var json = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "method-signatures.json"), ct);
+                var signatures = JsonSerializer.Deserialize<object>(json) ?? new { };
+                logger.LogInformation("Loaded Kotlin method signatures");
+                return signatures;
+            }) ?? new { };
+    }
+
+    public async Task<object> GetKotlinTestConfigAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-test-config",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var json = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "test-config-kotlin.json"), ct);
+                var config = JsonSerializer.Deserialize<object>(json) ?? new { };
+                logger.LogInformation("Loaded Kotlin test configuration");
+                return config;
+            }) ?? new { };
+    }
+
+    public async Task<string> GetKotlinGoldenPatternsAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-golden-patterns",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var content = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "GOLDEN_PATTERNS.md"), ct);
+                logger.LogInformation("Loaded Kotlin golden patterns");
+                return content;
+            }) ?? string.Empty;
+    }
+
+    public async Task<string> GetKotlinArchitectureAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-architecture",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var content = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "KOTLIN_ARCHITECTURE.md"), ct);
+                logger.LogInformation("Loaded Kotlin architecture guide");
+                return content;
+            }) ?? string.Empty;
+    }
+
+    public async Task<string> GetKotlinTddWorkflowAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-tdd-workflow",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var content = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "kotlin", "TDD_WORKFLOW.md"), ct);
+                logger.LogInformation("Loaded Kotlin TDD workflow");
+                return content;
+            }) ?? string.Empty;
+    }
 }
 
 file sealed record CategoriesFile(List<Category> Categories);

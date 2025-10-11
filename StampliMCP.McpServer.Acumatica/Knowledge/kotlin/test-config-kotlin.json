@@ -1,0 +1,81 @@
+{
+  "testEnvironment": {
+    "instance": {
+      "url": "http://63.32.187.185/StampliAcumaticaDB",
+      "username": "admin",
+      "password": "Password1",
+      "subsidiary": "StampliCompany",
+      "description": "Default Acumatica test environment with full dataset"
+    },
+    "availability": "Always available for testing",
+    "dataManagement": "Can create/delete test vendors, bills, etc.",
+    "isolation": "Use unique identifiers with timestamp to avoid conflicts"
+  },
+  "legacyTestSetupPattern": {
+    "javaCode": "private static final String BASE_URL = 'http://63.32.187.185/StampliAcumaticaDB'; private static final String USERNAME = 'admin'; private static final String PASSWORD = 'Password1'; private static final String SUBSIDIARY = 'StampliCompany'; private AcumaticaDriver driver; private Map<String, String> connectionProperties; @Before public void setUp() { driver = new AcumaticaDriver(); connectionProperties = new HashMap<>(); connectionProperties.put('hostname', BASE_URL); connectionProperties.put('user', USERNAME); connectionProperties.put('password', PASSWORD); }",
+    "location": "AcumaticaDriverITest.java:20-45"
+  },
+  "kotlinTestSetupPattern": {
+    "example": "class KotlinAcumaticaDriverTest { private lateinit var driver: KotlinAcumaticaDriver; private lateinit var connectionProperties: Map<String, String>; @BeforeEach fun setUp() { driver = KotlinAcumaticaDriver(); connectionProperties = mapOf('hostname' to 'http://63.32.187.185/StampliAcumaticaDB', 'user' to 'admin', 'password' to 'Password1') } }",
+    "requestBuilding": "val request = ExportVendorRequest().apply { subsidiary = 'StampliCompany'; dualDriverName = 'com.stampli.kotlin.driver.KotlinAcumaticaDriver'; this.connectionProperties = connectionProperties; finSysBridgeTransferredObject = FinSysBridgeTransferredObject() }"
+  },
+  "goldenTestExamples": {
+    "vendorExport": {
+      "file": "AcumaticaDriverCreateVendorITest.java",
+      "lines": "30-300",
+      "keyTests": [
+        {
+          "method": "test_createVendorSuccessfully",
+          "lines": "60-90",
+          "purpose": "Basic vendor creation - copy this pattern"
+        },
+        {
+          "method": "test_idempotencyReturnsExistingVendor",
+          "lines": "140-165",
+          "purpose": "Duplicate handling - vendor already exists with same link"
+        },
+        {
+          "method": "test_exportWithDifferentLinkFails",
+          "lines": "206-220",
+          "purpose": "Link mismatch error - vendor exists with different link"
+        },
+        {
+          "method": "test_missingStampliLinkReturnsError",
+          "lines": "250-265",
+          "purpose": "Validation error - required field missing"
+        }
+      ]
+    },
+    "vendorImport": {
+      "file": "AcumaticaDriverITest.java",
+      "lines": "28-60",
+      "keyTests": [
+        {
+          "method": "testGetVendors",
+          "lines": "28-60",
+          "purpose": "Import pattern with pagination"
+        }
+      ]
+    }
+  },
+  "commonAssertions": {
+    "javaSuccess": "Assert.assertNull('Unexpected error: ' + response.getError(), response.getError()); Assert.assertNotNull(response.getResponse());",
+    "javaError": "Assert.assertNotNull('Expected error', response.getError());",
+    "javaNotEmpty": "Assert.assertTrue(response.getResponse().size() > 0);",
+    "kotlinSuccess": "assertNull(response.error, 'Unexpected error: ${response.error}'); assertNotNull(response.response)",
+    "kotlinError": "assertNotNull(response.error); assertTrue(response.error.contains('expected message'))",
+    "kotlinNotEmpty": "assertTrue(response.response.size > 0)"
+  },
+  "testingStrategy": {
+    "phase1": "Test against live instance (63.32.187.185)",
+    "phase2": "Consider adding WireMock for hermetic testing later",
+    "cicd": "Tests run against test instance in CI/CD",
+    "dataCleanup": "Not required - test instance resets periodically"
+  },
+  "connectionConfigUsage": {
+    "decryption": "ConnectionConfig.decryptCredentials(credentials)",
+    "encryption": "ConnectionConfig.getEncryptCredentials(credentials)",
+    "fields": ["hostname", "user", "password", "subsidiary"],
+    "location": "server-commons/src/main/java/com/stampli/server/data/ConnectionConfig.java"
+  }
+}

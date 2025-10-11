@@ -1,0 +1,67 @@
+{
+  "integrationStrategy": {
+    "approach": "Implement IDualFinsysDriver interface",
+    "rationale": "Allows DriverEngine to instantiate KotlinAcumaticaDriver via reflection without any legacy code changes",
+    "className": "com.stampli.kotlin.driver.KotlinAcumaticaDriver",
+    "interface": "com.stampli.driver.IDualFinsysDriver",
+    "registration": {
+      "method": "Set dualDriverName in request",
+      "value": "com.stampli.kotlin.driver.KotlinAcumaticaDriver"
+    },
+    "scanThese": [
+      {
+        "file": "bridge/bridge-common/src/main/java/com/stampli/DriverEngine.java",
+        "lines": "invokeMethod() reflection logic",
+        "purpose": "Understand how DriverEngine instantiates drivers"
+      },
+      {
+        "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/IDualFinsysDriver.java",
+        "lines": "All method signatures",
+        "purpose": "Interface to implement"
+      }
+    ]
+  },
+  "authenticationStrategy": {
+    "approach": "Reuse existing AcumaticaAuthenticator",
+    "class": "com.stampli.driver.auth.AcumaticaAuthenticator",
+    "method": "authenticatedApiCall",
+    "pattern": "Wrap all API calls with login/logout session management",
+    "usage": "AcumaticaAuthenticator.authenticatedApiCall(request, apiCallerFactory, apiCaller::call)",
+    "sessionManagement": {
+      "type": "Login per request, logout after",
+      "cookies": ["ASPXAUTH", "ASP.NET_SessionId"],
+      "timeout": "10 minutes triggers refresh",
+      "pooling": false
+    }
+  },
+  "errorHandling": {
+    "pattern": "Response-based errors, not exceptions",
+    "success": {
+      "code": "response.responseCode = 200",
+      "data": "response.response = resultObject"
+    },
+    "failure": {
+      "code": "response.responseCode = 400 (optional)",
+      "message": "response.error = 'Error message string'"
+    },
+    "noExceptions": "Don't throw exceptions for business logic errors",
+    "examples": {
+      "validation": "response.error = 'vendorName is required'",
+      "apiError": "response.error = 'Acumatica returned 400: Bad Request'",
+      "duplicate": "response.error = 'Vendor already exists with different Stampli link'"
+    }
+  },
+  "delegationStrategy": {
+    "phase1": [
+      "exportVendor - Implement in Kotlin",
+      "getVendors - Implement in Kotlin",
+      "exportAPTransaction - Implement in Kotlin",
+      "getPaidBills - Implement in Kotlin",
+      "connectToCompany - Implement in Kotlin"
+    ],
+    "phase2": [
+      "Other 46 operations - Delegate to legacy AcumaticaDriver initially",
+      "Migrate incrementally as needed"
+    ]
+  }
+}

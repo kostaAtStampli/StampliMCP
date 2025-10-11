@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aiTddWorkflow version="2.0">
+  <id>AI_TDD_WORKFLOW_COMBINED</id>
+  <title>AI-Driven TDD Implementation Workflow</title>
+
+  <workflow><![CDATA[
+═══════════════════════════════════════════════════════════════════════
+DEVELOPER WORKFLOW: Feature Request → MCP Intelligence → TDD → Done
+═══════════════════════════════════════════════════════════════════════
+
+When developer receives: "Implement exportVendor for Acumatica in Kotlin"
+
+──────────────────────────────────────────────────────────────────────
+STEP 1: QUERY MCP FOR OPERATION INTELLIGENCE (MANDATORY)
+──────────────────────────────────────────────────────────────────────
+
+Query MCP for operation details:
+Tool: get_operation
+Parameters: { "methodName": "exportVendor" }
+
+Returns:
+{
+  "operation": "exportVendor",
+  "requiredFields": [
+    {"name": "vendorName", "maxLength": 60, "required": true},
+    {"name": "stampliLink", "required": true}
+  ],
+  "errors": [
+    {"field": "vendorName", "message": "vendorName is required"},
+    {"field": "vendorName", "message": "vendorName exceeds maximum length of 60 characters"},
+    {"field": "stampliLink", "message": "stampliurl is required"}
+  ],
+  "scanThese": [
+    {"file": "AcumaticaDriver.java", "lines": "386-398", "purpose": "Main method"},
+    {"file": "CreateVendorHandler.java", "lines": "22-90", "purpose": "Validation"}
+  ]
+}
+
+──────────────────────────────────────────────────────────────────────
+STEP 2: SCAN LEGACY CODE (Use MCP Pointers)
+──────────────────────────────────────────────────────────────────────
+
+Scan: C:\STAMPLI4\core\finsys-drivers\acumatica\CreateVendorHandler.java:22-90
+
+Find:
+- Validation pattern
+- Error messages
+- API call pattern
+- JSON structure
+
+──────────────────────────────────────────────────────────────────────
+STEP 3: WRITE TEST FIRST (TDD Red Phase)
+──────────────────────────────────────────────────────────────────────
+
+Create: kotlin-erp-harness/src/test/kotlin/.../KotlinAcumaticaDriverTest.kt
+
+@Test
+fun `exportVendor validates required vendorName`() {
+    val request = createRequest(vendorName = "")
+    val response = driver.exportVendor(request)
+
+    // Use EXACT error from MCP
+    assertEquals("vendorName is required", response.error)
+}
+
+@Test
+fun `exportVendor creates vendor successfully`() {
+    val request = createRequest(
+        vendorName = "Test Vendor ${System.currentTimeMillis()}"
+    )
+    val response = driver.exportVendor(request)
+
+    assertNull(response.error)
+    assertNotNull(response.response?.id)
+}
+
+RUN: ./gradlew :kotlin-erp-harness:test
+EXPECTED: FAIL (method not implemented)
+
+──────────────────────────────────────────────────────────────────────
+STEP 4: IMPLEMENT (TDD Green Phase)
+──────────────────────────────────────────────────────────────────────
+
+Create: kotlin-erp-harness/src/main/kotlin/.../KotlinAcumaticaDriver.kt
+
+override fun exportVendor(request: ExportVendorRequest): ExportResponse {
+    val response = ExportResponse()
+
+    // Validation from MCP
+    val vendorName = request.rawData?.get("vendorName")
+    if (vendorName.isNullOrBlank()) {
+        response.error = "vendorName is required" // EXACT from MCP
+        return response
+    }
+
+    // API call (ALWAYS use authenticator)
+    val result = AcumaticaAuthenticator.authenticatedApiCall(
+        request, apiCallerFactory
+    ) { apiCaller.call() }
+
+    // Handle response (NEVER throw)
+    if (!result.isSuccessful) {
+        response.error = "Acumatica returned ${result.responseCode}"
+        return response
+    }
+
+    response.response = parseVendorId(result.content)
+    return response
+}
+
+RUN: ./gradlew :kotlin-erp-harness:test
+EXPECTED: PASS
+
+──────────────────────────────────────────────────────────────────────
+STEP 5: VERIFY & DOCUMENT
+──────────────────────────────────────────────────────────────────────
+
+Task List for Review:
+✓ MCP queried for operation details
+✓ Legacy code scanned (CreateVendorHandler.java:22-90)
+✓ Test written with exact error messages
+✓ Test failed initially (TDD red phase)
+✓ Implementation uses AcumaticaAuthenticator
+✓ Error handling via response.error
+✓ Test passes (TDD green phase)
+
+═══════════════════════════════════════════════════════════════════════
+KEY RULES (ENFORCED)
+═══════════════════════════════════════════════════════════════════════
+
+1. ALWAYS query MCP first - get_operation
+2. Use EXACT error messages from MCP
+3. Scan ONLY files pointed by MCP
+4. Test MUST fail first (TDD)
+5. NEVER throw exceptions
+6. ALWAYS use AcumaticaAuthenticator
+7. Test with REAL instance (63.32.187.185)
+
+═══════════════════════════════════════════════════════════════════════
+COMMON OPERATIONS REFERENCE
+═══════════════════════════════════════════════════════════════════════
+
+exportVendor:
+- Required: vendorName, stampliLink
+- Max length: vendorName=60
+- Scan: CreateVendorHandler.java:22-90
+
+getVendors:
+- Pagination: 500 items/page
+- Max pages: delta=100, full=5000
+- Scan: AcumaticaImportHelper.java:64-120
+
+exportAPTransaction:
+- Required: vendorId, amount, invoiceNumber
+- Scan: ExportBillHandler.java:30-150
+
+═══════════════════════════════════════════════════════════════════════
+TEST INSTANCE
+═══════════════════════════════════════════════════════════════════════
+
+URL: http://63.32.187.185/StampliAcumaticaDB
+User: admin
+Password: Password1
+Company: StampliCompany
+  ]]></workflow>
+</aiTddWorkflow>

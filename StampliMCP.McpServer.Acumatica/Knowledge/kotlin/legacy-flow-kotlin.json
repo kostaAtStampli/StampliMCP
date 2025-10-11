@@ -1,0 +1,115 @@
+{
+  "exportVendorFlow": {
+    "completeFlowTrace": [
+      {
+        "step": 1,
+        "layer": "AdminService",
+        "class": "com.stampli.server.services.AdminService",
+        "method": "checkCredentials or similar",
+        "lines": "466-478"
+      },
+      {
+        "step": 2,
+        "layer": "FinSysAgentManager",
+        "class": "com.stampli.server.services.FinSysAgentManager",
+        "method": "getFinSysSyncAgent",
+        "what": "Instantiates BridgeSynchronizationAgent"
+      },
+      {
+        "step": 3,
+        "layer": "BridgeSynchronizationAgent",
+        "class": "com.stampli.synchronization.bridge.BridgeSynchronizationAgent",
+        "method": "exportVendor",
+        "lines": "514-521",
+        "what": "Builds ExportVendorRequest, creates TaskDTORequest"
+      },
+      {
+        "step": 4,
+        "layer": "DualBridgeSaaSRouter",
+        "class": "com.stampli.synchronization.bridge.DualBridgeSaaSRouter",
+        "method": "sendToTaskCreatorAndGetResponse",
+        "lines": "40-85",
+        "what": "Routes to SaaS mode (DriverEngine) or Bridge mode"
+      },
+      {
+        "step": 5,
+        "layer": "DriverEngine",
+        "class": "com.stampli.DriverEngine",
+        "method": "invokeBridgeCommand",
+        "what": "Uses reflection to call driver method",
+        "critical": "This is where Kotlin intercepts"
+      },
+      {
+        "step": 6,
+        "layer": "KOTLIN INTERCEPT POINT",
+        "class": "com.stampli.kotlin.driver.KotlinAcumaticaDriver",
+        "method": "exportVendor",
+        "what": "DriverEngine instantiates KotlinAcumaticaDriver via reflection",
+        "how": "request.dualDriverName = 'com.stampli.kotlin.driver.KotlinAcumaticaDriver'"
+      }
+    ],
+    "legacyFlowContinues": [
+      {
+        "step": 7,
+        "layer": "CreateVendorHandler",
+        "class": "com.stampli.driver.vendor.CreateVendorHandler",
+        "lines": "22-90",
+        "what": "Validates, builds JSON, makes API call",
+        "kotlinCanReuse": true
+      },
+      {
+        "step": 8,
+        "layer": "VendorPayloadMapper",
+        "class": "com.stampli.driver.vendor.VendorPayloadMapper",
+        "lines": "11-80",
+        "what": "Maps to Acumatica JSON format",
+        "kotlinCanReuse": true
+      },
+      {
+        "step": 9,
+        "layer": "AcumaticaAuthenticator",
+        "class": "com.stampli.driver.auth.AcumaticaAuthenticator",
+        "what": "Login-wrapper-logout pattern",
+        "kotlinMustReuse": true
+      },
+      {
+        "step": 10,
+        "layer": "RestApiCaller",
+        "class": "com.stampli.driver.api.RestApiCaller",
+        "lines": "48-120",
+        "what": "HTTP PUT to Acumatica API"
+      }
+    ]
+  },
+  "getVendorsFlow": {
+    "kotlinInterceptAt": "AcumaticaDriver.getVendors",
+    "legacyComponents": {
+      "AcumaticaImportHelper": {
+        "lines": "64-120",
+        "purpose": "Pagination logic",
+        "maxPages": "100 for delta, 5000 for full",
+        "pageSize": 500
+      },
+      "VendorResponseAssembler": {
+        "lines": "1-200",
+        "purpose": "Maps JSON to Java objects"
+      }
+    }
+  },
+  "reflectionMechanism": {
+    "DriverEngine.getDualDriver": {
+      "code": "Class driverClass = Class.forName(request.getDualDriverName()); return (IDualFinsysDriver) driverClass.newInstance();",
+      "requirement": "Kotlin class must have no-arg constructor"
+    },
+    "DriverEngine.invokeMethod": {
+      "code": "method = driver.getClass().getMethod(opCode.getMethodName(), parameterTypes); return method.invoke(driver, request);",
+      "requirement": "Method signatures must match exactly"
+    }
+  },
+  "criticalIntegrationPoints": {
+    "registration": "Set request.dualDriverName = 'com.stampli.kotlin.driver.KotlinAcumaticaDriver'",
+    "authentication": "Reuse AcumaticaAuthenticator.authenticatedApiCall()",
+    "apiCalling": "Reuse ApiCallerFactory and RestApiCaller",
+    "errorHandling": "Set response.error, don't throw exceptions"
+  }
+}

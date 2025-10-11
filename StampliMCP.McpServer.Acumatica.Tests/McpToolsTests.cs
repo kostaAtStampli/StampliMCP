@@ -16,6 +16,7 @@ public sealed class McpToolsTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         var builder = Host.CreateApplicationBuilder();
+        builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<KnowledgeService>();
         builder.Services.AddSingleton<SearchService>();
         _host = builder.Build();
@@ -25,43 +26,36 @@ public sealed class McpToolsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetOperation_ExportVendor_ShouldReturnFullDetails()
+    public async Task GetOperationDetails_ExportVendor_ShouldReturnFullDetails()
     {
         // Act
-        var result = await OperationTools.GetOperation(_knowledge, "exportVendor", CancellationToken.None);
+        var result = await OperationDetailsTool.GetOperationDetails("exportVendor", _knowledge, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
         var dict = result.GetType().GetProperties();
-        dict.Should().Contain(p => p.Name == "operation");
-        dict.Should().Contain(p => p.Name == "scanThese");
+        dict.Should().Contain(p => p.Name == "method");
+        dict.Should().Contain(p => p.Name == "scanFiles");
         dict.Should().Contain(p => p.Name == "goldenTest");
+        dict.Should().Contain(p => p.Name == "requiredFields");
+        dict.Should().Contain(p => p.Name == "errorPatterns");
     }
 
     [Fact]
-    public async Task ListOperations_NoCategory_ShouldReturnAll49Operations()
+    public async Task ImplementKotlinFeature_ShouldReturnWorkflow()
     {
         // Act
-        var result = await OperationTools.ListOperations(_knowledge, null, CancellationToken.None);
+        var result = await KotlinFeatureTool.ImplementKotlinFeature("Add vendor export");
 
         // Assert
         result.Should().NotBeNull();
         var dict = result.GetType().GetProperties();
-        dict.Should().Contain(p => p.Name == "total");
+        dict.Should().Contain(p => p.Name == "steps");
+        dict.Should().Contain(p => p.Name == "resources");
+        dict.Should().Contain(p => p.Name == "enforcement");
     }
 
-    [Fact]
-    public async Task ListOperations_VendorsCategory_ShouldReturn4Operations()
-    {
-        // Act
-        var result = await OperationTools.ListOperations(_knowledge, "vendors", CancellationToken.None);
-
-        // Assert
-        result.Should().NotBeNull();
-        var dict = result.GetType().GetProperties();
-        dict.Should().Contain(p => p.Name == "category");
-        dict.Should().Contain(p => p.Name == "operations");
-    }
+    // Note: ListOperations functionality removed - use search_operations or list_categories instead
 
     [Fact]
     public async Task ListCategories_ShouldReturn9Categories()

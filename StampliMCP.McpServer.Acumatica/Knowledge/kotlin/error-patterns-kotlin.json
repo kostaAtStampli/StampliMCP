@@ -1,0 +1,90 @@
+{
+  "errorHandlingPhilosophy": {
+    "principle": "Errors are data in response objects, not thrown exceptions",
+    "pattern": "response.setError(message) or response.error = message",
+    "noExceptions": "Don't throw exceptions for business logic errors",
+    "exceptionsOnlyFor": "Truly exceptional cases like network failures"
+  },
+  "responsePatterns": {
+    "success": {
+      "javaPattern": "response.setResponseCode(200); response.setResponse(data);",
+      "kotlinPattern": "response.responseCode = 200; response.response = data",
+      "errorField": "response.error must be null or empty"
+    },
+    "failure": {
+      "javaPattern": "response.setError('Error message'); response.setResponseCode(400);",
+      "kotlinPattern": "response.error = 'Error message'; response.responseCode = 400",
+      "responseField": "response.response can be null"
+    }
+  },
+  "validationErrors": {
+    "vendorName": {
+      "missing": "vendorName is required",
+      "tooLong": "vendorName exceeds maximum length of 60 characters",
+      "location": "CreateVendorHandler.java:36,46"
+    },
+    "stampliUrl": {
+      "missing": "stampliurl is required",
+      "location": "CreateVendorHandler.java:42"
+    },
+    "vendorId": {
+      "tooLong": "vendorId exceeds maximum length of 15 characters",
+      "location": "CreateVendorHandler.java:52"
+    }
+  },
+  "businessLogicErrors": {
+    "linkMismatch": {
+      "message": "Vendor already exists in Acumatica with a different Stampli link (expected: {expected}, found: {actual})",
+      "location": "AcumaticaDriver.java:1016-1031",
+      "testExample": "test_exportWithDifferentLinkFails"
+    },
+    "duplicateSuccess": {
+      "behavior": "Returns success with existing vendorId (idempotent)",
+      "noError": true,
+      "location": "AcumaticaDriver.java:412-470",
+      "testExample": "test_idempotencyReturnsExistingVendor"
+    }
+  },
+  "apiErrors": {
+    "400": {
+      "message": "Bad Request - validation failed on Acumatica side",
+      "handling": "Parse error message from response body",
+      "location": "RestApiCaller.java:124-160"
+    },
+    "401": {
+      "message": "Unauthorized - invalid credentials",
+      "handling": "Check connectionProperties (hostname, user, password)",
+      "location": "AuthenticationRestApiCaller.java:29-59"
+    },
+    "404": {
+      "message": "Not Found - resource doesn't exist",
+      "handling": "Verify entity exists in Acumatica"
+    },
+    "500": {
+      "message": "Internal Server Error",
+      "handling": "Check Acumatica server logs"
+    }
+  },
+  "authenticationErrors": {
+    "loginFailed": {
+      "message": "login failed, status: {code}",
+      "location": "AuthenticationRestApiCaller.java:29-59",
+      "testAssertion": "Assert.assertTrue(response.getError().contains('login failed'));"
+    },
+    "sessionTimeout": {
+      "message": "Failed to refresh connection",
+      "location": "AcumaticaConnectionManager.java:60-80",
+      "testAssertion": "Assert.assertTrue(response.getError().contains('Failed to refresh'));"
+    }
+  },
+  "kotlinErrorImplementation": {
+    "example": "fun exportVendor(request: ExportVendorRequest): ExportResponse { val response = ExportResponse(); if (vendorName.isBlank()) { response.error = 'vendorName is required'; return response } }",
+    "doNotThrow": "Never throw exceptions for validation or business errors",
+    "alwaysReturn": "Always return a response object with error field set"
+  },
+  "testAssertions": {
+    "successPattern": "assertNull(response.error, 'Unexpected error: ${response.error}'); assertNotNull(response.response)",
+    "errorPattern": "assertNotNull(response.error); assertTrue(response.error.contains('expected message'))",
+    "legacyPattern": "Assert.assertNull('Unexpected error: ' + response.getError(), response.getError());"
+  }
+}

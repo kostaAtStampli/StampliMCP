@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kotlinModule version="1.0">
+  <id>KOTLIN_MODULE_FOUNDATION</id>
+  <title>Kotlin ERP Harness Module Setup</title>
+
+  <preCheck><![CDATA[
+BEFORE YOU START:
+1. Verify you have access to C:\STAMPLI4\core
+2. Confirm Maven is installed: mvn --version
+3. Have IntelliJ IDEA with Kotlin plugin
+4. Test instance available: 63.32.187.185/StampliAcumaticaDB (admin/Password1)
+  ]]></preCheck>
+
+  <moduleStructure><![CDATA[
+═══════════════════════════════════════════════════════════════════════
+STEP 1: CREATE MODULE STRUCTURE
+═══════════════════════════════════════════════════════════════════════
+
+Location: C:\STAMPLI4\core\kotlin-erp-harness
+
+mkdir kotlin-erp-harness
+cd kotlin-erp-harness
+
+Create directories:
+src/
+├── main/
+│   ├── kotlin/
+│   │   └── com/stampli/kotlin/
+│   │       ├── driver/          # IDualFinsysDriver implementations
+│   │       ├── adapters/        # Legacy component wrappers
+│   │       └── validation/      # Shared validation logic
+│   └── resources/
+└── test/
+    ├── kotlin/
+    │   └── com/stampli/kotlin/driver/
+    └── resources/
+
+═══════════════════════════════════════════════════════════════════════
+STEP 2: CREATE POM.XML
+═══════════════════════════════════════════════════════════════════════
+
+File: kotlin-erp-harness/pom.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.stampli</groupId>
+        <artifactId>stampli</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kotlin-erp-harness</artifactId>
+    <packaging>jar</packaging>
+    <name>Kotlin ERP Harness</name>
+
+    <properties>
+        <kotlin.version>1.9.0</kotlin.version>
+        <kotlin.code.style>official</kotlin.code.style>
+    </properties>
+
+    <dependencies>
+        <!-- Kotlin -->
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+
+        <!-- Legacy Dependencies -->
+        <dependency>
+            <groupId>com.stampli</groupId>
+            <artifactId>server-commons</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.stampli</groupId>
+            <artifactId>finsys-drivers</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test-junit5</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <sourceDirectory>src/main/kotlin</sourceDirectory>
+        <testSourceDirectory>src/test/kotlin</testSourceDirectory>
+
+        <plugins>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <version>${kotlin.version}</version>
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <phase>compile</phase>
+                        <goals><goal>compile</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>test-compile</id>
+                        <phase>test-compile</phase>
+                        <goals><goal>test-compile</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+═══════════════════════════════════════════════════════════════════════
+STEP 3: ADD MODULE TO PARENT POM
+═══════════════════════════════════════════════════════════════════════
+
+File: C:\STAMPLI4\core\pom.xml
+
+Add to <modules> section:
+<module>kotlin-erp-harness</module>
+
+═══════════════════════════════════════════════════════════════════════
+STEP 4: CREATE BASE DRIVER SKELETON
+═══════════════════════════════════════════════════════════════════════
+
+File: src/main/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriver.kt
+
+package com.stampli.kotlin.driver
+
+import com.stampli.driver.IDualFinsysDriver
+import com.stampli.driver.acumatica.AcumaticaDriver
+import com.stampli.dto.*
+
+/**
+ * Kotlin implementation of Acumatica driver
+ * Implements IDualFinsysDriver for reflection instantiation by DriverEngine
+ */
+class KotlinAcumaticaDriver : IDualFinsysDriver {
+
+    // MUST have no-arg constructor for reflection
+    constructor()
+
+    // Legacy driver for delegation
+    private val legacyDriver = AcumaticaDriver()
+
+    // Delegate all operations initially
+    override fun exportVendor(request: ExportVendorRequest): ExportResponse {
+        return legacyDriver.exportVendor(request)
+    }
+
+    override fun getVendors(request: GetVendorsRequest): GetVendorsResponse {
+        return legacyDriver.getVendors(request)
+    }
+
+    // ... delegate all 51 methods initially
+}
+
+═══════════════════════════════════════════════════════════════════════
+STEP 5: VERIFY BUILD
+═══════════════════════════════════════════════════════════════════════
+
+cd C:\STAMPLI4\core
+mvn clean install -pl kotlin-erp-harness -am
+
+Expected: BUILD SUCCESS
+
+═══════════════════════════════════════════════════════════════════════
+KEY FILES TO CREATE
+═══════════════════════════════════════════════════════════════════════
+
+1. kotlin-erp-harness/pom.xml
+2. KotlinAcumaticaDriver.kt (skeleton)
+3. Update parent pom.xml
+
+═══════════════════════════════════════════════════════════════════════
+VALIDATION CHECKLIST
+═══════════════════════════════════════════════════════════════════════
+
+✓ Module compiles successfully
+✓ KotlinAcumaticaDriver implements IDualFinsysDriver
+✓ No-arg constructor present
+✓ All 51 methods defined (delegated initially)
+✓ Dependencies resolved
+  ]]></moduleStructure>
+</kotlinModule>

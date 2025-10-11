@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kotlinImplementation version="1.0">
+  <id>KOTLIN_TDD_IMPLEMENTATION</id>
+  <title>Implementing Features via Test-Driven Development</title>
+
+  <tddWorkflow><![CDATA[
+═══════════════════════════════════════════════════════════════════════
+TDD CYCLE: RED → GREEN → REFACTOR
+═══════════════════════════════════════════════════════════════════════
+
+1. Write test FIRST (must fail)
+2. Implement minimal code to pass
+3. Refactor if needed
+4. Never skip the RED phase!
+
+═══════════════════════════════════════════════════════════════════════
+EXAMPLE: IMPLEMENTING exportVendor
+═══════════════════════════════════════════════════════════════════════
+
+──────────────────────────────────────────────────────────────────────
+PHASE 1: WRITE TEST (RED)
+──────────────────────────────────────────────────────────────────────
+
+File: src/test/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriverTest.kt
+
+package com.stampli.kotlin.driver
+
+import com.stampli.dto.*
+import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.*
+
+class KotlinAcumaticaDriverTest {
+
+    private lateinit var driver: KotlinAcumaticaDriver
+    private lateinit var connectionProperties: Map<String, String>
+
+    @BeforeEach
+    fun setUp() {
+        driver = KotlinAcumaticaDriver()
+        connectionProperties = mapOf(
+            "hostname" to "http://63.32.187.185/StampliAcumaticaDB",
+            "user" to "admin",
+            "password" to "Password1"
+        )
+    }
+
+    @Test
+    fun `exportVendor creates vendor successfully`() {
+        // Arrange
+        val request = ExportVendorRequest().apply {
+            subsidiary = "StampliCompany"
+            dualDriverName = "com.stampli.kotlin.driver.KotlinAcumaticaDriver"
+            this.connectionProperties = this@KotlinAcumaticaDriverTest.connectionProperties
+            finSysBridgeTransferredObject = FinSysBridgeTransferredObject()
+
+            rawData = mapOf(
+                "vendorName" to "Test Vendor ${System.currentTimeMillis()}",
+                "vendorId" to "V${System.currentTimeMillis()}",
+                "stampliLink" to "https://app.stampli.com/link/test",
+                "email" to "vendor@test.com"
+            )
+        }
+
+        // Act
+        val response = driver.exportVendor(request)
+
+        // Assert
+        assertNull(response.error, "Unexpected error: ${response.error}")
+        assertNotNull(response.response)
+        assertNotNull(response.response.id)
+    }
+
+    @Test
+    fun `exportVendor validates required vendorName`() {
+        val request = createRequest(vendorName = "")
+        val response = driver.exportVendor(request)
+
+        assertNotNull(response.error)
+        assertEquals("vendorName is required", response.error)
+    }
+
+    @Test
+    fun `exportVendor validates vendorName length`() {
+        val request = createRequest(vendorName = "A".repeat(61))
+        val response = driver.exportVendor(request)
+
+        assertNotNull(response.error)
+        assertEquals("vendorName exceeds maximum length of 60 characters", response.error)
+    }
+
+    private fun createRequest(
+        vendorName: String = "Test Vendor",
+        stampliLink: String = "https://stampli.com/test"
+    ) = ExportVendorRequest().apply {
+        subsidiary = "StampliCompany"
+        dualDriverName = "com.stampli.kotlin.driver.KotlinAcumaticaDriver"
+        this.connectionProperties = this@KotlinAcumaticaDriverTest.connectionProperties
+        finSysBridgeTransferredObject = FinSysBridgeTransferredObject()
+        rawData = mapOf(
+            "vendorName" to vendorName,
+            "stampliLink" to stampliLink
+        )
+    }
+}
+
+RUN TEST: ./gradlew :kotlin-erp-harness:test --tests KotlinAcumaticaDriverTest
+
+EXPECTED: Tests FAIL (KotlinAcumaticaDriver doesn't implement yet)
+
+──────────────────────────────────────────────────────────────────────
+PHASE 2: IMPLEMENT (GREEN)
+──────────────────────────────────────────────────────────────────────
+
+File: src/main/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriver.kt
+
+package com.stampli.kotlin.driver
+
+import com.stampli.driver.IDualFinsysDriver
+import com.stampli.driver.acumatica.AcumaticaDriver
+import com.stampli.driver.auth.AcumaticaAuthenticator
+import com.stampli.driver.ApiCallerFactory
+import com.stampli.driver.acumatica.AcumaticaEndpoint
+import com.stampli.driver.acumatica.AcumaticaUrlSuffixAssembler
+import com.stampli.driver.acumatica.mapper.VendorPayloadMapper
+import com.stampli.dto.*
+
+class KotlinAcumaticaDriver : IDualFinsysDriver {
+
+    constructor()
+
+    private val legacyDriver = AcumaticaDriver()
+    private val apiCallerFactory = ApiCallerFactory()
+
+    override fun exportVendor(request: ExportVendorRequest): ExportResponse {
+        val response = ExportResponse()
+
+        // Get raw data
+        val rawData = request.rawData
+        if (rawData == null) {
+            response.error = "Missing vendor data"
+            return response
+        }
+
+        // Validation - vendorName required
+        val vendorName = rawData["vendorName"]
+        if (vendorName.isNullOrBlank()) {
+            response.error = "vendorName is required"
+            return response
+        }
+
+        // Validation - vendorName length
+        if (vendorName.length > 60) {
+            response.error = "vendorName exceeds maximum length of 60 characters"
+            return response
+        }
+
+        // Validation - stampliLink required
+        val stampliLink = rawData["stampliLink"]
+        if (stampliLink.isNullOrBlank()) {
+            response.error = "stampliurl is required"
+            return response
+        }
+
+        // Build JSON payload (reuse legacy mapper)
+        val jsonPayload = VendorPayloadMapper.mapToAcumaticaJson(
+            rawData, vendorName, stampliLink
+        )
+
+        // Create API caller
+        val apiCaller = apiCallerFactory.createPutRestApiCaller(
+            request,
+            AcumaticaEndpoint.VENDOR,
+            AcumaticaUrlSuffixAssembler(),
+            jsonPayload
+        )
+
+        // Make authenticated API call
+        val apiResponse = AcumaticaAuthenticator.authenticatedApiCall(
+            request,
+            apiCallerFactory
+        ) { apiCaller.call() }
+
+        // Handle response
+        if (!apiResponse.isSuccessful) {
+            response.error = "Acumatica returned ${apiResponse.responseCode}"
+            return response
+        }
+
+        // Extract vendor ID
+        val vendorId = extractVendorId(apiResponse.content)
+        response.response = CsvLinkBridgeObject().apply {
+            id = vendorId
+        }
+
+        return response
+    }
+
+    private fun extractVendorId(content: String): String {
+        // Parse JSON response to get vendor ID
+        val json = JSONObject(content)
+        return json.getString("VendorID")
+    }
+
+    // Delegate other methods
+    override fun getVendors(request: GetVendorsRequest): GetVendorsResponse {
+        return legacyDriver.getVendors(request)
+    }
+
+    // ... other 49 methods delegated
+}
+
+RUN TEST: ./gradlew :kotlin-erp-harness:test --tests KotlinAcumaticaDriverTest
+
+EXPECTED: Tests PASS
+
+──────────────────────────────────────────────────────────────────────
+PHASE 3: REFACTOR (OPTIONAL)
+──────────────────────────────────────────────────────────────────────
+
+Extract validation to separate class:
+
+class VendorValidator {
+    fun validate(rawData: Map<String, String>?): String? {
+        if (rawData == null) return "Missing vendor data"
+
+        val vendorName = rawData["vendorName"]
+        if (vendorName.isNullOrBlank()) return "vendorName is required"
+        if (vendorName.length > 60) return "vendorName exceeds maximum length of 60 characters"
+
+        val stampliLink = rawData["stampliLink"]
+        if (stampliLink.isNullOrBlank()) return "stampliurl is required"
+
+        return null // validation passed
+    }
+}
+
+═══════════════════════════════════════════════════════════════════════
+CRITICAL PATTERNS TO FOLLOW
+═══════════════════════════════════════════════════════════════════════
+
+1. AUTHENTICATION (Always reuse):
+   val result = AcumaticaAuthenticator.authenticatedApiCall(
+       request, apiCallerFactory
+   ) { apiCaller.call() }
+
+2. ERROR HANDLING (No exceptions):
+   if (error) {
+       response.error = "Error message"
+       return response
+   }
+
+3. REQUEST BUILDING:
+   ExportVendorRequest().apply {
+       subsidiary = "StampliCompany"
+       dualDriverName = "com.stampli.kotlin.driver.KotlinAcumaticaDriver"
+       connectionProperties = mapOf(...)
+   }
+
+4. JSON FORMAT (Acumatica):
+   {"VendorName": {"value": "Name"}}
+
+5. TEST DATA ISOLATION:
+   "Test Vendor ${System.currentTimeMillis()}"
+  ]]></tddWorkflow>
+</kotlinImplementation>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<aiFeaturePrompt version="3.0">
+  <id>AI_KOTLIN_TDD_PROMPT</id>
+  <title>Kotlin Feature Implementation via TDD</title>
+
+  <context><![CDATA[
+You're implementing a Kotlin module that intercepts legacy Java ERP calls.
+Target: com.stampli.kotlin.driver.KotlinAcumaticaDriver
+Interface: IDualFinsysDriver (51 methods)
+Test Instance: 63.32.187.185/StampliAcumaticaDB (admin/Password1)
+  ]]></context>
+
+  <workflow><![CDATA[
+═══════════════════════════════════════════════════════════════════════
+MANDATORY WORKFLOW: MCP → TEST → IMPLEMENT
+═══════════════════════════════════════════════════════════════════════
+
+──────────────────────────────────────────────────────────────────────
+1. QUERY MCP (REQUIRED)
+──────────────────────────────────────────────────────────────────────
+Tool: get_operation
+Parameters: { "methodName": "{OPERATION}" }
+
+Returns exact validation rules, error messages, and code locations.
+
+──────────────────────────────────────────────────────────────────────
+2. SCAN LEGACY (Use MCP pointers)
+──────────────────────────────────────────────────────────────────────
+Read: C:\STAMPLI4\core\{MCP_PROVIDED_PATH}
+
+Extract patterns for validation, API calls, JSON structure.
+
+──────────────────────────────────────────────────────────────────────
+3. WRITE TEST FIRST (Must fail)
+──────────────────────────────────────────────────────────────────────
+Location: kotlin-erp-harness/src/test/kotlin/.../KotlinAcumaticaDriverTest.kt
+
+@Test
+fun `{operation} validates {field}`() {
+    val request = createRequest({invalidData})
+    val response = driver.{operation}(request)
+
+    assertEquals("{EXACT_ERROR_FROM_MCP}", response.error)
+}
+
+RUN: ./gradlew :kotlin-erp-harness:test
+EXPECT: FAIL
+
+──────────────────────────────────────────────────────────────────────
+4. IMPLEMENT (Make test pass)
+──────────────────────────────────────────────────────────────────────
+Location: kotlin-erp-harness/src/main/kotlin/.../KotlinAcumaticaDriver.kt
+
+override fun {operation}(request: {Type}): {Response} {
+    val response = {Response}()
+
+    // Validation from MCP
+    if (invalid) {
+        response.error = "{EXACT_ERROR_FROM_MCP}"
+        return response
+    }
+
+    // ALWAYS authenticate
+    val result = AcumaticaAuthenticator.authenticatedApiCall(
+        request, apiCallerFactory
+    ) { apiCaller.call() }
+
+    // NEVER throw
+    if (!result.isSuccessful) {
+        response.error = "Acumatica returned ${result.responseCode}"
+        return response
+    }
+
+    response.response = data
+    return response
+}
+
+RUN: ./gradlew :kotlin-erp-harness:test
+EXPECT: PASS
+
+═══════════════════════════════════════════════════════════════════════
+CRITICAL PATTERNS
+═══════════════════════════════════════════════════════════════════════
+
+Authentication:
+AcumaticaAuthenticator.authenticatedApiCall(request, factory) { call() }
+
+Error Handling:
+response.error = "message" // NEVER throw
+
+JSON Format:
+{"field": {"value": "data"}}
+
+Request Building:
+ExportVendorRequest().apply {
+    dualDriverName = "com.stampli.kotlin.driver.KotlinAcumaticaDriver"
+    connectionProperties = mapOf("hostname" to "...", "user" to "...")
+}
+
+═══════════════════════════════════════════════════════════════════════
+TASK LIST FORMAT
+═══════════════════════════════════════════════════════════════════════
+
+Feature: {FEATURE_NAME}
+Operation: {OPERATION}
+
+Tasks Completed:
+✓ Queried MCP for {operation} details
+✓ Scanned {file}:{lines} for patterns
+✓ Wrote test with {n} assertions
+✓ Test failed (TDD red phase)
+✓ Implemented with authentication
+✓ Test passed (TDD green phase)
+
+Validation Rules Applied:
+- {field}: {rule} (max: {limit})
+- Error: "{exact_message}"
+
+Files Modified:
+- KotlinAcumaticaDriverTest.kt: Added {n} tests
+- KotlinAcumaticaDriver.kt: Implemented {operation}
+  ]]></workflow>
+</aiFeaturePrompt>
