@@ -4,17 +4,55 @@
 
 The MCP server runs locally via **stdio** (not HTTP). LLM clients communicate with it via stdin/stdout.
 
+## 🚀 Self-Contained Deployment (NEW)
+
+### Build Options
+
+#### Option A: Portable Build (Cross-Platform, ~31MB)
+Works from any OS, includes .NET runtime:
+```powershell
+# Windows
+./publish-portable.ps1 -Platforms "win-x64"
+
+# macOS Apple Silicon
+./publish-portable.ps1 -Platforms "osx-arm64"
+
+# macOS Intel
+./publish-portable.ps1 -Platforms "osx-x64"
+
+# All platforms
+./publish-portable.ps1
+```
+
+Output: `./publish/[platform]-portable/stampli-mcp-acumatica.exe`
+
+#### Option B: Native AOT Build (Platform-Specific, ~15MB)
+Fastest startup, smallest size, requires platform-specific build:
+```powershell
+# Windows (requires Visual Studio C++ tools)
+./publish-windows.ps1
+
+# macOS (must run on Mac)
+./publish-mac.sh Release osx-arm64  # Apple Silicon
+./publish-mac.sh Release osx-x64     # Intel
+```
+
 ---
 
 ## Option 1: Claude Desktop (Recommended)
 
 ### Step 1: Publish the MCP Server
 ```bash
+# Self-contained executable (NEW - Recommended)
+./publish-portable.ps1 -Platforms "win-x64"
+# Creates: ./publish/win-x64-portable/stampli-mcp-acumatica.exe
+
+# Or traditional publish
 cd StampliMCP.McpServer.Acumatica
 dotnet publish -c Release -o publish
 ```
 
-This creates: `publish/StampliMCP.McpServer.Acumatica.exe`
+This creates: `stampli-mcp-acumatica.exe` (31MB self-contained)
 
 ### Step 2: Configure Claude Desktop
 Open Claude Desktop config file:
