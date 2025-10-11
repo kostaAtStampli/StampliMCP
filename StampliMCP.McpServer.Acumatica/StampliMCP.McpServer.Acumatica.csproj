@@ -37,6 +37,8 @@
 
   <ItemGroup>
     <Content Include="Knowledge\**\*.json" CopyToOutputDirectory="Always" />
+    <Content Include="Knowledge\**\*.md" CopyToOutputDirectory="Always" />
+    <Content Include="Knowledge\**\*.xml" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
 </Project>
