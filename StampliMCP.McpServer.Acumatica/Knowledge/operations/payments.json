@@ -51,6 +51,23 @@
         "method": "PUT",
         "urlPattern": "https://{hostname}/entity/{apiVersion}/Check (or Payment based on type)"
       },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.exportBillPayment()",
+        "flow": [
+          "1. Build payment request with bill references",
+          "2. Kotlin intercepts at IDualFinsysDriver method",
+          "3. Validate payment account and amounts",
+          "4. Auth wrap with AcumaticaAuthenticator",
+          "5. POST to Payment/Check endpoint with release action"
+        ],
+        "reuseComponents": ["AcumaticaAuthenticator", "PaymentValidator", "BillPaymentMapper"],
+        "criticalPatterns": {
+          "partialPayments": "Handle partial payments and remaining balances",
+          "voidHandling": "Support void operations with message",
+          "errorHandling": "response.error = 'message', no exceptions"
+        }
+      },
       
       "scanThese": [
         {
@@ -96,6 +113,19 @@
         "method": "GET",
         "urlPattern": "https://{hostname}/entity/{apiVersion}/Bill?$filter=...",
         "pagination": true
+      },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.getPaidBills()",
+        "flow": [
+          "1. Query bills with Status='Paid'",
+          "2. Reuse AcumaticaImportHelper for pagination",
+          "3. Assemble payment details for reconciliation"
+        ],
+        "reuseComponents": ["AcumaticaImportHelper", "BillResponseAssembler"],
+        "criticalPatterns": {
+          "errorHandling": "response.error = 'message', no exceptions"
+        }
       },
       
       "scanThese": [

@@ -1,40 +1,44 @@
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using StampliMCP.McpServer.Acumatica.Services;
+using Xunit.Internal;
 
 namespace StampliMCP.McpServer.Acumatica.Tests;
 
 public sealed class KnowledgeServiceTests
 {
-    private readonly KnowledgeService _sut = new(NullLogger<KnowledgeService>.Instance);
+    private readonly KnowledgeService _sut = new(
+        NullLogger<KnowledgeService>.Instance,
+        new MemoryCache(new MemoryCacheOptions { SizeLimit = 100 }));
 
     [Fact]
     public async Task GetCategories_ShouldReturn10Categories()
     {
         // Act
-        var categories = await _sut.GetCategoriesAsync();
+        var categories = await _sut.GetCategoriesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         categories.Should().HaveCount(10);
-        categories.Select(c => c.Name).Should().Contain(new[] { "vendors", "items", "purchaseOrders", "other" });
+        categories.Select(c => c.Name).Should().Contain(["vendors", "items", "purchaseOrders", "other"]);
     }
 
     [Fact]
     public async Task GetOperationsByCategory_Vendors_ShouldReturn4Operations()
     {
         // Act
-        var operations = await _sut.GetOperationsByCategoryAsync("vendors");
+        var operations = await _sut.GetOperationsByCategoryAsync("vendors", TestContext.Current.CancellationToken);
 
         // Assert
         operations.Should().HaveCount(4);
-        operations.Select(o => o.Method).Should().Contain(new[] { "exportVendor", "getVendors" });
+        operations.Select(o => o.Method).Should().Contain(["exportVendor", "getVendors"]);
     }
 
     [Fact]
     public async Task FindOperation_ExportVendor_ShouldReturnOperationWithCodePointers()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -55,7 +59,7 @@ public sealed class KnowledgeServiceTests
     public async Task FindOperation_ValidMethods_ShouldReturnOperations(string methodName)
     {
         // Act
-        var operation = await _sut.FindOperationAsync(methodName);
+        var operation = await _sut.FindOperationAsync(methodName, TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -67,18 +71,18 @@ public sealed class KnowledgeServiceTests
     public async Task GetEnums_ShouldReturn6EnumTypes()
     {
         // Act
-        var enums = await _sut.GetEnumsAsync();
+        var enums = await _sut.GetEnumsAsync(TestContext.Current.CancellationToken);
 
         // Assert
         enums.Should().HaveCount(6);
-        enums.Select(e => e.Name).Should().Contain(new[] { "VendorStatus", "AcumaticaItemType", "TransactionType" });
+        enums.Select(e => e.Name).Should().Contain(["VendorStatus", "AcumaticaItemType", "TransactionType"]);
     }
 
     [Fact]
     public async Task GetTestConfig_ShouldReturnConfiguration()
     {
         // Act
-        var config = await _sut.GetTestConfigAsync();
+        var config = await _sut.GetTestConfigAsync(TestContext.Current.CancellationToken);
 
         // Assert
         config.Should().NotBeNull();

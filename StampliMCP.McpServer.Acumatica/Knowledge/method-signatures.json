@@ -1,0 +1,369 @@
+{
+  "IDualFinsysDriver": {
+    "interface": "com.stampli.driver.IDualFinsysDriver",
+    "location": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/IDualFinsysDriver.java",
+    "kotlinImplementation": {
+      "className": "com.stampli.kotlin.driver.KotlinAcumaticaDriver",
+      "constructor": "Must have no-arg constructor for reflection",
+      "implements": "IDualFinsysDriver",
+      "allMethodsMustMatchExactly": true
+    },
+    "completeMethodList": [
+      {
+        "signature": "GetVendorsResponse getVendors(GetVendorsRequest request)",
+        "category": "vendors",
+        "phase": "1",
+        "implement": true
+      },
+      {
+        "signature": "ExportResponse exportVendor(ExportVendorRequest request)",
+        "category": "vendors",
+        "phase": "1",
+        "implement": true
+      },
+      {
+        "signature": "CsvLinkBridgeObject getMatchingVendorByStampliLink(RetrieveVendorByLinkRequest request)",
+        "category": "vendors",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "CsvLinkBridgeObject getDuplicateVendorById(RetrieveVendorByIdRequest request)",
+        "category": "vendors",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPaymentVendorsResponse getVendorPaymentData(GetPaymentVendorsRequest request)",
+        "category": "vendors",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetVendorCreditSearchListResponse getVendorCreditSearchList(GetVendorCreditSearchListRequest request)",
+        "category": "vendors",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPaidBillsResponse getPaidBills(GetPaidBillsRequest request)",
+        "category": "payments",
+        "phase": "1",
+        "implement": true
+      },
+      {
+        "signature": "ExportResponse exportBillPayment(ExportBillPaymentRequest request)",
+        "category": "payments",
+        "phase": "1",
+        "implement": true
+      },
+      {
+        "signature": "VoidPaymentResponse voidPayment(VoidPaymentRequest request)",
+        "category": "payments",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "VoidPaymentWithMessageResponse voidPayment(VoidPaymentWithMessageRequest request)",
+        "category": "payments",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "RetrieveBillPaymentsResponse retrieveBillPayments(RetrieveBillPaymentsRequest request)",
+        "category": "payments",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "RetrieveInvoicesResponse retrieveBillsByInvoicesInPayment(RetrieveBillsRequest request)",
+        "category": "payments",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "RetrieveInvoicesResponse retrieveCredits(RetrieveCreditsRequest request)",
+        "category": "payments",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "RetrieveInvoicesResponse retrievePrepayments(RetrievePrepaymentsRequest request)",
+        "category": "payments",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "ExportResponse exportAPTransaction(ExportRequest request)",
+        "category": "transactions",
+        "phase": "1",
+        "implement": true
+      },
+      {
+        "signature": "RetrieveInvoicesResponse retrieveInvoiceByReferenceId(RetrieveInvoiceByReferenceNumberRequest request)",
+        "category": "transactions",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "CheckDuplicationsResponse checkDuplications(CheckDuplicationsRequest request)",
+        "category": "transactions",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetAccountSearchListResponse getAccountSearchList(GetAccountSearchListRequest request)",
+        "category": "accounts",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPaymentAccountSearchListResponse getPaymentAccountSearchList(GetPaymentAccountSearchListRequest request)",
+        "category": "accounts",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPayableAccountSearchListResponse getPayableAccountSearchList(GetPayableAccountSearchListRequest request)",
+        "category": "accounts",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetBankAccountSearchListResponse getBankAccountSearchList(GetBankAccountSearchListRequest request)",
+        "category": "accounts",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetDiscountAccountSearchListResponse getDiscountAccounts(GetDiscountAccountSearchListRequest request)",
+        "category": "accounts",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetItemSearchListResponse getItemSearchList(GetItemSearchListRequest request)",
+        "category": "items",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetUnitSearchListResponse getUnitSearchList(GetUnitSearchListRequest request)",
+        "category": "items",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetItemCategoriesSearchListResponse getItemCategoriesSearchList(GetItemCategoriesSearchListRequest request)",
+        "category": "items",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "ExportResponse exportPurchaseOrder(ExportPORequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPurchaseOrderSearchListResponse getPurchaseOrderSearchList(GetPurchaseOrderSearchListRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetItemsListsPerPOResponse getItemsListsPerPO(GetItemsListsPerPORequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "CsvLinkBridgeObject getMatchingPoByStampliLink(RetrievePoByLinkRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "CsvLinkBridgeObject getDuplicatePoByParams(RetrievePoByParamsRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPoDataBridgeResponse getPoDataForPoMatching(GetPoDataBridgeRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPoDataForOpenAndClosedBridgeResponse getPoMatchingDataWithClosedPOs(GetPODataForPoMatchingWithClosedPosRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetPoDataForVendorsBridgeResponse getPoMatchingDataForVendors(GetPoDataForVendorsBridgeRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetRiskControlPurchaseOrderIgnoreListResponse getRiskControlPurchaseOrderIgnoreList(GetRiskControlPurchaseOrderIgnoreListRequest request)",
+        "category": "purchaseOrders",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "FinSysBridgeBaseResponse getFieldSearchList(GetGeneralFieldSearchListRequest request)",
+        "category": "fields",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetGeneralFieldSearchListResponse getCustomFieldSearchList(GetCustomFieldSearchListRequest request)",
+        "category": "fields",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetFieldSearchListForBillyResponse getFieldSearchListForBilly(GetFieldSearchListForBillyRequest request)",
+        "category": "fields",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetClassSearchListResponse getClassSearchList(GetClassSearchListRequest request)",
+        "category": "other",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetCustomerSearchListResponse getCustomerSearchList(GetCustomerSearchListRequest request)",
+        "category": "other",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetGLCategoriesSearchListResponse getGLCategoriesSearchList(GetGLCategoriesSearchListRequest request)",
+        "category": "other",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "ConnectToCompanyResponse connectToCompany(ConnectToCompanyRequest request)",
+        "category": "admin",
+        "phase": "1",
+        "implement": true
+      },
+      {
+        "signature": "GetCompaniesResponse getCompanies(GetCompaniesRequest request)",
+        "category": "admin",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "GetExtensionVersionResponse getExtensionVersion(GetExtensionVersionRequest request)",
+        "category": "admin",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "UpdateExtensionVersionResponse updateExtensionVersion(UpdateExtensionVersionRequest request)",
+        "category": "admin",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "DebuggingToolsResponse debuggingToolsExecuteRequest(DebuggingToolsRequest request)",
+        "category": "admin",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "boolean isDuplicatePaymentReceipt(APTransactionHeaders currBill, ApTransaction apTransaction)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "FailedExportResponse checkPossibleFailedBillExport(ExportRequest request, APTransactionHeaders currBill, boolean isSameLink)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "FailedExportResponse checkPossibleFailedPaymentExport(ExportBillPaymentRequest request, PaymentObject paymentFoundInFinsys, boolean isSameLink)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "boolean isDuplicateInvoice(APTransactionHeaders currBill, ApTransaction apTransaction)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "boolean isExportInvoiceAndPaymentTogether(ExportRequest exportRequest)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "boolean isSamePaymentAccount(String paymentAccount1, String paymentAccount2)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      },
+      {
+        "signature": "Map<String, Object> buildCustomerData(ApTransaction apTransaction)",
+        "category": "utility",
+        "phase": "2",
+        "delegate": true
+      }
+    ],
+    "statistics": {
+      "total": 51,
+      "phase1_implement": 6,
+      "phase2_delegate": 45,
+      "byCategory": {
+        "vendors": 6,
+        "payments": 8,
+        "transactions": 3,
+        "accounts": 5,
+        "items": 3,
+        "purchaseOrders": 9,
+        "fields": 3,
+        "other": 3,
+        "admin": 5,
+        "utility": 6
+      }
+    }
+  },
+  "bridgeSynchronizationAgentSignatures": {
+    "purpose": "These are the high-level service methods that call into DriverEngine",
+    "location": "web/server-services/src/main/java/com/stampli/synchronization/bridge/BridgeSynchronizationAgent.java",
+    "keyMethods": {
+      "exportVendor": "public CsvLink exportVendor(LinkedHashMap<String, String> data, ExportExtraInfoBase exportExtraInfo, ConnectionConfig connectionConfig, AgentExportOptions exportOptions) throws SynchronizationAgentException",
+      "getVendors": "public List<CsvVendor> getVendors(ConnectionConfig connectionConfig, Map<String, List<String>> filteringFieldsData, boolean importDeltaOnly) throws SynchronizationAgentException",
+      "exportBillPayment": "public CsvLink exportBillPayment(Map<String, Object> data, ConnectionConfig connectionConfig) throws SynchronizationAgentException",
+      "exportAPTransaction": "public CsvLink exportAPTransaction(ApTransaction apTransaction, ExportExtraInfoBase exportExtraInfo, ConnectionConfig connectionConfig, AgentExportOptions exportOptions) throws SynchronizationAgentException"
+    }
+  },
+  "driverEngineReflection": {
+    "purpose": "This is how DriverEngine instantiates and calls the Kotlin driver",
+    "location": "bridge/bridge-common/src/main/java/com/stampli/DriverEngine.java",
+    "mechanism": {
+      "invokeBridgeCommand": "public static FinSysBridgeBaseResponse invokeBridgeCommand(AgentOpCode opCode, FinSysBridgeBaseRequest request)",
+      "getDualDriver": "private static IDualFinsysDriver getDualDriver(FinSysBridgeBaseRequest request)",
+      "instantiation": "Class.forName(request.getDualDriverName()).newInstance()",
+      "methodInvocation": "method.invoke(driverInstance, request)"
+    },
+    "requirements": [
+      "Kotlin class must have no-arg constructor",
+      "Must be in classpath",
+      "Must implement IDualFinsysDriver",
+      "Method signatures must match exactly"
+    ]
+  }
+}

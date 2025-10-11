@@ -1,6 +1,8 @@
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using StampliMCP.McpServer.Acumatica.Services;
+using Xunit.Internal;
 
 namespace StampliMCP.McpServer.Acumatica.Tests;
 
@@ -9,13 +11,15 @@ namespace StampliMCP.McpServer.Acumatica.Tests;
 /// </summary>
 public sealed class RichMetadataTests
 {
-    private readonly KnowledgeService _sut = new(NullLogger<KnowledgeService>.Instance);
+    private readonly KnowledgeService _sut = new(
+        NullLogger<KnowledgeService>.Instance,
+        new MemoryCache(new MemoryCacheOptions { SizeLimit = 100 }));
 
     [Fact]
     public async Task ExportVendor_ShouldHave_FullFlowTrace()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -31,7 +35,7 @@ public sealed class RichMetadataTests
     public async Task ExportVendor_ShouldHave_OptionalFields()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -43,7 +47,7 @@ public sealed class RichMetadataTests
     public async Task ExportVendor_ShouldHave_DtoLocations()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -57,7 +61,7 @@ public sealed class RichMetadataTests
     public async Task ExportVendor_ShouldHave_StructuredHelpers()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -65,7 +69,7 @@ public sealed class RichMetadataTests
         operation.Helpers.Should().Contain(h => h.Class == "CreateVendorHandler");
         operation.Helpers.Should().Contain(h => h.Class == "VendorPayloadMapper");
         operation.Helpers.Should().Contain(h => h.Class == "AcumaticaAuthenticator");
-        
+
         var handler = operation.Helpers.First(h => h.Class == "CreateVendorHandler");
         handler.Location.Should().NotBeNull();
         handler.Location.File.Should().Contain("CreateVendorHandler.java");
@@ -76,7 +80,7 @@ public sealed class RichMetadataTests
     public async Task ExportVendor_ShouldHave_ApiEndpointMetadata()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -91,7 +95,7 @@ public sealed class RichMetadataTests
     public async Task ExportVendor_ShouldHave_ErrorCatalogReference()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -102,7 +106,7 @@ public sealed class RichMetadataTests
     public async Task ExportVendor_GoldenTest_ShouldHave_KeyTests()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("exportVendor");
+        var operation = await _sut.FindOperationAsync("exportVendor", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -117,7 +121,7 @@ public sealed class RichMetadataTests
     public async Task GetVendors_ShouldHave_FullMetadata()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("getVendors");
+        var operation = await _sut.FindOperationAsync("getVendors", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -134,7 +138,7 @@ public sealed class RichMetadataTests
     public async Task GetItemSearchList_ShouldHave_DualEndpointPattern()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("getItemSearchList");
+        var operation = await _sut.FindOperationAsync("getItemSearchList", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -142,14 +146,14 @@ public sealed class RichMetadataTests
         operation.Helpers.Should().Contain(h => h.Class == "StockItemResponseAssembler");
         operation.Helpers.Should().Contain(h => h.Class == "NonStockItemResponseAssembler");
         operation.ApiEndpoint.Should().NotBeNull();
-        operation.ApiEndpoint!.Entities.Should().Contain(new[] { "StockItem", "NonStockItem" });
+        operation.ApiEndpoint!.Entities.Should().Contain(["StockItem", "NonStockItem"]);
     }
 
     [Fact]
     public async Task ConnectToCompany_ShouldHave_RichMetadata()
     {
         // Act
-        var operation = await _sut.FindOperationAsync("connectToCompany");
+        var operation = await _sut.FindOperationAsync("connectToCompany", TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -166,7 +170,7 @@ public sealed class RichMetadataTests
     public async Task SimpleOperations_ShouldHave_PatternReference(string methodName)
     {
         // Act
-        var operation = await _sut.FindOperationAsync(methodName);
+        var operation = await _sut.FindOperationAsync(methodName, TestContext.Current.CancellationToken);
 
         // Assert
         operation.Should().NotBeNull();
@@ -178,12 +182,12 @@ public sealed class RichMetadataTests
     public async Task AllOperations_ShouldHave_AtLeastOneScanPointer()
     {
         // Act
-        var categories = await _sut.GetCategoriesAsync();
+        var categories = await _sut.GetCategoriesAsync(TestContext.Current.CancellationToken);
         var allOps = new List<Models.Operation>();
-        
+
         foreach (var category in categories)
         {
-            var ops = await _sut.GetOperationsByCategoryAsync(category.Name);
+            var ops = await _sut.GetOperationsByCategoryAsync(category.Name, TestContext.Current.CancellationToken);
             allOps.AddRange(ops);
         }
 

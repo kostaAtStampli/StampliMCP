@@ -1,0 +1,196 @@
+{
+  "overallStrategy": {
+    "approach": "Implement IDualFinsysDriver interface in Kotlin",
+    "rationale": "Allows DriverEngine to instantiate KotlinAcumaticaDriver via reflection without any legacy code changes",
+    "className": "com.stampli.kotlin.driver.KotlinAcumaticaDriver",
+    "interface": "com.stampli.driver.IDualFinsysDriver",
+    "registration": {
+      "method": "Set dualDriverName in request",
+      "value": "com.stampli.kotlin.driver.KotlinAcumaticaDriver",
+      "location": "request.setDualDriverName(\"com.stampli.kotlin.driver.KotlinAcumaticaDriver\")"
+    }
+  },
+
+  "implementationPhases": {
+    "phase1": {
+      "name": "Core Methods - Implement in Kotlin",
+      "timeline": "Sprint 1-2",
+      "methods": [
+        {
+          "method": "exportVendor",
+          "reason": "Most common operation, well-documented",
+          "complexity": "Medium",
+          "dependencies": ["AcumaticaAuthenticator", "VendorPayloadMapper"]
+        },
+        {
+          "method": "getVendors",
+          "reason": "Import pattern, pagination example",
+          "complexity": "Medium",
+          "dependencies": ["AcumaticaImportHelper", "VendorResponseAssembler"]
+        },
+        {
+          "method": "exportAPTransaction",
+          "reason": "Core billing functionality",
+          "complexity": "High",
+          "dependencies": ["AcumaticaExportHelper", "BillSerializer"]
+        },
+        {
+          "method": "getPaidBills",
+          "reason": "Payment reconciliation",
+          "complexity": "Medium",
+          "dependencies": ["AcumaticaImportHelper"]
+        },
+        {
+          "method": "exportBillPayment",
+          "reason": "Payment processing",
+          "complexity": "High",
+          "dependencies": ["PaymentSerializer", "AcumaticaExportHelper"]
+        },
+        {
+          "method": "connectToCompany",
+          "reason": "Authentication and setup",
+          "complexity": "Low",
+          "dependencies": ["AcumaticaAuthenticator"]
+        }
+      ]
+    },
+    "phase2": {
+      "name": "Delegate Methods - Forward to Legacy",
+      "timeline": "As needed",
+      "approach": "Delegate remaining 45 methods to legacy AcumaticaDriver",
+      "implementation": "private val legacyDriver = AcumaticaDriver()\noverride fun getItemSearchList(request: GetItemSearchListRequest) = legacyDriver.getItemSearchList(request)",
+      "methods": "All 45 methods not in Phase 1 (see method-signatures.json)"
+    },
+    "phase3": {
+      "name": "Incremental Migration",
+      "timeline": "Ongoing",
+      "approach": "Migrate delegated methods to Kotlin as needed",
+      "priorities": [
+        "Methods with bugs in legacy implementation",
+        "Methods requiring performance improvements",
+        "Methods needing new features"
+      ]
+    }
+  },
+
+  "authenticationStrategy": {
+    "approach": "Reuse existing AcumaticaAuthenticator",
+    "class": "com.stampli.driver.auth.AcumaticaAuthenticator",
+    "method": "authenticatedApiCall",
+    "pattern": "Wrap all API calls with login/logout session management",
+    "usage": "AcumaticaAuthenticator.authenticatedApiCall(request, apiCallerFactory) { apiCaller.call() }",
+    "sessionManagement": {
+      "type": "Login per request, logout after",
+      "cookies": ["ASPXAUTH", "ASP.NET_SessionId"],
+      "timeout": "10 minutes triggers refresh",
+      "pooling": false
+    }
+  },
+
+  "errorHandlingStrategy": {
+    "pattern": "Response-based errors, not exceptions",
+    "success": {
+      "code": "response.responseCode = 200",
+      "data": "response.response = resultObject",
+      "error": "response.error = null"
+    },
+    "failure": {
+      "code": "response.responseCode = errorCode (optional)",
+      "message": "response.error = \"Error message string\"",
+      "data": "response.response = null (optional)"
+    },
+    "noExceptions": "Don't throw exceptions for business logic errors",
+    "examples": {
+      "validation": "response.error = \"vendorName is required\"",
+      "apiError": "response.error = \"Acumatica returned 400: Bad Request\"",
+      "duplicate": "response.error = \"Vendor already exists with different Stampli link\""
+    }
+  },
+
+  "reuseStrategy": {
+    "principle": "Maximum reuse of battle-tested legacy components",
+    "components": {
+      "AcumaticaAuthenticator": {
+        "purpose": "Session management, login/logout wrapping",
+        "location": "com.stampli.driver.auth.AcumaticaAuthenticator",
+        "usage": "Direct reuse via Java interop"
+      },
+      "ApiCallerFactory": {
+        "purpose": "Creates API caller instances",
+        "location": "com.stampli.driver.api.ApiCallerFactory",
+        "usage": "Direct reuse"
+      },
+      "RestApiCaller": {
+        "purpose": "HTTP communication",
+        "location": "com.stampli.driver.api.RestApiCaller",
+        "usage": "Direct reuse"
+      },
+      "PayloadMappers": {
+        "purpose": "Convert request data to Acumatica JSON",
+        "examples": ["VendorPayloadMapper", "BillPayloadMapper"],
+        "usage": "Direct reuse or adapt patterns"
+      },
+      "ResponseAssemblers": {
+        "purpose": "Parse Acumatica JSON to response objects",
+        "examples": ["VendorResponseAssembler", "BillResponseAssembler"],
+        "usage": "Direct reuse"
+      },
+      "ImportHelpers": {
+        "purpose": "Handle pagination and bulk imports",
+        "examples": ["AcumaticaImportHelper", "AcumaticaPurchaseOrderImportHelper"],
+        "usage": "Direct reuse"
+      },
+      "ExportHelpers": {
+        "purpose": "Handle export orchestration, release, rollback",
+        "location": "com.stampli.driver.api.AcumaticaExportHelper",
+        "usage": "Direct reuse"
+      }
+    }
+  },
+
+  "kotlinSpecificConsiderations": {
+    "nullSafety": "Use Kotlin's null safety features instead of defensive null checks",
+    "dataClasses": "Consider data classes for DTOs if creating new ones",
+    "coroutines": "Not initially - maintain sync pattern for compatibility",
+    "extensions": "Use extension functions for cleaner code",
+    "when": "Use when expressions instead of switch statements",
+    "collections": "Use Kotlin collections API for cleaner code"
+  },
+
+  "testingStrategy": {
+    "phase1Tests": "Full integration tests for 6 core methods",
+    "phase2Tests": "Smoke tests ensuring delegation works",
+    "coverage": "80% for implemented methods, delegation paths tested",
+    "approach": "Test against live instance initially, add mocks later"
+  },
+
+  "deploymentStrategy": {
+    "jarPlacement": "Add kotlin-acumatica-driver.jar to classpath",
+    "registration": "Update configuration to use KotlinAcumaticaDriver",
+    "rollback": "Can instantly rollback by changing dualDriverName",
+    "monitoring": "Log all Kotlin driver invocations initially"
+  },
+
+  "scanThese": [
+    {
+      "file": "bridge/bridge-common/src/main/java/com/stampli/DriverEngine.java",
+      "lines": "invokeMethod() reflection logic",
+      "purpose": "Understand how DriverEngine instantiates drivers"
+    },
+    {
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/IDualFinsysDriver.java",
+      "lines": "All method signatures",
+      "purpose": "Interface to implement"
+    },
+    {
+      "file": "web/server-services/src/main/java/com/stampli/synchronization/bridge/BridgeSynchronizationAgent.java",
+      "lines": "514-552 (exportVendor), 583-605 (getVendors)",
+      "purpose": "See how requests are built"
+    },
+    {
+      "file": "web/server-services/src/main/java/com/stampli/synchronization/bridge/DualBridgeSaaSRouter.java",
+      "lines": "66-88",
+      "purpose": "Understand routing logic"
+    }
+  ]
+}

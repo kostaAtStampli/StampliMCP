@@ -69,6 +69,50 @@
     "success": "Assert.assertNull(\"Unexpected error: \" + response.getError(), response.getError());\nAssert.assertNotNull(response.getResponse());",
     "error": "Assert.assertNotNull(\"Expected error\", response.getError());",
     "notEmpty": "Assert.assertTrue(response.getResponse().size() > 0);"
+  },
+
+  "kotlinTestPatterns": {
+    "testSetup": {
+      "example": "class KotlinAcumaticaDriverTest {\n    private lateinit var driver: KotlinAcumaticaDriver\n    private lateinit var connectionProperties: Map<String, String>\n    \n    @BeforeEach\n    fun setUp() {\n        driver = KotlinAcumaticaDriver()\n        connectionProperties = mapOf(\n            \"hostname\" to \"http://63.32.187.185/StampliAcumaticaDB\",\n            \"user\" to \"admin\",\n            \"password\" to \"Password1\"\n        )\n    }",
+      "requestBuilding": "val request = ExportVendorRequest().apply {\n    subsidiary = \"StampliCompany\"\n    dualDriverName = \"com.stampli.kotlin.driver.KotlinAcumaticaDriver\"\n    this.connectionProperties = connectionProperties\n    finSysBridgeTransferredObject = FinSysBridgeTransferredObject()\n}"
+    },
+    "assertions": {
+      "success": "assertNull(response.error, \"Unexpected error: ${response.error}\")\nassertNotNull(response.response)",
+      "error": "assertNotNull(response.error)\nassertTrue(response.error.contains(\"expected message\"))",
+      "notEmpty": "assertTrue(response.response.size > 0)"
+    },
+    "dataSetup": {
+      "uniqueIds": "Use timestamp suffix for test data: val vendorName = \"TestVendor_${System.currentTimeMillis()}\"",
+      "cleanup": "Not required - test instance resets periodically"
+    }
+  },
+
+  "connectionConfigUsage": {
+    "description": "How to handle encrypted credentials",
+    "location": "server-commons/src/main/java/com/stampli/server/data/ConnectionConfig.java",
+    "decryption": "ConnectionConfig.decryptCredentials(credentials)",
+    "encryption": "ConnectionConfig.getEncryptCredentials(credentials)",
+    "fields": ["hostname", "user", "password", "subsidiary"],
+    "kotlinUsage": "val decrypted = ConnectionConfig.decryptCredentials(request.connectionProperties)"
+  },
+
+  "testingStrategy": {
+    "phase1": {
+      "approach": "Test against live instance (63.32.187.185)",
+      "focus": "Integration tests for core 6 methods"
+    },
+    "phase2": {
+      "approach": "Add WireMock for hermetic testing",
+      "focus": "Unit tests with mocked responses"
+    },
+    "cicd": {
+      "approach": "Tests run against test instance in CI/CD",
+      "coverage": "Aim for 80% code coverage"
+    },
+    "dataManagement": {
+      "isolation": "Use unique identifiers with timestamp to avoid conflicts",
+      "cleanup": "Test instance resets periodically - no manual cleanup needed"
+    }
   }
 }
 

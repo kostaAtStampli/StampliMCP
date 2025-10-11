@@ -127,6 +127,60 @@
       "message": "Internal Server Error",
       "handling": "Check Acumatica server logs"
     }
-  ]
+  ],
+
+  "kotlinErrorPatterns": {
+    "philosophy": {
+      "principle": "Errors are data in response objects, not thrown exceptions",
+      "pattern": "response.error = 'message' (not throw Exception)",
+      "noExceptions": "Don't throw exceptions for business logic errors",
+      "exceptionsOnlyFor": "Truly exceptional cases like network failures"
+    },
+
+    "responsePatterns": {
+      "success": {
+        "kotlinPattern": "response.responseCode = 200; response.response = data",
+        "errorField": "response.error must be null or empty"
+      },
+      "failure": {
+        "kotlinPattern": "response.error = 'Error message'; response.responseCode = 400",
+        "responseField": "response.response can be null"
+      }
+    },
+
+    "validationExamples": {
+      "requiredField": {
+        "kotlin": "if (vendorName.isNullOrBlank()) { response.error = \"vendorName is required\"; return response }",
+        "doNotThrow": "Never throw IllegalArgumentException"
+      },
+      "maxLength": {
+        "kotlin": "if (vendorName.length > 60) { response.error = \"vendorName exceeds maximum length of 60 characters\"; return response }",
+        "exactMessage": "Use exact error message from legacy code"
+      }
+    },
+
+    "apiErrorHandling": {
+      "pattern": "if (!result.isSuccessful) { response.error = \"Acumatica returned ${result.responseCode}\"; return response }",
+      "parseBody": "Extract detailed error from response body if available"
+    },
+
+    "idempotencyPattern": {
+      "duplicateVendor": {
+        "sameLinkBehavior": "Return success with existing ID (no error)",
+        "differentLinkBehavior": "Return error with mismatch message",
+        "kotlin": "if (existingVendor != null && existingVendor.stampliLink == request.stampliLink) { response.response = existingVendor; return response }"
+      }
+    },
+
+    "testPatterns": {
+      "successAssertion": "assertNull(response.error, \"Unexpected error: ${response.error}\"); assertNotNull(response.response)",
+      "errorAssertion": "assertNotNull(response.error); assertTrue(response.error.contains(\"expected message\"))",
+      "noExceptionThrown": "@Test fun testValidation() { val response = driver.exportVendor(invalidRequest); assertNotNull(response.error) // Should NOT throw }"
+    },
+
+    "implementationExample": {
+      "fullMethod": "override fun exportVendor(request: ExportVendorRequest): ExportResponse {\n    val response = ExportResponse()\n    \n    // Validation\n    val vendorName = request.rawData?.get(\"vendorName\")\n    if (vendorName.isNullOrBlank()) {\n        response.error = \"vendorName is required\"\n        return response\n    }\n    if (vendorName.length > 60) {\n        response.error = \"vendorName exceeds maximum length of 60 characters\"\n        return response\n    }\n    \n    // Reuse authentication wrapper\n    val result = AcumaticaAuthenticator.authenticatedApiCall(request, factory) { \n        apiCaller.call()\n    }\n    \n    // Handle API errors\n    if (!result.isSuccessful) {\n        response.error = \"Acumatica returned ${result.responseCode}\"\n        return response\n    }\n    \n    // Parse and return result\n    response.response = parseResult(result.content)\n    return response\n}"
+    }
+  }
 }
 

@@ -56,6 +56,20 @@
         "urlPattern": "https://{hostname}/entity/{apiVersion}/PurchaseOrder?$filter=Status eq 'Open'&$expand=Details&$top=5000",
         "pagination": true
       },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.getPurchaseOrderSearchList()",
+        "flow": [
+          "1. Query POs with status filters",
+          "2. Reuse AcumaticaPurchaseOrderImportHelper",
+          "3. Expand Details for line items",
+          "4. Return for PO matching in Stampli"
+        ],
+        "reuseComponents": ["AcumaticaPurchaseOrderImportHelper", "PurchaseOrderResponseAssemblerUtil"],
+        "criticalPatterns": {
+          "errorHandling": "response.error = 'message', no exceptions"
+        }
+      },
       
       "scanThese": [
         {
@@ -118,6 +132,23 @@
         "entity": "PurchaseOrder",
         "method": "PUT",
         "urlPattern": "https://{hostname}/entity/{apiVersion}/PurchaseOrder"
+      },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.exportPurchaseOrder()",
+        "flow": [
+          "1. PO matching logic in Kotlin",
+          "2. Validate PO lines and amounts",
+          "3. Check duplicates via getMatchingPoByStampliLink",
+          "4. Export with line items",
+          "5. Return PO number"
+        ],
+        "reuseComponents": ["AcumaticaAuthenticator", "PurchaseOrderMapper", "POMatchingHelper"],
+        "criticalPatterns": {
+          "idempotency": "Return existing PO if duplicate found",
+          "lineItems": "Map all PO lines with correct item codes",
+          "errorHandling": "response.error = 'message', no exceptions"
+        }
       },
       
       "scanThese": [

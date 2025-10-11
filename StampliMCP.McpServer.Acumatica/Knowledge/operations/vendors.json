@@ -116,6 +116,25 @@
         "responseExample": "{ \"id\": \"...\", \"VendorID\": { \"value\": \"POC12345\" }, \"LastModifiedDateTime\": { \"value\": \"...\" } }",
         "errorResponseExample": "{ \"error\": \"Inserting 'AP Transactions' record raised at least one error. Please review the errors.\" }"
       },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine.invokeBridgeCommand() → KotlinAcumaticaDriver.exportVendor()",
+        "registration": "Set request.dualDriverName = 'com.stampli.kotlin.driver.KotlinAcumaticaDriver'",
+        "flow": [
+          "1. BridgeSynchronizationAgent builds ExportVendorRequest",
+          "2. DriverEngine uses reflection to instantiate KotlinAcumaticaDriver",
+          "3. Kotlin validates using exact error messages (no exceptions)",
+          "4. Reuse AcumaticaAuthenticator.authenticatedApiCall for session management",
+          "5. Reuse VendorPayloadMapper for JSON formatting with Stampli link in note field"
+        ],
+        "reuseComponents": ["AcumaticaAuthenticator", "VendorPayloadMapper", "ApiCallerFactory"],
+        "criticalPatterns": {
+          "errorHandling": "response.error = 'exact message', no exceptions",
+          "duplicateHandling": "Idempotent - return existing vendor ID if same Stampli link",
+          "validation": "vendorName is required, max 60 chars; stampliurl is required"
+        },
+        "kotlinExample": "override fun exportVendor(request: ExportVendorRequest): ExportResponse {\n    val response = ExportResponse()\n    if (request.rawData?.get(\"vendorName\").isNullOrBlank()) {\n        response.error = \"vendorName is required\"\n        return response\n    }\n    // Reuse authentication wrapper\n    val result = AcumaticaAuthenticator.authenticatedApiCall(request, factory) { apiCaller.call() }\n    if (!result.isSuccessful) {\n        response.error = \"Acumatica returned ${result.responseCode}\"\n        return response\n    }\n    response.response = parseResult(result.content)\n    return response\n}"
+      },
       
       "scanThese": [
         {
@@ -256,6 +275,23 @@
         "pagination": true,
         "deltaSupport": true,
         "responseExample": "[{ \"VendorID\": { \"value\": \"ACME01\" }, \"VendorName\": { \"value\": \"Acme Corporation\" }, \"Status\": { \"value\": \"Active\" }, \"CurrencyID\": { \"value\": \"USD\" }, ... }]"
+      },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.getVendors()",
+        "flow": [
+          "1. BridgeSynchronizationAgent calls with optional delta timestamp",
+          "2. Kotlin intercepts via IDualFinsysDriver interface",
+          "3. Reuse AcumaticaImportHelper for pagination (max 100 pages for delta, 5000 for full)",
+          "4. Reuse VendorResponseAssembler for JSON to object mapping",
+          "5. Handle deleted vendors for delta imports"
+        ],
+        "reuseComponents": ["AcumaticaImportHelper", "VendorResponseAssembler", "AcumaticaAuthenticator"],
+        "criticalPatterns": {
+          "pagination": "Page size 500, max pages based on import type",
+          "deltaSupport": "Use lastModifiedVendors timestamp for incremental sync",
+          "errorHandling": "Set response.error, don't throw exceptions"
+        }
       },
       
       "scanThese": [

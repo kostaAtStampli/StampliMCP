@@ -1,0 +1,177 @@
+{
+  "driverEngineReflection": {
+    "overview": "DriverEngine uses reflection to instantiate and invoke driver methods dynamically",
+    "location": "bridge/bridge-common/src/main/java/com/stampli/DriverEngine.java",
+    "criticalMethods": {
+      "invokeBridgeCommand": {
+        "signature": "public static FinSysBridgeBaseResponse invokeBridgeCommand(AgentOpCode opCode, FinSysBridgeBaseRequest request)",
+        "purpose": "Main entry point - routes commands to appropriate driver method",
+        "flow": [
+          "1. Get driver instance via getDualDriver(request)",
+          "2. Look up method using opCode.getMethodName()",
+          "3. Invoke method via reflection",
+          "4. Return response"
+        ]
+      },
+      "getDualDriver": {
+        "signature": "private static IDualFinsysDriver getDualDriver(FinSysBridgeBaseRequest request)",
+        "purpose": "Instantiates the driver class specified in request",
+        "implementation": "Class driverClass = Class.forName(request.getDualDriverName());\nreturn (IDualFinsysDriver) driverClass.newInstance();"
+      }
+    }
+  },
+
+  "completeFlowTrace": {
+    "exportVendorExample": [
+      {
+        "step": 1,
+        "layer": "AdminService",
+        "class": "com.stampli.server.services.AdminService",
+        "method": "checkCredentials or similar",
+        "lines": "466-478",
+        "what": "Initial API endpoint, validates user session"
+      },
+      {
+        "step": 2,
+        "layer": "FinSysAgentManager",
+        "class": "com.stampli.server.services.FinSysAgentManager",
+        "method": "getFinSysSyncAgent",
+        "what": "Gets appropriate sync agent (BridgeSynchronizationAgent)"
+      },
+      {
+        "step": 3,
+        "layer": "BridgeSynchronizationAgent",
+        "class": "com.stampli.synchronization.bridge.BridgeSynchronizationAgent",
+        "method": "exportVendor",
+        "lines": "514-521",
+        "what": "Builds ExportVendorRequest, creates TaskDTORequest, sets dualDriverName"
+      },
+      {
+        "step": 4,
+        "layer": "DualBridgeSaaSRouter",
+        "class": "com.stampli.synchronization.bridge.DualBridgeSaaSRouter",
+        "method": "sendToTaskCreatorAndGetResponse",
+        "lines": "40-85",
+        "what": "Routes to SaaS mode (DriverEngine) or Bridge mode based on isBridgeMode"
+      },
+      {
+        "step": 5,
+        "layer": "DriverEngine",
+        "class": "com.stampli.DriverEngine",
+        "method": "invokeBridgeCommand",
+        "what": "Uses reflection to instantiate driver and invoke method",
+        "critical": "THIS IS WHERE KOTLIN INTERCEPTS"
+      },
+      {
+        "step": 6,
+        "layer": "KOTLIN DRIVER",
+        "class": "com.stampli.kotlin.driver.KotlinAcumaticaDriver",
+        "method": "exportVendor",
+        "what": "Kotlin implementation of exportVendor",
+        "how": "Instantiated because request.dualDriverName = 'com.stampli.kotlin.driver.KotlinAcumaticaDriver'"
+      }
+    ]
+  },
+
+  "reflectionRequirements": {
+    "constructor": {
+      "requirement": "Must have public no-arg constructor",
+      "kotlin": "class KotlinAcumaticaDriver : IDualFinsysDriver {\n    // No-arg constructor required\n}",
+      "reason": "Class.newInstance() requires no-arg constructor"
+    },
+    "interface": {
+      "requirement": "Must implement IDualFinsysDriver",
+      "kotlin": "class KotlinAcumaticaDriver : IDualFinsysDriver",
+      "reason": "Cast to IDualFinsysDriver after instantiation"
+    },
+    "methodSignatures": {
+      "requirement": "All 51 method signatures must match EXACTLY",
+      "kotlin": "override fun exportVendor(request: ExportVendorRequest): ExportResponse",
+      "reason": "Method.invoke() requires exact parameter types"
+    },
+    "classpath": {
+      "requirement": "Kotlin driver JAR must be in classpath",
+      "deployment": "Add kotlin-acumatica-driver.jar to lib folder",
+      "reason": "Class.forName() needs to find the class"
+    },
+    "publicVisibility": {
+      "requirement": "Class and methods must be public",
+      "kotlin": "class KotlinAcumaticaDriver : IDualFinsysDriver {\n    override fun exportVendor(...)",
+      "reason": "Reflection requires public access"
+    }
+  },
+
+  "registrationMechanism": {
+    "whereToSet": "In the request object before calling DriverEngine",
+    "howToSet": "request.setDualDriverName(\"com.stampli.kotlin.driver.KotlinAcumaticaDriver\")",
+    "whenSet": {
+      "location": "BridgeSynchronizationAgent",
+      "method": "exportVendor, getVendors, etc.",
+      "lines": "Where TaskDTORequest is built"
+    },
+    "configuration": {
+      "option1": "Hardcode in BridgeSynchronizationAgent (for testing)",
+      "option2": "Configuration file (for production)",
+      "option3": "Feature flag (for gradual rollout)"
+    }
+  },
+
+  "methodLookup": {
+    "agentOpCode": {
+      "purpose": "Maps operation names to method names",
+      "location": "bridge/bridge-common/src/main/java/com/stampli/AgentOpCode.java",
+      "example": "EXPORT_VENDOR(\"exportVendor\")",
+      "usage": "opCode.getMethodName() returns \"exportVendor\""
+    },
+    "reflection": {
+      "code": "Method method = driver.getClass().getMethod(opCode.getMethodName(), request.getClass());\nreturn (FinSysBridgeBaseResponse) method.invoke(driver, request);",
+      "parameterTypes": "Must match request class exactly"
+    }
+  },
+
+  "errorHandling": {
+    "reflectionExceptions": {
+      "ClassNotFoundException": "Driver class not in classpath",
+      "InstantiationException": "No no-arg constructor",
+      "IllegalAccessException": "Constructor/method not public",
+      "NoSuchMethodException": "Method signature doesn't match",
+      "InvocationTargetException": "Method threw exception"
+    },
+    "kotlinConsiderations": {
+      "noExceptions": "Kotlin methods should NOT throw exceptions",
+      "returnErrors": "Set response.error field instead",
+      "pattern": "try { ... } catch (e: Exception) { response.error = e.message }"
+    }
+  },
+
+  "debuggingTips": {
+    "logging": [
+      "Log when Kotlin driver is instantiated",
+      "Log method invocations with parameters",
+      "Log response before returning"
+    ],
+    "commonIssues": [
+      {
+        "issue": "ClassNotFoundException",
+        "solution": "Ensure JAR is in classpath"
+      },
+      {
+        "issue": "NoSuchMethodException",
+        "solution": "Check method signature matches exactly"
+      },
+      {
+        "issue": "InstantiationException",
+        "solution": "Add no-arg constructor"
+      }
+    ],
+    "testing": [
+      "Test reflection separately from business logic",
+      "Verify all 51 methods are callable",
+      "Check delegation to legacy driver works"
+    ]
+  },
+
+  "kotlinImplementationTemplate": {
+    "classStructure": "package com.stampli.kotlin.driver\n\nimport com.stampli.driver.IDualFinsysDriver\nimport com.stampli.driver.AcumaticaDriver\nimport com.stampli.request.functions.*\nimport com.stampli.response.functions.*\n\nclass KotlinAcumaticaDriver : IDualFinsysDriver {\n    \n    // Legacy driver for delegation\n    private val legacyDriver = AcumaticaDriver()\n    \n    // No-arg constructor required for reflection\n    constructor() {}\n    \n    // Phase 1: Implement these 6 methods\n    override fun exportVendor(request: ExportVendorRequest): ExportResponse {\n        // Kotlin implementation\n    }\n    \n    // Phase 2: Delegate remaining 45 methods\n    override fun getItemSearchList(request: GetItemSearchListRequest): GetItemSearchListResponse {\n        return legacyDriver.getItemSearchList(request)\n    }\n    \n    // ... other 44 delegated methods\n}"
+  }
+}
