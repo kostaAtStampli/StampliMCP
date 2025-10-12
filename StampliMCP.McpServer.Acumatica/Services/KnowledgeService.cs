@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,7 @@ namespace StampliMCP.McpServer.Acumatica.Services;
 
 public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCache cache)
 {
-    private readonly string _knowledgePath = Path.Combine(AppContext.BaseDirectory, "Knowledge");
+    private readonly Assembly _assembly = typeof(KnowledgeService).Assembly;
     private readonly ConcurrentDictionary<string, List<Operation>> _operationsByCategory = new();
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -20,18 +21,43 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
         Size = 1
     };
 
+    private async Task<string> ReadEmbeddedResourceAsync(string resourcePath, CancellationToken ct = default)
+    {
+        // Convert file path to embedded resource name
+        // Knowledge/categories.json -> StampliMCP.McpServer.Acumatica.Knowledge.categories.json
+        var resourceName = $"StampliMCP.McpServer.Acumatica.Knowledge.{resourcePath.Replace('/', '.').Replace('\\', '.')}";
+
+        using var stream = _assembly.GetManifestResourceStream(resourceName);
+        if (stream == null)
+        {
+            logger.LogWarning("Embedded resource not found: {ResourceName}", resourceName);
+            throw new FileNotFoundException($"Resource {resourceName} not found in assembly");
+        }
+
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync(ct);
+    }
+
     public async Task<List<Category>> GetCategoriesAsync(CancellationToken ct = default)
     {
         return await cache.GetOrCreateAsync(
             "categories",
             async entry =>
             {
-                entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(Path.Combine(_knowledgePath, "categories.json"), ct);
-                var data = JsonSerializer.Deserialize<CategoriesFile>(json, _jsonOptions);
-                var categories = data?.Categories ?? [];
-                logger.LogInformation("Loaded {Count} categories", categories.Count);
-                return categories;
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("categories.json", ct);
+                    var data = JsonSerializer.Deserialize<CategoriesFile>(json, _jsonOptions);
+                    var categories = data?.Categories ?? [];
+                    logger.LogInformation("Loaded {Count} categories from embedded resources", categories.Count);
+                    return categories;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading categories from embedded resources");
+                    return new List<Category>();
+                }
             }) ?? [];
     }
 
@@ -41,20 +67,24 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             $"operations_{category}",
             async entry =>
             {
-                entry.SetOptions(_cacheOptions);
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync($"operations.{category}.json", ct);
+                    var data = JsonSerializer.Deserialize<OperationsFile>(json, _jsonOptions);
+                    var ops = data?.Operations ?? [];
 
-                var filePath = Path.Combine(_knowledgePath, "operations", $"{category}.json");
-                if (!File.Exists(filePath)) return new List<Operation>();
+                    // Also store in concurrent dictionary for fast lookup
+                    _operationsByCategory.TryAdd(category, ops);
 
-                var json = await File.ReadAllTextAsync(filePath, ct);
-                var data = JsonSerializer.Deserialize<OperationsFile>(json, _jsonOptions);
-                var ops = data?.Operations ?? [];
-
-                // Also store in concurrent dictionary for fast lookup
-                _operationsByCategory.TryAdd(category, ops);
-
-                logger.LogInformation("Loaded {Count} operations for {Category}", ops.Count, category);
-                return ops;
+                    logger.LogInformation("Loaded {Count} operations for {Category} from embedded resources", ops.Count, category);
+                    return ops;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading operations for category {Category} from embedded resources", category);
+                    return new List<Operation>();
+                }
             }) ?? [];
     }
 
@@ -92,12 +122,20 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             "enums",
             async entry =>
             {
-                entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(Path.Combine(_knowledgePath, "enums.json"), ct);
-                var data = JsonSerializer.Deserialize<EnumsFile>(json, _jsonOptions);
-                var enums = data?.Enums ?? [];
-                logger.LogInformation("Loaded {Count} enum mappings", enums.Count);
-                return enums;
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("enums.json", ct);
+                    var data = JsonSerializer.Deserialize<EnumsFile>(json, _jsonOptions);
+                    var enums = data?.Enums ?? [];
+                    logger.LogInformation("Loaded {Count} enum mappings from embedded resources", enums.Count);
+                    return enums;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading enums from embedded resources");
+                    return new List<EnumMapping>();
+                }
             }) ?? [];
     }
 
@@ -107,11 +145,19 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             "test-config",
             async entry =>
             {
-                entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(Path.Combine(_knowledgePath, "test-config.json"), ct);
-                var config = JsonSerializer.Deserialize<object>(json) ?? new { };
-                logger.LogInformation("Loaded test configuration");
-                return config;
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("test-config.json", ct);
+                    var config = JsonSerializer.Deserialize<object>(json) ?? new { };
+                    logger.LogInformation("Loaded test configuration from embedded resources");
+                    return config;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading test configuration from embedded resources");
+                    return new { error = "Failed to load test configuration" };
+                }
             }) ?? new { };
     }
 
@@ -122,10 +168,9 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "error-patterns-kotlin.json"), ct);
+                var json = await ReadEmbeddedResourceAsync("kotlin.error-patterns-kotlin.json", ct);
                 var patterns = JsonSerializer.Deserialize<object>(json) ?? new { };
-                logger.LogInformation("Loaded Kotlin error patterns");
+                logger.LogInformation("Loaded Kotlin error patterns from embedded resources");
                 return patterns;
             }) ?? new { };
     }
@@ -137,10 +182,9 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "kotlin-integration.json"), ct);
+                var json = await ReadEmbeddedResourceAsync("kotlin.kotlin-integration.json", ct);
                 var integration = JsonSerializer.Deserialize<object>(json) ?? new { };
-                logger.LogInformation("Loaded Kotlin integration strategy");
+                logger.LogInformation("Loaded Kotlin integration strategy from embedded resources");
                 return integration;
             }) ?? new { };
     }
@@ -152,10 +196,9 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "method-signatures.json"), ct);
+                var json = await ReadEmbeddedResourceAsync("kotlin.method-signatures.json", ct);
                 var signatures = JsonSerializer.Deserialize<object>(json) ?? new { };
-                logger.LogInformation("Loaded Kotlin method signatures");
+                logger.LogInformation("Loaded Kotlin method signatures from embedded resources");
                 return signatures;
             }) ?? new { };
     }
@@ -167,10 +210,9 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "test-config-kotlin.json"), ct);
+                var json = await ReadEmbeddedResourceAsync("kotlin.test-config-kotlin.json", ct);
                 var config = JsonSerializer.Deserialize<object>(json) ?? new { };
-                logger.LogInformation("Loaded Kotlin test configuration");
+                logger.LogInformation("Loaded Kotlin test configuration from embedded resources");
                 return config;
             }) ?? new { };
     }
@@ -182,9 +224,8 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var content = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "GOLDEN_PATTERNS.md"), ct);
-                logger.LogInformation("Loaded Kotlin golden patterns");
+                var content = await ReadEmbeddedResourceAsync("kotlin.GOLDEN_PATTERNS.md", ct);
+                logger.LogInformation("Loaded Kotlin golden patterns from embedded resources");
                 return content;
             }) ?? string.Empty;
     }
@@ -196,9 +237,8 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var content = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "KOTLIN_ARCHITECTURE.md"), ct);
-                logger.LogInformation("Loaded Kotlin architecture guide");
+                var content = await ReadEmbeddedResourceAsync("kotlin.KOTLIN_ARCHITECTURE.md", ct);
+                logger.LogInformation("Loaded Kotlin architecture guide from embedded resources");
                 return content;
             }) ?? string.Empty;
     }
@@ -210,9 +250,8 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             async entry =>
             {
                 entry.SetOptions(_cacheOptions);
-                var content = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "kotlin", "TDD_WORKFLOW.md"), ct);
-                logger.LogInformation("Loaded Kotlin TDD workflow");
+                var content = await ReadEmbeddedResourceAsync("kotlin.TDD_WORKFLOW.md", ct);
+                logger.LogInformation("Loaded Kotlin TDD workflow from embedded resources");
                 return content;
             }) ?? string.Empty;
     }
@@ -223,12 +262,19 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             "error-catalog",
             async entry =>
             {
-                entry.SetOptions(_cacheOptions);
-                var json = await File.ReadAllTextAsync(
-                    Path.Combine(_knowledgePath, "error-catalog.json"), ct);
-                var catalog = JsonSerializer.Deserialize<ErrorCatalog>(json, _jsonOptions);
-                logger.LogInformation("Loaded error catalog");
-                return catalog ?? new ErrorCatalog();
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("error-catalog.json", ct);
+                    var catalog = JsonSerializer.Deserialize<ErrorCatalog>(json, _jsonOptions);
+                    logger.LogInformation("Loaded error catalog from embedded resources");
+                    return catalog ?? new ErrorCatalog();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading error catalog from embedded resources");
+                    return new ErrorCatalog();
+                }
             }) ?? new ErrorCatalog();
     }
 

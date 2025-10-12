@@ -6,19 +6,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <!-- Native AOT Configuration -->
-    <PublishAot Condition="'$(Configuration)' == 'Release' and '$(PublishAot)' == ''">true</PublishAot>
-    <OptimizationPreference>Size</OptimizationPreference>
+    <!-- Deployment Configuration - AOT disabled for MCP compatibility -->
+    <PublishAot>false</PublishAot>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <PublishTrimmed>true</PublishTrimmed>
+    <PublishTrimmed>false</PublishTrimmed>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
-
-    <!-- AOT Compatibility Settings -->
-    <TrimMode>partial</TrimMode>
-    <TrimmerSingleWarn>false</TrimmerSingleWarn>
-    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
     <!-- Application Metadata -->
     <AssemblyName>stampli-mcp-acumatica</AssemblyName>
@@ -36,9 +30,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Knowledge\**\*.json" CopyToOutputDirectory="Always" />
-    <Content Include="Knowledge\**\*.md" CopyToOutputDirectory="Always" />
-    <Content Include="Knowledge\**\*.xml" CopyToOutputDirectory="Always" />
+    <!-- Embed Knowledge files as resources for single-file deployment -->
+    <EmbeddedResource Include="Knowledge\**\*.json" />
+    <EmbeddedResource Include="Knowledge\**\*.md" />
+    <EmbeddedResource Include="Knowledge\**\*.xml" />
   </ItemGroup>
 
 </Project>

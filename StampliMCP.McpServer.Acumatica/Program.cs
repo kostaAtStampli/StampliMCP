@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.Internal;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Services;
 
@@ -10,10 +12,32 @@ var builder = Host.CreateApplicationBuilder(args);
 // Add ServiceDefaults for OpenTelemetry, health checks, and resilience
 builder.AddServiceDefaults();
 
-// Configure logging to stderr (MCP protocol requirement)
+// Configure logging for MCP - MUST redirect all output to stderr
+// MCP requires clean stdout for JSON-RPC communication only
+builder.Logging.ClearProviders(); // Remove all default loggers first
+
+// Add console logging but redirect ALL output to stderr
+// This is the critical configuration per MCP specification
 builder.Logging.AddConsole(options =>
 {
+    // Send ALL log levels to stderr, keeping stdout clean for JSON-RPC
     options.LogToStandardErrorThreshold = LogLevel.Trace;
+});
+
+// Set minimum log level based on environment
+var debugMode = Environment.GetEnvironmentVariable("MCP_DEBUG") == "true";
+builder.Logging.SetMinimumLevel(debugMode ? LogLevel.Debug : LogLevel.Warning);
+
+// Suppress all console output from the host itself
+builder.Services.Configure<ConsoleLifetimeOptions>(options =>
+{
+    options.SuppressStatusMessages = true;
+});
+
+// Ensure host doesn't write startup messages
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.ShutdownTimeout = TimeSpan.FromSeconds(5);
 });
 
 // Add memory cache for performance
@@ -45,15 +69,12 @@ builder.Services
         };
     })
     .WithStdioServerTransport() // stdio is default for MCP
-    .WithPromptsFromAssembly() // Auto-discover all [McpServerPrompt] methods (NEW!)
-    .WithToolsFromAssembly(); // Auto-discover all [McpServerTool] methods
+    .WithPromptsFromAssembly(typeof(Program).Assembly) // Explicitly pass assembly for Native AOT compatibility
+    .WithToolsFromAssembly(typeof(Program).Assembly); // Explicitly pass assembly for Native AOT compatibility
 
 var app = builder.Build();
 
-// Log startup information
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("StampliMCP Acumatica Server v2.0.0 starting with MCP protocol 2025-06-18");
-logger.LogInformation("Features: 10 Tools + 4 Prompts (interactive conversations)");
-logger.LogInformation("OpenTelemetry and health checks configured via ServiceDefaults");
+// Startup logging disabled for MCP stdio compatibility
+// The server will communicate via JSON-RPC over stdio, not console logs
 
 await app.RunAsync();
