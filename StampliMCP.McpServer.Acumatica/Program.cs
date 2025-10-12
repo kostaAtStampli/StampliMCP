@@ -31,6 +31,9 @@ builder.Services.AddKeyedSingleton<SearchService>("search");
 builder.Services.AddSingleton<KnowledgeService>(sp => sp.GetRequiredKeyedService<KnowledgeService>("knowledge"));
 builder.Services.AddSingleton<SearchService>(sp => sp.GetRequiredKeyedService<SearchService>("search"));
 
+// Register intelligence service for showcase tools
+builder.Services.AddSingleton<IntelligenceService>();
+
 // Configure MCP server with latest features
 builder.Services
     .AddMcpServer(options =>

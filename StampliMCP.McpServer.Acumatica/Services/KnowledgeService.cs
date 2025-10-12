@@ -61,15 +61,29 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
     public async Task<Operation?> FindOperationAsync(string methodName, CancellationToken ct = default)
     {
         var categories = await GetCategoriesAsync(ct);
-        
+
         foreach (var category in categories)
         {
             var ops = await GetOperationsByCategoryAsync(category.Name, ct);
             var op = ops.FirstOrDefault(o => o.Method.Equals(methodName, StringComparison.OrdinalIgnoreCase));
             if (op is not null) return op;
         }
-        
+
         return null;
+    }
+
+    public async Task<List<Operation>> GetAllOperationsAsync(CancellationToken ct = default)
+    {
+        var categories = await GetCategoriesAsync(ct);
+        var allOperations = new List<Operation>();
+
+        foreach (var category in categories)
+        {
+            var ops = await GetOperationsByCategoryAsync(category.Name, ct);
+            allOperations.AddRange(ops);
+        }
+
+        return allOperations;
     }
 
     public async Task<List<EnumMapping>> GetEnumsAsync(CancellationToken ct = default)
@@ -202,9 +216,78 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
                 return content;
             }) ?? string.Empty;
     }
+
+    public async Task<ErrorCatalog> GetErrorCatalogAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "error-catalog",
+            async entry =>
+            {
+                entry.SetOptions(_cacheOptions);
+                var json = await File.ReadAllTextAsync(
+                    Path.Combine(_knowledgePath, "error-catalog.json"), ct);
+                var catalog = JsonSerializer.Deserialize<ErrorCatalog>(json, _jsonOptions);
+                logger.LogInformation("Loaded error catalog");
+                return catalog ?? new ErrorCatalog();
+            }) ?? new ErrorCatalog();
+    }
+
+    public async Task<List<ErrorDetail>> GetOperationErrorsAsync(string operationMethod, CancellationToken ct = default)
+    {
+        var catalog = await GetErrorCatalogAsync(ct);
+        var errors = new List<ErrorDetail>();
+
+        if (catalog.OperationErrors != null && catalog.OperationErrors.TryGetValue(operationMethod, out var opErrors))
+        {
+            if (opErrors.Validation != null)
+                errors.AddRange(opErrors.Validation);
+            if (opErrors.BusinessLogic != null)
+                errors.AddRange(opErrors.BusinessLogic);
+        }
+
+        return errors;
+    }
 }
 
 file sealed record CategoriesFile(List<Category> Categories);
 file sealed record OperationsFile(string Category, List<Operation> Operations);
 file sealed record EnumsFile(List<EnumMapping> Enums);
+
+// Error catalog models
+public sealed record ErrorCatalog
+{
+    public List<ErrorDetail>? AuthenticationErrors { get; init; }
+    public Dictionary<string, OperationErrorSet>? OperationErrors { get; init; }
+    public List<ApiError>? ApiErrors { get; init; }
+}
+
+public sealed record OperationErrorSet
+{
+    public List<ErrorDetail>? Validation { get; init; }
+    public List<ErrorDetail>? BusinessLogic { get; init; }
+}
+
+public sealed record ErrorDetail
+{
+    public string? Field { get; init; }
+    public string? Condition { get; init; }
+    public string? Type { get; init; }
+    public required string Message { get; init; }
+    public CodeLocation? Location { get; init; }
+    public string? TestAssertion { get; init; }
+}
+
+public sealed record ApiError
+{
+    public int Code { get; init; }
+    public required string Message { get; init; }
+    public string? Handling { get; init; }
+    public CodeLocation? Location { get; init; }
+}
+
+public sealed record CodeLocation
+{
+    public required string File { get; init; }
+    public string? Lines { get; init; }
+}
 
