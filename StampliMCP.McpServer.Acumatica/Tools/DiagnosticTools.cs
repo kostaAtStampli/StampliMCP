@@ -38,80 +38,47 @@ public static class DiagnosticTools
     }
 
     [McpServerTool(Name = "check_knowledge_files")]
-    [Description("Check which Knowledge files are available and accessible")]
+    [Description("Check which Knowledge files are available as embedded resources")]
     public static Task<object> CheckKnowledgeFiles()
     {
-        var knowledgePath = Path.Combine(AppContext.BaseDirectory, "Knowledge");
-        var files = new List<object>();
+        var assembly = Assembly.GetExecutingAssembly();
+        var resourceNames = assembly.GetManifestResourceNames();
 
-        // Check main knowledge files
-        var mainFiles = new[]
-        {
-            "categories.json",
-            "enums.json",
-            "error-catalog.json",
-            "base-classes.json",
-            "test-config.json",
-            "integration-strategy.json",
-            "method-signatures.json",
-            "reflection-mechanism.json"
-        };
-
-        foreach (var file in mainFiles)
-        {
-            var filePath = Path.Combine(knowledgePath, file);
-            files.Add(new
+        // Filter to Knowledge resources only
+        var knowledgeResources = resourceNames
+            .Where(r => r.StartsWith("StampliMCP.McpServer.Acumatica.Knowledge."))
+            .Select(r => new
             {
-                file = file,
-                path = filePath,
-                exists = File.Exists(filePath),
-                size = File.Exists(filePath) ? new FileInfo(filePath).Length : 0
-            });
-        }
-
-        // Check operations folder
-        var operationsPath = Path.Combine(knowledgePath, "operations");
-        if (Directory.Exists(operationsPath))
-        {
-            var operationFiles = Directory.GetFiles(operationsPath, "*.json");
-            foreach (var opFile in operationFiles)
-            {
-                var fileName = Path.GetFileName(opFile);
-                files.Add(new
-                {
-                    file = $"operations/{fileName}",
-                    path = opFile,
-                    exists = true,
-                    size = new FileInfo(opFile).Length
-                });
-            }
-        }
-
-        // Check kotlin folder
-        var kotlinPath = Path.Combine(knowledgePath, "kotlin");
-        if (Directory.Exists(kotlinPath))
-        {
-            var kotlinFiles = Directory.GetFiles(kotlinPath);
-            foreach (var kotlinFile in kotlinFiles)
-            {
-                var fileName = Path.GetFileName(kotlinFile);
-                files.Add(new
-                {
-                    file = $"kotlin/{fileName}",
-                    path = kotlinFile,
-                    exists = true,
-                    size = new FileInfo(kotlinFile).Length
-                });
-            }
-        }
+                resourceName = r,
+                // Convert StampliMCP.McpServer.Acumatica.Knowledge.categories.json -> categories.json
+                // Convert StampliMCP.McpServer.Acumatica.Knowledge.operations.vendors.json -> operations/vendors.json
+                fileName = r.Replace("StampliMCP.McpServer.Acumatica.Knowledge.", "")
+                            .Replace(".operations.", "operations/")
+                            .Replace(".kotlin.", "kotlin/"),
+                exists = true,
+                size = GetResourceSize(assembly, r)
+            })
+            .ToList();
 
         return Task.FromResult<object>(new
         {
-            knowledgePath = knowledgePath,
-            knowledgeDirectoryExists = Directory.Exists(knowledgePath),
-            totalFiles = files.Count(f => ((dynamic)f).exists),
-            missingFiles = files.Count(f => !((dynamic)f).exists),
-            files = files
+            embeddedResources = true,
+            totalFiles = knowledgeResources.Count,
+            missingFiles = 0,
+            files = knowledgeResources
         });
+    }
+
+    private static long GetResourceSize(Assembly assembly, string resourceName)
+    {
+        try
+        {
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            return stream?.Length ?? 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 }

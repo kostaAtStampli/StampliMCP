@@ -293,6 +293,28 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
 
         return errors;
     }
+
+    public async Task<object> GetBaseClassesAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "base-classes",
+            async entry =>
+            {
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("base-classes.json", ct);
+                    var baseClasses = JsonSerializer.Deserialize<object>(json, _jsonOptions);
+                    logger.LogInformation("Loaded base classes from embedded resources");
+                    return baseClasses ?? new { };
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading base classes from embedded resources");
+                    return new { error = "Failed to load base classes" };
+                }
+            }) ?? new { };
+    }
 }
 
 file sealed record CategoriesFile(List<Category> Categories);

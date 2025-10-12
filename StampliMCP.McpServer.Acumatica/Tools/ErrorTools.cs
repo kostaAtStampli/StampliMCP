@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
+using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
@@ -10,19 +10,12 @@ public static class ErrorTools
     [McpServerTool(Name = "get_errors")]
     [Description("Get error catalog for a specific operation or all authentication/API errors")]
     public static async Task<object> GetErrors(
-        [Description("Operation method name (e.g., 'exportVendor'). Leave empty for general errors only.")] 
+        [Description("Operation method name (e.g., 'exportVendor'). Leave empty for general errors only.")]
         string? operation,
+        KnowledgeService knowledge,
         CancellationToken cancellationToken)
     {
-        var errorCatalogPath = Path.Combine(AppContext.BaseDirectory, "Knowledge", "error-catalog.json");
-        var json = await File.ReadAllTextAsync(errorCatalogPath, cancellationToken);
-        var catalog = JsonSerializer.Deserialize<ErrorCatalog>(json, new JsonSerializerOptions 
-        { 
-            PropertyNameCaseInsensitive = true 
-        });
-
-        if (catalog is null)
-            return new { error = "Error catalog not found" };
+        var catalog = await knowledge.GetErrorCatalogAsync(cancellationToken);
 
         if (string.IsNullOrEmpty(operation))
         {

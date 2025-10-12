@@ -30,14 +30,11 @@ public static class EnumTools
 
     [McpServerTool(Name = "get_base_classes")]
     [Description("Get base request/response class information that all DTOs inherit from")]
-    public static async Task<object> GetBaseClasses(CancellationToken cancellationToken)
+    public static async Task<object> GetBaseClasses(
+        KnowledgeService knowledge,
+        CancellationToken cancellationToken)
     {
-        var baseClassesPath = Path.Combine(AppContext.BaseDirectory, "Knowledge", "base-classes.json");
-        var json = await File.ReadAllTextAsync(baseClassesPath, cancellationToken);
-        return JsonSerializer.Deserialize<object>(json, new JsonSerializerOptions 
-        { 
-            PropertyNameCaseInsensitive = true 
-        }) ?? new { };
+        return await knowledge.GetBaseClassesAsync(cancellationToken);
     }
 }
 
