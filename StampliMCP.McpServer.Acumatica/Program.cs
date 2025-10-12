@@ -41,17 +41,19 @@ builder.Services
         options.ServerInfo = new()
         {
             Name = "stampli-acumatica",
-            Version = "1.0.0"
+            Version = "2.0.0" // Updated for prompts feature
         };
     })
     .WithStdioServerTransport() // stdio is default for MCP
+    .WithPromptsFromAssembly() // Auto-discover all [McpServerPrompt] methods (NEW!)
     .WithToolsFromAssembly(); // Auto-discover all [McpServerTool] methods
 
 var app = builder.Build();
 
 // Log startup information
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("StampliMCP Acumatica Server starting with MCP protocol 2025-06-18");
+logger.LogInformation("StampliMCP Acumatica Server v2.0.0 starting with MCP protocol 2025-06-18");
+logger.LogInformation("Features: 10 Tools + 4 Prompts (interactive conversations)");
 logger.LogInformation("OpenTelemetry and health checks configured via ServiceDefaults");
 
 await app.RunAsync();

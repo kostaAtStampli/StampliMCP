@@ -1,4 +1,5 @@
-# 🚀 Nuclear MCP 2025 - Deployment & Usage Guide
+# 🚀 Nuclear MCP 2025 v2.0.0 - Deployment & Usage Guide
+## Now with Interactive Prompts! 💬
 
 ## 📦 Release Build Location
 
@@ -8,16 +9,18 @@
 C:\Users\Kosta\source\repos\StampliMCP\
 └── StampliMCP.McpServer.Acumatica\
     └── bin\Release\net10.0\win-x64\publish\
-        ├── stampli-mcp-acumatica.exe  (31 MB - Self-contained)
+        ├── stampli-mcp-acumatica.exe  (~31 MB - Self-contained)
         └── Knowledge\
             ├── operations\  (10 JSON files - 51 operations)
             └── kotlin\      (13 files - Kotlin TDD knowledge)
 ```
 
 ### 📊 Build Details
+- **Version**: 2.0.0 (NEW: Interactive Prompts feature!)
 - **Type**: Self-contained Release (includes .NET 10 runtime)
 - **Platform**: Windows x64
 - **Size**: ~31 MB (single file + Knowledge folder)
+- **Features**: 10 Tools + 4 Prompts = 14 MCP primitives
 - **Dependencies**: ZERO (no .NET runtime needed)
 - **AOT**: Not compiled (requires C++ build tools - see below)
 
@@ -252,17 +255,74 @@ AI → Uses exact validation rules → Implements with TDD ✅
 
 ## 📊 Tool Inventory
 
-### 🔥 **Nuclear Tools** (New)
+### 🔥 **Nuclear Tools** (Workflow Enforcement)
 1. **`implement_kotlin_feature`** - Entry point, 7-step enforced TDD workflow
 2. **`get_operation_details`** - Surgical operation details with file pointers
 
-### 🛠️ **Supporting Tools** (Existing)
+### 🛠️ **Universal Tools** (Data Retrieval)
 3. **`list_categories`** - List 9 operation categories
 4. **`search_operations`** - Search 51 operations by keyword
 5. **`get_enums`** - Get 6 enum types with values
 6. **`get_error_catalog`** - Get all error patterns
 
-**Total**: 6 tools (down from 18)
+### 🧠 **Intelligence Showcase Tools** (AI Analysis - NEW!)
+7. **`analyze_integration_complexity`** - Strategic planning & effort estimation
+   - Input: "Implement vendor payment workflow with approval chains"
+   - Output: Complexity score, effort hours, ordered operations, dependencies, risks
+
+8. **`troubleshoot_error`** - Root cause analysis & debugging
+   - Input: "vendorName exceeds maximum length of 60 characters"
+   - Output: Root cause, fix steps, prevention strategy, related errors
+
+9. **`recommend_operation`** - Business → Technical translation
+   - Input: "Pay multiple vendors at once from single approval"
+   - Output: Best operation, alternatives, trade-offs, implementation approach
+
+10. **`generate_test_scenarios`** - Comprehensive test plan generation
+    - Input: "exportVendor"
+    - Output: Happy path, edge cases, error cases, performance, security tests
+
+**Total**: 10 tools (2 Nuclear + 4 Universal + 4 Intelligence)
+
+### 💬 **Interactive Prompts** (Conversational Guidance - NEW IN V2.0!)
+MCP Prompts are pre-built conversations that guide AI through workflows interactively.
+Unlike tools (which return data), prompts return chat messages that feel like pair-programming with an expert.
+
+11. **`implement_feature_guided`** - TDD pair-programming conversation
+    - Returns: Multi-turn conversation guiding AI through 7-step TDD workflow
+    - Experience: Like having senior dev walk you through implementation
+    - Use when: Want conversational guidance vs raw workflow JSON
+
+12. **`analyze_integration_strategy`** - Solutions architect conversation
+    - Returns: Strategic planning dialogue with business + technical perspectives
+    - Experience: Like consulting session with enterprise architect
+    - Use when: Need stakeholder-friendly integration analysis
+
+13. **`debug_with_expert`** - Senior debugger conversation
+    - Returns: Interactive troubleshooting session with root cause analysis
+    - Experience: Like pair-debugging with senior engineer during crisis
+    - Use when: Stuck on error and want guided debugging
+
+14. **`plan_comprehensive_tests`** - QA engineer conversation
+    - Returns: Test planning session with P0/P1/P2 prioritization
+    - Experience: Like test design review with QA lead
+    - Use when: Need comprehensive test plan generation
+
+**How Prompts Differ from Tools:**
+| Aspect | Tools | Prompts |
+|--------|-------|---------|
+| **Returns** | Structured data (JSON) | Chat messages (conversations) |
+| **Feel** | Data dump | Guided dialogue |
+| **Use Case** | Retrieve information | Get coached through workflow |
+| **Example** | `get_operation_details` → JSON | `implement_feature_guided` → Conversation |
+| **Manager WOW** | "Here's the data" | "Watch AI think and plan" |
+
+**Total**: 10 Tools + 4 Prompts = **14 MCP Primitives**
+
+**In Claude Desktop:**
+- Tools appear in tools list (🔧 icon)
+- Prompts appear in prompts list (💬 icon)
+- Both accessible from MCP connection panel
 
 ---
 
