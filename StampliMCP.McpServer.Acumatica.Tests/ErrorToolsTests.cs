@@ -1,5 +1,9 @@
 using FluentAssertions;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
+using StampliMCP.McpServer.Acumatica.Services;
 using StampliMCP.McpServer.Acumatica.Tools;
+using Xunit.Internal;
 
 namespace StampliMCP.McpServer.Acumatica.Tests;
 
@@ -8,11 +12,15 @@ namespace StampliMCP.McpServer.Acumatica.Tests;
 /// </summary>
 public sealed class ErrorToolsTests
 {
+    private readonly KnowledgeService _knowledge = new(
+        NullLogger<KnowledgeService>.Instance,
+        new MemoryCache(new MemoryCacheOptions { SizeLimit = 100 }));
+
     [Fact]
     public async Task GetErrors_NoOperation_ShouldReturnGeneralErrors()
     {
         // Act
-        var result = await ErrorTools.GetErrors(null, CancellationToken.None);
+        var result = await ErrorTools.GetErrors(null, _knowledge, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -25,7 +33,7 @@ public sealed class ErrorToolsTests
     public async Task GetErrors_ExportVendor_ShouldReturnValidationAndBusinessErrors()
     {
         // Act
-        var result = await ErrorTools.GetErrors("exportVendor", CancellationToken.None);
+        var result = await ErrorTools.GetErrors("exportVendor", _knowledge, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
@@ -40,7 +48,7 @@ public sealed class ErrorToolsTests
     public async Task GetErrors_UnknownOperation_ShouldReturnGeneralErrorsWithMessage()
     {
         // Act
-        var result = await ErrorTools.GetErrors("unknownOperation", CancellationToken.None);
+        var result = await ErrorTools.GetErrors("unknownOperation", _knowledge, TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().NotBeNull();
