@@ -9,7 +9,7 @@ public static class AnalyzeIntegrationPrompt
 {
     [McpServerPrompt(Name = "analyze_integration_strategy")]
     [Description("Strategic planning conversation for complex integrations. AI acts as solutions architect, breaking down features into operations, estimating effort, identifying risks. More engaging than tool output.")]
-    public static IReadOnlyCollection<ChatMessage> AnalyzeIntegrationStrategy(
+    public static ChatMessage[] AnalyzeIntegrationStrategy(
         [Description("Integration requirement in business language (e.g., 'Vendor payment approval workflow with multi-level approvals')")]
         string requirement)
     {

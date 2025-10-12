@@ -9,7 +9,7 @@ public static class TroubleshootingPrompt
 {
     [McpServerPrompt(Name = "debug_with_expert")]
     [Description("Interactive debugging conversation with expert AI. Analyzes errors, identifies root cause, provides fix steps and prevention strategies. Like pair-programming with senior developer during crisis.")]
-    public static IReadOnlyCollection<ChatMessage> DebugWithExpert(
+    public static ChatMessage[] DebugWithExpert(
         [Description("Error message from production or testing (e.g., 'vendorName exceeds maximum length of 60 characters')")]
         string errorMessage)
     {

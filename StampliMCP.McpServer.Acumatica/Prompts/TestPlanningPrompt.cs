@@ -9,7 +9,7 @@ public static class TestPlanningPrompt
 {
     [McpServerPrompt(Name = "plan_comprehensive_tests")]
     [Description("QA engineer conversation for test planning. AI generates comprehensive test scenarios: happy path, edge cases, error cases, performance, security. More engaging than tool - feels like collaborative test design session.")]
-    public static IReadOnlyCollection<ChatMessage> PlanComprehensiveTests(
+    public static ChatMessage[] PlanComprehensiveTests(
         [Description("Operation name to generate tests for (e.g., 'exportVendor', 'getVendors', 'exportBillPayment')")]
         string operationName)
     {

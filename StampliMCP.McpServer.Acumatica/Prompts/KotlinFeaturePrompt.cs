@@ -9,7 +9,7 @@ public static class KotlinFeaturePrompt
 {
     [McpServerPrompt(Name = "implement_feature_guided")]
     [Description("Interactive TDD workflow conversation that guides AI through implementing Kotlin feature step-by-step. More engaging than tool - AI feels like it's pair-programming with senior developer.")]
-    public static IReadOnlyCollection<ChatMessage> ImplementFeatureGuided(
+    public static ChatMessage[] ImplementFeatureGuided(
         [Description("Feature description in natural language (e.g., 'Add vendor bulk import with CSV validation')")]
         string featureDescription)
     {
