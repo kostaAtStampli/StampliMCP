@@ -81,6 +81,50 @@ public sealed class ConversationLogger
     }
 
     /// <summary>
+    /// Log an MCP tool call
+    /// </summary>
+    public void LogToolCall(string toolName, string arguments)
+    {
+        // Add a new turn with tool call
+        _turns.Add(new ConversationTurn
+        {
+            TurnNumber = _turns.Count + 1,
+            Timestamp = DateTime.UtcNow,
+            Actor = "MCP",
+            Content = new TurnContent
+            {
+                ToolCalls = new List<ToolCall>
+                {
+                    new ToolCall
+                    {
+                        Name = toolName,
+                        Arguments = arguments
+                    }
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Check if any tool call was made
+    /// </summary>
+    public bool HasToolCall(string toolName)
+    {
+        return _turns.Any(t =>
+            t.Content.ToolCalls?.Any(tc => tc.Name.Contains(toolName)) == true);
+    }
+
+    /// <summary>
+    /// Get all tool calls
+    /// </summary>
+    public List<ToolCall> GetAllToolCalls()
+    {
+        return _turns
+            .SelectMany(t => t.Content.ToolCalls ?? new List<ToolCall>())
+            .ToList();
+    }
+
+    /// <summary>
     /// Save conversation to JSON file
     /// </summary>
     public string SaveConversation(bool success, string? errorMessage = null)

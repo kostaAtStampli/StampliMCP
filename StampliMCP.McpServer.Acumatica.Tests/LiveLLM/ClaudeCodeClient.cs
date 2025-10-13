@@ -13,6 +13,7 @@ public sealed class ClaudeCodeClient : IDisposable
 {
     private readonly string _workingDirectory;
     private readonly ConversationLogger _logger;
+    private string? _configPath; // Store config path for later use
     private Process? _process;
     private readonly StringBuilder _output = new();
     private readonly StringBuilder _errorOutput = new();
@@ -33,6 +34,7 @@ public sealed class ClaudeCodeClient : IDisposable
             // Create MCP config for Claude Code
             var mcpConfig = CreateMCPConfig();
             var configPath = Path.Combine(_workingDirectory, ".claude-code-config.json");
+            _configPath = configPath; // Store for later use
             await File.WriteAllTextAsync(configPath, mcpConfig);
 
             _logger.LogFileOperation("create", configPath, mcpConfig);
@@ -53,12 +55,20 @@ public sealed class ClaudeCodeClient : IDisposable
     {
         _logger.LogLLMTurn(prompt, "", null);
 
-        // Use actual claude CLI command
+        if (_configPath == null)
+            throw new InvalidOperationException("Must call StartAsync first");
+
+        // Use actual claude CLI command via WSL (since claude is installed in WSL)
+        // Convert Windows path to WSL path for working directory
+        var wslWorkingDir = _workingDirectory.Replace("C:", "/mnt/c").Replace("\\", "/");
+        var wslConfigPath = _configPath.Replace("C:", "/mnt/c").Replace("\\", "/");
+
         var startInfo = new ProcessStartInfo
         {
-            FileName = "claude",
-            Arguments = $"\"{prompt.Replace("\"", "\\\"")}\"",
+            FileName = "wsl",
+            Arguments = $"bash -c \"cd '{wslWorkingDir}' && claude --mcp-config '{wslConfigPath}' --print --permission-mode bypassPermissions --debug '{prompt.Replace("'", "'\\''")}' \"",
             WorkingDirectory = _workingDirectory,
+            RedirectStandardInput = true,   // For auto-approval
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -70,6 +80,11 @@ public sealed class ClaudeCodeClient : IDisposable
         {
             throw new InvalidOperationException("Failed to start Claude CLI");
         }
+
+        // Auto-answer permission prompt with "2" (Yes, I accept)
+        await process.StandardInput.WriteLineAsync("2");
+        await process.StandardInput.FlushAsync();
+        process.StandardInput.Close();
 
         var outputTask = process.StandardOutput.ReadToEndAsync();
         var errorTask = process.StandardError.ReadToEndAsync();
@@ -85,7 +100,13 @@ public sealed class ClaudeCodeClient : IDisposable
 
         if (!string.IsNullOrEmpty(error))
         {
-            Console.WriteLine($"Claude stderr: {error}");
+            Console.WriteLine($"Claude debug output:\n{error}");
+
+            // Track MCP tool calls from debug output
+            if (error.Contains("kotlin_tdd_workflow") || error.Contains("mcp"))
+            {
+                _logger.LogToolCall("kotlin_tdd_workflow", "detected in debug output");
+            }
         }
 
         _logger.LogLLMTurn(prompt, output, null);
@@ -108,7 +129,10 @@ public sealed class ClaudeCodeClient : IDisposable
 
     private string CreateMCPConfig()
     {
-        // This would configure Claude Code to use our MCP server
+        // Use absolute path to avoid relative path issues
+        var repoRoot = @"C:\Users\Kosta\source\repos\StampliMCP";
+        var projectPath = Path.Combine(repoRoot, "StampliMCP.McpServer.Acumatica", "StampliMCP.McpServer.Acumatica.csproj");
+
         var config = new
         {
             mcpServers = new
@@ -120,7 +144,7 @@ public sealed class ClaudeCodeClient : IDisposable
                     {
                         "run",
                         "--project",
-                        Path.GetFullPath("StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj")
+                        projectPath
                     },
                     env = new
                     {
