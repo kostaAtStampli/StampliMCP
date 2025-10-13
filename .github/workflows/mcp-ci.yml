@@ -1,0 +1,340 @@
+name: MCP Nuclear 2025 CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Nightly build at 2 AM UTC (includes LiveLLM tests)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_live_llm_tests:
+        description: 'Run expensive LiveLLM tests'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  CONFIGURATION: Release
+
+jobs:
+  # Fast feedback: Build and unit tests
+  build-and-test:
+    name: Build and Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Run Unit Tests
+      run: |
+        dotnet test \
+          --configuration ${{ env.CONFIGURATION }} \
+          --no-build \
+          --filter "Category!=Integration&Category!=LiveLLM" \
+          --logger "trx;LogFileName=unit-tests.trx" \
+          --logger "console;verbosity=minimal"
+
+    - name: Upload Unit Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results
+        path: '**/unit-tests.trx'
+
+  # Integration tests: MCP protocol validation
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Run Integration Tests
+      run: |
+        dotnet test \
+          --configuration ${{ env.CONFIGURATION }} \
+          --no-build \
+          --filter "Category=Integration" \
+          --logger "trx;LogFileName=integration-tests.trx" \
+          --logger "console;verbosity=detailed"
+
+    - name: Upload Integration Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results
+        path: '**/integration-tests.trx'
+
+  # Live LLM tests: Real Claude Code CLI testing
+  # Only runs on: nightly builds, manual trigger, or release tags
+  live-llm-tests:
+    name: Live LLM Tests (Expensive)
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.run_live_llm_tests == 'true' ||
+      startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Node.js (for Claude CLI)
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Claude CLI
+      run: npm install -g @anthropic/claude-cli
+
+    - name: Verify Claude CLI
+      run: claude --version
+
+    - name: Configure Claude API Key
+      env:
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+      run: |
+        echo "Configuring Claude CLI with API key"
+        # Claude CLI configuration (adjust based on actual CLI)
+        mkdir -p ~/.config/claude
+        echo "{\"api_key\":\"$CLAUDE_API_KEY\"}" > ~/.config/claude/config.json
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
+
+    - name: Run Live LLM Tests
+      id: live_tests
+      run: |
+        dotnet test \
+          --configuration ${{ env.CONFIGURATION }} \
+          --no-build \
+          --filter "Category=LiveLLM" \
+          --logger "trx;LogFileName=live-llm-tests.trx" \
+          --logger "console;verbosity=detailed" \
+          > live_llm_output.txt 2>&1
+      continue-on-error: true
+
+    - name: Extract Metrics
+      if: always()
+      run: |
+        echo "## Live LLM Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Extract metrics from test output (adjust based on actual output format)
+        if [ -f live_llm_output.txt ]; then
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 50 live_llm_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload Live LLM Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: live-llm-test-results
+        path: |
+          **/live-llm-tests.trx
+          live_llm_output.txt
+          **/GoldenFlows/*.json
+
+    - name: Upload Golden Flows
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: golden-flows
+        path: '**/GoldenFlows/*.json'
+
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          let output = 'No output';
+          try {
+            output = fs.readFileSync('live_llm_output.txt', 'utf8');
+          } catch (e) {}
+
+          const body = `## 🤖 Live LLM Test Results
+
+          These tests use real Claude Code CLI to validate the MCP workflow.
+
+          **Status**: ${process.env.TEST_STATUS}
+          **Triggered by**: ${context.eventName}
+
+          <details>
+          <summary>Full Output</summary>
+
+          \`\`\`
+          ${output.slice(-2000)}
+          \`\`\`
+          </details>
+
+          **Cost Estimate**: ~$0.60-$1.50 (real API usage)
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+        env:
+          TEST_STATUS: ${{ steps.live_tests.outcome }}
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Check code formatting
+      run: dotnet format --verify-no-changes --no-restore
+      continue-on-error: true
+
+    - name: Run code analysis
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} /p:TreatWarningsAsErrors=false
+
+  # Publish artifacts for releases
+  publish:
+    name: Publish Release Artifacts
+    runs-on: ubuntu-latest
+    needs: [build-and-test, integration-tests]
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    strategy:
+      matrix:
+        runtime: [win-x64, linux-x64, osx-x64]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Publish self-contained executable
+      run: |
+        dotnet publish StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
+          -c Release \
+          -r ${{ matrix.runtime }} \
+          --self-contained \
+          /p:PublishSingleFile=true \
+          /p:PublishAot=false \
+          -o publish/${{ matrix.runtime }}
+
+    - name: Verify Knowledge files included
+      run: |
+        echo "Checking for Knowledge files in publish directory..."
+        find publish/${{ matrix.runtime }} -name "*.json" -o -name "*.md" -o -name "*.xml" | head -20
+
+    - name: Create release archive
+      run: |
+        cd publish/${{ matrix.runtime }}
+        if [[ "${{ matrix.runtime }}" == "win-x64" ]]; then
+          zip -r ../../stampli-mcp-acumatica-${{ matrix.runtime }}.zip .
+        else
+          tar -czf ../../stampli-mcp-acumatica-${{ matrix.runtime }}.tar.gz .
+        fi
+
+    - name: Upload release artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: stampli-mcp-acumatica-${{ matrix.runtime }}
+        path: |
+          stampli-mcp-acumatica-${{ matrix.runtime }}.*
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: matrix.runtime == 'win-x64'  # Only create release once
+      with:
+        files: stampli-mcp-acumatica-*
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Test summary
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [build-and-test, integration-tests]
+    if: always()
+
+    steps:
+    - name: Download all test results
+      uses: actions/download-artifact@v4
+      with:
+        path: test-results
+
+    - name: Generate summary
+      run: |
+        echo "## 🧪 MCP Nuclear 2025 Test Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Build & Unit Tests | ${{ needs.build-and-test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Tests | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Architecture: v3.0.0 Single Entry Point" >> $GITHUB_STEP_SUMMARY
+        echo "- **1 main tool**: \`kotlin_tdd_workflow\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Session management**: 30min timeout, LRU eviction" >> $GITHUB_STEP_SUMMARY
+        echo "- **TDD enforcement**: RED → GREEN → REFACTOR → COMPLETE" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "See \`MCP_NUCLEAR_2025_GUIDE.md\` for full documentation." >> $GITHUB_STEP_SUMMARY

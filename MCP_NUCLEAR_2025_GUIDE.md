@@ -1,165 +1,210 @@
-# MCP Nuclear 2025 Architecture Guide
+# MCP Nuclear 2025 Architecture Guide (v3.0.0)
 
 ## Overview
 
-The MCP Nuclear 2025 architecture transforms 14 scattered tools into a streamlined **2 Nuclear Tools + 4 Utilities** system with enforced tasklist review workflow and 2025 security standards.
+Version 3.0.0 introduces **True Single Entry Point** architecture:
+- From 16 tools → **1 main tool** (`kotlin_tdd_workflow`)
+- Complete knowledge provided upfront in single response
+- Enforced TDD workflow with session management
+- Natural conversation flow with query/help system
 
 ## Quick Start
 
-### 1. Analyze a Feature
+### Single Entry Point Flow
 ```
-User: "I want to export vendors to Acumatica with duplicate checking"
+User: "implement exportVendor operation"
 
-AI uses: analyze_acumatica_feature
-Returns: Comprehensive tasklist for review
-```
+AI uses: kotlin_tdd_workflow(command="start", context="exportVendor")
 
-### 2. Review Tasklist
-```json
-{
-  "tasklist": [
-    {"id": 1, "action": "Check for existing vendor with stampliLink"},
-    {"id": 2, "action": "Write test: vendorName required validation"},
-    {"id": 3, "action": "Implement exportVendor with validations"},
-    {"id": 4, "action": "Run tests - confirm GREEN phase"}
-  ]
-}
+Returns: Complete knowledge in ONE response:
+  - Test templates (full code)
+  - Implementation templates (full code)
+  - Validation rules with exact error messages
+  - File pointers to legacy code
+  - Complete tasklist
+  - Session ID for continuation
 ```
 
-### 3. Execute Approved Tasks
+### Continue Workflow
 ```
-User: "Approve tasks 1, 2, and 4"
+AI: "I wrote tests, they're failing"
 
-AI uses: execute_acumatica_tasks(approved_task_ids: [1,2,4])
-Executes: Only approved tasks
+AI uses: kotlin_tdd_workflow(command="continue", context="tests failing", sessionId="tdd_123")
+
+Returns: Implementation guidance + move to GREEN phase
 ```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│         analyze_acumatica_feature           │
-│    (Analysis & Tasklist Generation)         │
-└────────────────┬────────────────────────────┘
-                 │ Returns Tasklist
-                 ↓
-        [User Reviews & Approves]
-                 ↓
-┌─────────────────────────────────────────────┐
-│         execute_acumatica_tasks             │
-│       (Execute Approved Tasks Only)         │
-└─────────────────────────────────────────────┘
-
-Supporting Utilities:
-├── get_operation_details
-├── get_errors
-├── get_enums
-└── health_check
+┌──────────────────────────────────────────┐
+│      kotlin_tdd_workflow (SINGLE)        │
+│                                          │
+│  Commands:                               │
+│  - start    → Begin new feature         │
+│  - continue → Progress through phases    │
+│  - query    → Get help                   │
+│  - list     → Show all operations        │
+└──────────────────────────────────────────┘
+              ↓
+   [Session Management: 30min timeout]
+              ↓
+      RED → GREEN → REFACTOR → COMPLETE
 ```
 
-## Tool Specifications
+**Supporting Diagnostic Tool:**
+- `health_check` - Server status and diagnostics
 
-### Nuclear Tool 1: `analyze_acumatica_feature`
+## Tool Specification
 
-**Purpose**: Complete feature analysis with reviewable tasklist (NO AUTO-EXECUTION)
+### kotlin_tdd_workflow (SINGLE ENTRY POINT)
+
+**Purpose**: Single tool managing complete TDD workflow from discovery to completion
 
 **Input**:
 ```typescript
 {
-  feature_description: string;  // "Export vendor to Acumatica"
-  analysis_depth: "full" | "quick";
-  include_test_scenarios: boolean;
+  command: "start" | "continue" | "query" | "list";
+  context: string;           // Feature description or current state
+  sessionId?: string;        // For continue commands
 }
 ```
 
-**Output (Tool Output Schema 2025)**:
-```typescript
-{
-  analysis_id: string;           // "ana_20250112_001"
-  feature: string;
-  timestamp: string;
+**Commands:**
 
-  discovered: {
-    primary_category: string;    // "vendors"
-    operations: Operation[];      // Found operations
-    validations: string[];        // Required validations
-    patterns: PatternMap;         // Code patterns
-  };
+#### 1. `start` - Begin New Feature
+Discovers operations, generates complete knowledge upfront, creates tasklist.
 
-  tasklist: Task[];              // Numbered tasks for review
-
-  summary: {
-    total_tasks: number;
-    estimated_complexity: "low" | "medium" | "high";
-    requires_review: true;        // Always true
-    ready_for_execution: false;   // User must approve
-  };
-}
-```
-
-### Nuclear Tool 2: `execute_acumatica_tasks`
-
-**Purpose**: Execute user-approved tasks ONLY
-
-**Input**:
-```typescript
-{
-  analysis_id: string;           // From analyze tool
-  approved_task_ids: number[];   // [1, 2, 4]
-  execution_mode: "sequential" | "parallel";
-  dry_run: boolean;
-}
-```
-
-**Output**:
-```typescript
-{
-  execution_id: string;
-  analysis_id: string;
-  results: TaskResult[];         // Result per task
-  summary: {
-    total_executed: number;
-    successful: number;
-    failed: number;
-  };
-}
-```
-
-## Security Features (2025 Standards)
-
-### 1. Input Validation
-- 500 character limit on feature descriptions
-- Regex patterns to detect injection attempts
-- Sanitization of all user inputs
-
-### 2. Command Injection Prevention
-```csharp
-// Suspicious patterns detected and blocked
-private static bool ContainsSuspiciousPatterns(string input)
-{
-    var patterns = new[] {
-        @"[';""]+\s*(DROP|DELETE|UPDATE|INSERT|EXEC)",
-        @"<script", @"javascript:", @"\$\{.*\}",
-        @"\.\.[\\/]", @"cmd\.exe|powershell|bash"
-    };
-    return patterns.Any(p => Regex.IsMatch(input, p));
-}
-```
-
-### 3. Tool Output Schema
-- Exact response shapes defined
-- Client knows structure before execution
-- Reduces token usage by 90%
-
-### 4. Capability Declaration
+**Example**:
 ```json
 {
-  "capabilities": {
-    "tools": true,
-    "resources": true,
-    "toolOutputSchemas": true
-  }
+  "command": "start",
+  "context": "export vendor to Acumatica with duplicate check",
+  "sessionId": null
 }
+```
+
+**Returns**:
+```typescript
+{
+  sessionId: string;          // "tdd_20250113_001"
+  phase: "RED";               // Always starts in RED
+
+  knowledge: {
+    testCode: string;         // Complete test template
+    implementationCode: string;  // Complete implementation template
+    validationRules: string[];   // All validation rules
+    errorMessages: string[];     // All error messages
+    legacyFiles: FilePointer[];  // Pointers to legacy code
+    requiredFields: Field[];     // Required fields with types
+    optionalFields: Field[];     // Optional fields
+    relatedOperations: string[]; // Related operations
+  };
+
+  tasklist: Task[];           // Complete numbered tasklist
+
+  summary: {
+    feature: string;
+    operations: string[];
+    estimated_complexity: "low" | "medium" | "high";
+    total_tasks: number;
+    requires_review: true;
+    ready_for_execution: false;
+  };
+}
+```
+
+#### 2. `continue` - Progress Through Phases
+Advances workflow through RED → GREEN → REFACTOR → COMPLETE with validation.
+
+**Example**:
+```json
+{
+  "command": "continue",
+  "context": "tests are failing as expected",
+  "sessionId": "tdd_20250113_001"
+}
+```
+
+**Returns**:
+```typescript
+{
+  sessionId: string;
+  phase: "GREEN";             // Advanced to next phase
+  guidance: string;           // What to do next
+  allowedActions: string[];   // Valid next actions
+  tasklist: Task[];           // Updated tasklist with progress
+}
+```
+
+**Phase Enforcement:**
+- RED phase: Must confirm tests fail
+- GREEN phase: Must confirm tests pass
+- REFACTOR phase: Optional improvements
+- COMPLETE: Final verification
+
+#### 3. `query` - Get Help
+Context-aware help for errors, patterns, or questions.
+
+**Example**:
+```json
+{
+  "command": "query",
+  "context": "getting 401 unauthorized error",
+  "sessionId": null
+}
+```
+
+**Returns**:
+```typescript
+{
+  problem: string;            // Root cause
+  solution: string;           // How to fix
+  codeExample?: string;       // Code snippet if applicable
+  relatedErrors?: string[];   // Similar issues
+}
+```
+
+#### 4. `list` - Show All Operations
+Lists all available operations by category.
+
+**Example**:
+```json
+{
+  "command": "list",
+  "context": "",
+  "sessionId": null
+}
+```
+
+**Returns**:
+```typescript
+{
+  totalCategories: number;
+  totalOperations: number;
+  categories: {
+    name: string;
+    description: string;
+    operations: string[];
+  }[];
+}
+```
+
+## Session Management
+
+**Features:**
+- 30-minute timeout per session
+- Maximum 100 concurrent sessions (LRU eviction)
+- Thread-safe access with locking
+- Automatic cleanup on every access
+- Session tracks: phase, tasklist progress, feature context
+
+**Session Lifecycle:**
+```
+1. start command → Creates session with 30min TTL
+2. continue commands → Updates session.LastAccessedAt
+3. 30min inactivity → Session auto-deleted
+4. 100 sessions reached → LRU eviction
 ```
 
 ## Categories as Data
@@ -182,125 +227,235 @@ Categories are **Knowledge files**, not tools:
 
 ## Usage Examples
 
-### Example 1: Vendor Export
+### Example 1: Vendor Export (Complete Flow)
+
 ```
 User: "implement vendor export with duplicate check"
 
-AI: analyze_acumatica_feature("vendor export", "full", true)
-Returns:
-- Operations: exportVendor, getMatchingVendorByStampliLink
-- Validations: vendorName required, vendorId max 15 chars
-- Tasklist: 5 tasks including tests
+AI → kotlin_tdd_workflow(command="start", context="vendor export with duplicate check")
 
-User: "approve tasks 1, 3, 5"
+Response:
+{
+  "sessionId": "tdd_001",
+  "phase": "RED",
+  "knowledge": {
+    "testCode": "// Complete test template...",
+    "implementationCode": "// Complete implementation template...",
+    "validationRules": ["vendorName required", "vendorId max 15 chars"],
+    "legacyFiles": [
+      "C#: integrations/Acumatica/Methods/ExportVendor.cs:25-150",
+      "C#: integrations/Acumatica/Methods/GetMatchingVendorByStampliLink.cs:10-45"
+    ]
+  },
+  "tasklist": [
+    { "id": 1, "phase": "RED", "action": "Write failing test for exportVendor" },
+    { "id": 2, "phase": "RED", "action": "Verify test fails" },
+    { "id": 3, "phase": "GREEN", "action": "Implement exportVendor operation" },
+    { "id": 4, "phase": "GREEN", "action": "Verify tests pass" },
+    { "id": 5, "phase": "REFACTOR", "action": "Add duplicate check" }
+  ]
+}
 
-AI: execute_acumatica_tasks("ana_20250112_001", [1,3,5])
-Executes: Only validation, implementation, and verification
+AI writes tests using provided template...
+
+AI → kotlin_tdd_workflow(command="continue", context="tests written and failing", sessionId="tdd_001")
+
+Response:
+{
+  "sessionId": "tdd_001",
+  "phase": "GREEN",
+  "guidance": "Tests failing correctly. Now implement using the implementation template...",
+  "tasklist": [
+    { "id": 1, "status": "completed" },
+    { "id": 2, "status": "completed" },
+    { "id": 3, "status": "in_progress" }, // <-- Current
+    ...
+  ]
+}
+
+... continues through GREEN → REFACTOR → COMPLETE
 ```
 
-### Example 2: Payment Processing
+### Example 2: Getting Help
+
 ```
-User: "add bill payment functionality"
+AI → kotlin_tdd_workflow(command="query", context="401 unauthorized when calling Acumatica")
 
-AI: analyze_acumatica_feature("bill payment", "quick", false)
-Returns:
-- Operations: exportBillPayment, voidPayment
-- Validations: payment amount, vendor ID
-- Tasklist: 3 tasks (no tests in quick mode)
+Response:
+{
+  "problem": "Authentication failure with Acumatica API",
+  "solution": "Ensure AcumaticaAuthenticator.authenticate() is called before API calls. Check credentials in config.",
+  "codeExample": "val auth = AcumaticaAuthenticator(config)\nauth.authenticate()\nval client = AcumaticaClient(auth)",
+  "relatedErrors": ["403 Forbidden", "Invalid credentials"]
+}
+```
 
-User: "execute all"
+### Example 3: Listing Operations
 
-AI: execute_acumatica_tasks("ana_20250112_002", [1,2,3])
-Executes: All 3 tasks sequentially
+```
+AI → kotlin_tdd_workflow(command="list", context="")
+
+Response:
+{
+  "totalCategories": 7,
+  "totalOperations": 48,
+  "categories": [
+    {
+      "name": "vendors",
+      "description": "Vendor operations",
+      "operations": ["exportVendor", "getVendors", "getMatchingVendorByStampliLink", "updateVendor"]
+    },
+    ...
+  ]
+}
 ```
 
 ## Benefits Summary
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Tool Count | 14 | 6 | **-57%** |
+| Metric | Before (v2.0) | After (v3.0) | Improvement |
+|--------|---------------|--------------|-------------|
+| Tool Count | 16 | 2 | **-87.5%** |
+| Entry Points | Multiple | 1 | **Single** |
 | Token Usage | ~15k | ~1.5k | **-90%** |
-| User Control | Auto-execute | Review first | **100%** |
 | Prompts Needed | 6+ | 1 | **-83%** |
-| Security | Basic | 2025 compliant | **Enhanced** |
+| Session Management | None | Full | **Added** |
+| Phase Enforcement | Manual | Automatic | **Enforced** |
 
-## Migration from Old Tools
+## Security Features
 
-### Tools Removed
-- ❌ KotlinFeatureTool → Use analyze_acumatica_feature
-- ❌ CategoryTools → Categories now internal to analyze
-- ❌ SearchTools → Use analyze_acumatica_feature
-- ❌ RecommendOperationTool → Use analyze_acumatica_feature
-- ❌ GenerateTestScenariosTool → Use analyze with include_test_scenarios
-- ❌ AnalyzeIntegrationTool → Use analyze_acumatica_feature
-- ❌ TroubleshootErrorTool → Use get_errors utility
-- ❌ (Planned) Remove remaining redundant tools
+### 1. Input Validation
+- 500 character limit on context
+- Regex patterns to detect injection attempts
+- Sanitization of all user inputs
 
-### Tools Kept
-- ✅ analyze_acumatica_feature (NEW - Nuclear)
-- ✅ execute_acumatica_tasks (NEW - Nuclear)
-- ✅ get_operation_details (Utility)
-- ✅ get_errors (Utility)
-- ✅ get_enums (Utility)
-- ✅ health_check (Diagnostic)
+### 2. Session Security
+- Max 100 sessions (prevents DOS)
+- 30-minute timeout (prevents resource leaks)
+- Thread-safe access (prevents race conditions)
 
-## Implementation Status
+## Testing
 
-✅ **Completed**:
-- Nuclear tool implementation
-- Tool Output Schema support
-- Security validation layer
-- Category-based analysis
-- Tasklist generation
-- Approval-based execution
+### Integration Tests
 
-🚧 **In Progress**:
-- Removing 8 redundant tools
-- Integration testing
-- Performance optimization
+**SingleEntryPointTests.cs:**
+- Verifies only 2 tools exposed (kotlin_tdd_workflow + health_check)
+- Validates complete knowledge returned upfront
+- Tests session tracking through phases
+- Tests TDD enforcement (can't skip RED phase)
+- Tests query/help system
+- Tests list command
+- Tests graceful handling of unknown features
 
-## Best Practices
+### Live LLM Tests
 
-1. **Always Review Tasklist**: Never auto-approve all tasks without review
-2. **Use Full Analysis for New Features**: Quick mode for simple queries only
-3. **Include Tests**: Set include_test_scenarios=true for production features
-4. **Sequential for Dependencies**: Use sequential mode when tasks depend on each other
-5. **Dry Run First**: Use dry_run=true to preview execution without changes
+**FullWorkflowTests.cs:**
+- Uses real Claude Code CLI
+- Tests complete workflow from start to finish
+- Logs all LLM↔MCP conversations
+- Tracks metrics (tokens, cost, duration)
+- Saves successful flows as golden patterns
+- **Skipped by default** (run with `--filter "Category=LiveLLM"`)
+
+See `TESTING_WITH_LIVE_LLM.md` for detailed instructions.
 
 ## Troubleshooting
 
-### "Analysis not found"
-- Analysis expires after session
-- Re-run analyze_acumatica_feature
+### "Session not found"
+- Session expired after 30 minutes
+- Re-run `start` command to create new session
 
-### "Task execution failed"
-- Check task dependencies
-- Ensure previous tasks completed
-- Review error details in response
+### "Invalid phase transition"
+- Can't skip RED phase - tests must fail first
+- Can't go back to previous phase
+- Use `query` command for help
 
-### "Invalid input"
-- Feature description too long (>500 chars)
-- Contains suspicious patterns
-- Simplify and retry
+### "Unknown feature"
+- Feature description doesn't match any category
+- Use `list` command to see available operations
+- Try more specific description
+
+### "Context too long"
+- Reduce context to <500 characters
+- Focus on key requirements only
+
+## Migration from v2.0
+
+### Old Way (v2.0)
+```
+1. AI calls analyze_acumatica_feature
+2. User reviews tasklist
+3. User approves tasks
+4. AI calls execute_acumatica_tasks
+5. AI queries get_operation_details for help
+6. AI queries get_errors for troubleshooting
+```
+
+### New Way (v3.0)
+```
+1. AI calls kotlin_tdd_workflow(command="start")
+   → Gets complete knowledge + tasklist in one response
+2. AI writes code using provided templates
+3. AI calls kotlin_tdd_workflow(command="continue")
+   → Session tracks progress automatically
+4. AI uses kotlin_tdd_workflow(command="query") for help
+   → No separate tools needed
+```
+
+### Deleted Tools
+- ❌ `analyze_acumatica_feature` → Use `kotlin_tdd_workflow(command="start")`
+- ❌ `execute_acumatica_tasks` → Execution is AI-driven, not tool-driven
+- ❌ `get_operation_details` → Integrated into `start` command
+- ❌ `get_errors` → Use `kotlin_tdd_workflow(command="query")`
+- ❌ `search_operations` → Use `kotlin_tdd_workflow(command="list")`
+- ❌ `recommend_operation` → Integrated into `start` discovery
+- ❌ All other scattered tools
+
+### Kept Tools
+- ✅ `kotlin_tdd_workflow` - **SINGLE ENTRY POINT**
+- ✅ `health_check` - Diagnostics only
+
+## Best Practices
+
+1. **Single Prompt**: User provides feature description once, AI manages rest
+2. **Trust the Templates**: Use provided test/implementation templates as-is
+3. **Follow TDD Phases**: Don't skip RED phase - tests must fail first
+4. **Use File Pointers**: Legacy code locations provided, don't embed code
+5. **Query for Help**: Use `query` command instead of guessing
+6. **Session Timeout**: Complete workflow within 30 minutes or start new session
+
+## Implementation Status
+
+✅ **Completed (v3.0.0)**:
+- Single entry point tool (`kotlin_tdd_workflow`)
+- Complete knowledge upfront (no round trips)
+- Session management (30min timeout, LRU eviction)
+- TDD phase enforcement
+- Query/help system integrated
+- List operations command
+- Thread-safe session access
+- Integration tests (SingleEntryPointTests.cs)
+- Live LLM test infrastructure (ClaudeCodeClient, ConversationLogger, SandboxManager)
+- Metrics tracking (TestMetrics.cs)
 
 ## Future Enhancements
 
-- [ ] Persistent analysis cache
-- [ ] Task dependency graph
-- [ ] Rollback capability
-- [ ] Progress streaming
-- [ ] Multi-feature batch analysis
+- [ ] Persistent session cache (survive server restart)
+- [ ] Streaming responses for long tasklists
+- [ ] Multi-feature workflows (batch operations)
 - [ ] AI-powered task prioritization
+- [ ] Automatic test execution validation
+- [ ] Performance benchmarks vs v2.0
 
 ## Support
 
 For issues or questions:
+- Use `kotlin_tdd_workflow(command="query")` for context-aware help
 - Check diagnostic: `health_check` tool
-- Review logs in execution results
-- Verify Knowledge files loaded correctly
+- Review logs in test output
+- See `TESTING_WITH_LIVE_LLM.md` for testing guidance
 
 ---
 
-**Version**: 2.0.0-nuclear
-**Last Updated**: January 12, 2025
-**Architecture**: MCP Nuclear 2025
+**Version**: 3.0.0
+**Last Updated**: January 13, 2025
+**Architecture**: MCP Nuclear 2025 - Single Entry Point
