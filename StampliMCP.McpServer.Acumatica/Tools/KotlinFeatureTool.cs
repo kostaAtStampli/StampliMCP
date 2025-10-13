@@ -3,13 +3,11 @@ using ModelContextProtocol.Server;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class KotlinFeatureTool
 {
-    [McpServerTool(Name = "implement_kotlin_feature")]
-    [Description("Nuclear MCP 2025: Autonomously implements Kotlin feature using enforced 7-step TDD workflow. Developer describes feature in natural language, MCP handles: discovery → scan → test(FAIL) → implement → test(PASS) → completion. Single prompt, full autonomous execution.")]
+    // Called internally by KotlinTddWorkflowTool
     public static Task<object> ImplementKotlinFeature(
-        [Description("Feature description in natural language (e.g., 'Add vendor bulk import with CSV validation', 'Implement bill payment export', 'Add vendor duplicate check')")]
         string featureDescription)
     {
         var workflow = new

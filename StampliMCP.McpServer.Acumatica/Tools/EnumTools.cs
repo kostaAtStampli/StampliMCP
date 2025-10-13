@@ -5,11 +5,10 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class EnumTools
 {
-    [McpServerTool(Name = "get_enums")]
-    [Description("Get all enum mappings (VendorStatus, ItemType, etc.) with code locations")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> GetEnums(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
@@ -18,8 +17,7 @@ public static class EnumTools
         return new { enums };
     }
 
-    [McpServerTool(Name = "get_test_config")]
-    [Description("Get test customer configuration and golden test examples")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> GetTestConfig(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
@@ -28,8 +26,7 @@ public static class EnumTools
         return config;
     }
 
-    [McpServerTool(Name = "get_base_classes")]
-    [Description("Get base request/response class information that all DTOs inherit from")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> GetBaseClasses(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)

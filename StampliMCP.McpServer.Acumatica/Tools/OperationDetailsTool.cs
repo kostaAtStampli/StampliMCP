@@ -4,13 +4,11 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class OperationDetailsTool
 {
-    [McpServerTool(Name = "get_operation_details")]
-    [Description("Get surgical details for implementing a specific Acumatica operation in Kotlin using TDD. Returns exact validation rules, error messages, file pointers to legacy code, and golden pattern references.")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> GetOperationDetails(
-        [Description("Operation method name (e.g., 'exportVendor', 'getVendors', 'exportAPTransaction')")]
         string methodName,
         KnowledgeService knowledge,
         CancellationToken ct = default)

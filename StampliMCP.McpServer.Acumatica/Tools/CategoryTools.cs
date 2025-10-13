@@ -5,11 +5,10 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class CategoryTools
 {
-    [McpServerTool(Name = "list_categories")]
-    [Description("List all available operation categories in Acumatica integration")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> ListCategories(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)

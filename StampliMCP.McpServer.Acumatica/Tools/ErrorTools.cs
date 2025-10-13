@@ -4,13 +4,11 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class ErrorTools
 {
-    [McpServerTool(Name = "get_errors")]
-    [Description("Get error catalog for a specific operation or all authentication/API errors")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> GetErrors(
-        [Description("Operation method name (e.g., 'exportVendor'). Leave empty for general errors only.")]
         string? operation,
         KnowledgeService knowledge,
         CancellationToken cancellationToken)

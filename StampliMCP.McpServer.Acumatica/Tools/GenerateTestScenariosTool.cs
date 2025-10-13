@@ -4,13 +4,13 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class GenerateTestScenariosTool
 {
-    [McpServerTool(Name = "generate_test_scenarios")]
-    [Description("Generates comprehensive test scenarios for an operation: happy path, edge cases, error cases, performance tests, and security tests. Like having a QA engineer design your test plan.")]
+    // Called internally by KotlinTddWorkflowTool
+    
     public static async Task<object> GenerateTestScenarios(
-        [Description("Operation name to generate test scenarios for (e.g., 'exportVendor', 'exportBillPayment')")]
+        
         string operationName,
         IntelligenceService intelligence,
         CancellationToken ct = default)

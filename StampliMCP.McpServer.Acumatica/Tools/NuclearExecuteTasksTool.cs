@@ -4,15 +4,13 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class NuclearExecuteTasksTool
 {
     private static readonly Dictionary<string, ExecutionResult> _executionCache = new();
 
-    [McpServerTool(Name = "execute_acumatica_tasks")]
-    [Description("Nuclear MCP 2025: Executes user-approved tasks from analysis. ONLY executes tasks explicitly approved by user. Returns execution results for each task.")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> ExecuteAcumaticaTasks(
-        [Description("Analysis ID from analyze_acumatica_feature tool")]
         string analysisId,
         [Description("Array of task IDs approved for execution (e.g., [1,2,4])")]
         int[] approvedTaskIds,

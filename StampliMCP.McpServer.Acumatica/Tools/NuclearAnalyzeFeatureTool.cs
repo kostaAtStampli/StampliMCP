@@ -7,17 +7,14 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class NuclearAnalyzeFeatureTool
 {
     private static readonly Dictionary<string, Guid> _analysisCache = new();
 
-    [McpServerTool(Name = "analyze_acumatica_feature")]
-    [Description("Nuclear MCP 2025: Analyzes feature requirements and returns comprehensive tasklist for user review. NO AUTO-EXECUTION. Identifies operations, validations, patterns, and generates numbered tasks.")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> AnalyzeAcumaticaFeature(
-        [Description("Natural language feature description (e.g., 'Export vendor to Acumatica', 'Add bill payment with validation')")]
         string featureDescription,
-        [Description("Analysis depth: 'full' (complete analysis with tests) or 'quick' (basic analysis)")]
         string analysisDepth,
         [Description("Include test scenarios in tasklist")]
         bool includeTestScenarios,

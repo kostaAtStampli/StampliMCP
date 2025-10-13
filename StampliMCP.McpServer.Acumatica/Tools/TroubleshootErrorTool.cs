@@ -4,13 +4,13 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class TroubleshootErrorTool
 {
-    [McpServerTool(Name = "troubleshoot_error")]
-    [Description("Takes an error message and provides intelligent troubleshooting: root cause analysis, immediate fix steps, prevention strategies, and related errors. Like having a senior developer debug for you.")]
+    // Called internally by KotlinTddWorkflowTool
+    
     public static async Task<object> TroubleshootError(
-        [Description("Error message from production or testing (e.g., 'vendorName exceeds maximum length of 60 characters')")]
+        
         string errorMessage,
         IntelligenceService intelligence,
         CancellationToken ct = default)

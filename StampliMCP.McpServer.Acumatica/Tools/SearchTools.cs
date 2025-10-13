@@ -4,14 +4,13 @@ using StampliMCP.McpServer.Acumatica.Services;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
+// Internal helper - no longer exposed as MCP tool
 public static class SearchTools
 {
-    [McpServerTool(Name = "search_operations")]
-    [Description("Search for operations by keyword in method names or summaries")]
+    // Called internally by KotlinTddWorkflowTool
     public static async Task<object> SearchOperations(
         SearchService search,
-        [Description("Search keyword (e.g., 'duplicate', 'vendor', 'export')")] string query,
+        string query,
         CancellationToken cancellationToken)
     {
         var results = await search.SearchAsync(query, cancellationToken);
