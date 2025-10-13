@@ -8,7 +8,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class SearchTools
 {
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> SearchOperations(
+    internal static async Task<object> SearchOperations(
         SearchService search,
         string query,
         CancellationToken cancellationToken)

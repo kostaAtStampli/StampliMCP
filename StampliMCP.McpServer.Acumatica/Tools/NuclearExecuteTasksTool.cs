@@ -10,7 +10,7 @@ public static class NuclearExecuteTasksTool
     private static readonly Dictionary<string, ExecutionResult> _executionCache = new();
 
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> ExecuteAcumaticaTasks(
+    internal static async Task<object> ExecuteAcumaticaTasks(
         string analysisId,
         [Description("Array of task IDs approved for execution (e.g., [1,2,4])")]
         int[] approvedTaskIds,

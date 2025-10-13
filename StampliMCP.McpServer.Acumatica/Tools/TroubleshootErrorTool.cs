@@ -9,7 +9,7 @@ public static class TroubleshootErrorTool
 {
     // Called internally by KotlinTddWorkflowTool
     
-    public static async Task<object> TroubleshootError(
+    internal static async Task<object> TroubleshootError(
         
         string errorMessage,
         IntelligenceService intelligence,

@@ -9,7 +9,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class CategoryTools
 {
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> ListCategories(
+    internal static async Task<object> ListCategories(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
     {

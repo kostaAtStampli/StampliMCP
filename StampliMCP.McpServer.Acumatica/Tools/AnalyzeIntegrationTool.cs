@@ -9,7 +9,7 @@ public static class AnalyzeIntegrationTool
 {
     // Called internally by KotlinTddWorkflowTool
     
-    public static async Task<object> AnalyzeIntegrationComplexity(
+    internal static async Task<object> AnalyzeIntegrationComplexity(
         
         string featureDescription,
         IntelligenceService intelligence,

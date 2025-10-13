@@ -13,7 +13,7 @@ public static class NuclearAnalyzeFeatureTool
     private static readonly Dictionary<string, Guid> _analysisCache = new();
 
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> AnalyzeAcumaticaFeature(
+    internal static async Task<object> AnalyzeAcumaticaFeature(
         string featureDescription,
         string analysisDepth,
         [Description("Include test scenarios in tasklist")]

@@ -9,7 +9,7 @@ public static class RecommendOperationTool
 {
     // Called internally by KotlinTddWorkflowTool
     
-    public static async Task<object> RecommendOperation(
+    internal static async Task<object> RecommendOperation(
         
         string businessRequirement,
         IntelligenceService intelligence,

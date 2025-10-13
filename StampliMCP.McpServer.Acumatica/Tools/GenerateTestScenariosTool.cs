@@ -9,7 +9,7 @@ public static class GenerateTestScenariosTool
 {
     // Called internally by KotlinTddWorkflowTool
     
-    public static async Task<object> GenerateTestScenarios(
+    internal static async Task<object> GenerateTestScenarios(
         
         string operationName,
         IntelligenceService intelligence,

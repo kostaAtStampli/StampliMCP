@@ -7,7 +7,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class KotlinFeatureTool
 {
     // Called internally by KotlinTddWorkflowTool
-    public static Task<object> ImplementKotlinFeature(
+    internal static Task<object> ImplementKotlinFeature(
         string featureDescription)
     {
         var workflow = new

@@ -8,7 +8,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class OperationDetailsTool
 {
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> GetOperationDetails(
+    internal static async Task<object> GetOperationDetails(
         string methodName,
         KnowledgeService knowledge,
         CancellationToken ct = default)

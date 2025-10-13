@@ -9,7 +9,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class EnumTools
 {
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> GetEnums(
+    internal static async Task<object> GetEnums(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
     {
@@ -18,7 +18,7 @@ public static class EnumTools
     }
 
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> GetTestConfig(
+    internal static async Task<object> GetTestConfig(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
     {
@@ -27,7 +27,7 @@ public static class EnumTools
     }
 
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> GetBaseClasses(
+    internal static async Task<object> GetBaseClasses(
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
     {

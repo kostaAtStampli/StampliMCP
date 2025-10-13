@@ -8,7 +8,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class ErrorTools
 {
     // Called internally by KotlinTddWorkflowTool
-    public static async Task<object> GetErrors(
+    internal static async Task<object> GetErrors(
         string? operation,
         KnowledgeService knowledge,
         CancellationToken cancellationToken)
