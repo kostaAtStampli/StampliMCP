@@ -43,7 +43,7 @@ public sealed class NuclearToolsIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Server_Should_List_Nuclear_Tools()
+    public async Task Server_Should_Expose_Only_Two_Tools()
     {
         // Arrange
         await _client.Initialize();
@@ -53,51 +53,45 @@ public sealed class NuclearToolsIntegrationTests : IDisposable
 
         // Assert
         tools.Should().NotBeNull();
-        tools.Count.Should().BeGreaterThan(0);
+        tools.Count.Should().Be(2, "Should only expose 2 tools: kotlin_tdd_workflow and health_check");
 
-        // Check for Nuclear tools
         var toolNames = tools.Select(t => t?["name"]?.GetValue<string>()).ToList();
-        toolNames.Should().Contain("analyze_acumatica_feature");
-        toolNames.Should().Contain("execute_acumatica_tasks");
-
-        // Check for utility tools
-        toolNames.Should().Contain("get_operation_details");
-        toolNames.Should().Contain("get_errors");
-        toolNames.Should().Contain("get_enums");
-        toolNames.Should().Contain("health_check");
+        toolNames.Should().Contain("kotlin_tdd_workflow", "Main workflow tool must be present");
+        toolNames.Should().Contain("health_check", "Diagnostic tool must be present");
 
         WriteLine($"Found {tools.Count} tools: {string.Join(", ", toolNames)}");
     }
 
     [Fact]
-    public async Task AnalyzeAcumaticaFeature_Should_Return_Tasklist()
+    public async Task KotlinWorkflow_Start_Should_Return_Complete_Knowledge()
     {
         // Arrange
         await _client.Initialize();
 
         // Act
-        var result = await _client.CallTool("analyze_acumatica_feature", new
+        var result = await _client.CallTool("kotlin_tdd_workflow", new
         {
-            featureDescription = "Export vendor to Acumatica with duplicate check",
-            analysisDepth = "full",
-            includeTestScenarios = true
+            command = "start",
+            context = "export vendor to Acumatica",
+            sessionId = (string?)null
         });
 
         // Assert
         result.Should().NotBeNull();
 
-        // Check for analysis structure
-        result["analysis_id"].Should().NotBeNull();
-        result["feature"].Should().NotBeNull();
-        result["timestamp"].Should().NotBeNull();
+        // Check for session and phase
+        result["sessionId"].Should().NotBeNull();
+        result["phase"].Should().NotBeNull();
+        result["phase"]!.GetValue<string>().Should().Be("RED");
 
-        // Check discovered information
-        var discovered = result["discovered"];
-        discovered.Should().NotBeNull();
-        discovered!["primary_category"].Should().NotBeNull();
-        discovered["operations"].Should().NotBeNull();
-        discovered["validations"].Should().NotBeNull();
-        discovered["patterns"].Should().NotBeNull();
+        // Check that ALL knowledge is provided upfront
+        var knowledge = result["knowledge"];
+        knowledge.Should().NotBeNull();
+        knowledge!["testCode"].Should().NotBeNull("Test template must be provided");
+        knowledge["implementationCode"].Should().NotBeNull("Implementation template must be provided");
+        knowledge["validationRules"].Should().NotBeNull("Validation rules must be provided");
+        knowledge["errorMessages"].Should().NotBeNull("Error messages must be provided");
+        knowledge["legacyFiles"].Should().NotBeNull("Legacy file pointers must be provided");
 
         // Check tasklist
         var tasklist = result["tasklist"] as JsonArray;
