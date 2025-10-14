@@ -230,55 +230,42 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 
             // TDD WORKFLOW
             yourTddWorkflow = @"
-═══════════════════════════════════════════════════════════════════════
-MANDATORY TDD WORKFLOW - NO SHORTCUTS ALLOWED
-═══════════════════════════════════════════════════════════════════════
+⚠️⚠️⚠️ YOUR RESPONSE FORMAT IS NON-NEGOTIABLE ⚠️⚠️⚠️
 
-STEP 1: PICK OPERATION
-- Review relevantOperations below
-- Pick the one matching user's request
-- Note its category and summary
-
-STEP 2: SCAN LEGACY FILES (MANDATORY - NO EXCEPTIONS!)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-YOU MUST USE Read TOOL ON EVERY FILE IN mandatoryFileScanning.criticalFiles
-
-For EACH file, you MUST extract and quote:
-  ✓ Exact line range you read (e.g., ""lines 102-117"")
-  ✓ At least 2 constants found (e.g., ""RESPONSE_ROWS_LIMIT=2000"", ""TIME_LIMIT=10"")
-  ✓ At least 1 method signature (e.g., ""getVendors() returns GetVendorsResponse"")
-  ✓ At least 1 code pattern (e.g., ""Anonymous AcumaticaImportHelper class"")
-
-WHY? Because you need to understand EXISTING patterns before writing new code.
-Look for the keyPatterns listed for each file in mandatoryFileScanning.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-STEP 3: CREATE TDD TASKLIST (RED → GREEN → REFACTOR)
-
-Your tasklist MUST start with this PROOF section:
-
+EXAMPLE FORMAT (COPY THIS EXACTLY):
 ═══ FILES SCANNED (MANDATORY PROOF) ═══
-1. /mnt/c/STAMPLI4/.../[FileName].java:[StartLine]-[EndLine]
-   ✓ Constants: [LIST_CONSTANTS_FOUND]
-   ✓ Methods: [LIST_METHOD_SIGNATURES]
-   ✓ Patterns: [LIST_CODE_PATTERNS]
+1. /mnt/c/STAMPLI4/.../AcumaticaDriver.java:102-117
+   ✓ Constants: RESPONSE_ROWS_LIMIT=2000
+   ✓ Methods: getVendors() returns GetVendorsResponse
+   ✓ Patterns: new AcumaticaImportHelper<T>(...) { ... }.getValues()
 
-2. /mnt/c/STAMPLI4/.../[NextFileName].java:[Lines]
-   ✓ Constants: [...]
-   ✓ Methods: [...]
-   ✓ Patterns: [...]
+2. /mnt/c/STAMPLI4/.../AcumaticaImportHelper.java:44-200
+   ✓ Constants: TIME_LIMIT=10, maxResultsLimit=50000
+   ✓ Methods: paginateQuery(), authenticatedApiCall()
+   ✓ Patterns: while(hasNextPage()) loop, connection refresh
 
-[Repeat for ALL critical files]
+[ALL FILES FROM mandatoryFileScanning.criticalFiles]
 ═══════════════════════════════════════
 
-After proof, create 10-20 TDD steps:
-  Phase RED: Write failing test
-  Phase GREEN: Implement minimal code
-  Phase REFACTOR: Clean up
+## TDD Tasklist
+1. [RED] Write test...
+2. [GREEN] Implement...
+[etc.]
 
-Each step must reference specific line numbers from scanned files.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  I WILL REJECT ANY RESPONSE THAT:
+⚠️  - DOES NOT START WITH '═══ FILES SCANNED (MANDATORY PROOF) ═══'
+⚠️  - DOES NOT LIST ALL FILES FROM mandatoryFileScanning.criticalFiles
+⚠️  - DOES NOT INCLUDE CONSTANTS/METHODS/PATTERNS FOR EACH FILE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️  TASKLIST WITHOUT FILES SCANNED SECTION = REJECTED ⚠️
+WORKFLOW:
+STEP 1: PICK OPERATION from relevantOperations
+STEP 2: USE Read TOOL ON ALL mandatoryFileScanning.criticalFiles
+STEP 3: COPY THE EXAMPLE FORMAT ABOVE WITH YOUR FINDINGS
+STEP 4: ADD TDD TASKLIST (RED → GREEN → REFACTOR phases)
+
+⚠️⚠️⚠️ NO FILES SCANNED SECTION = INSTANT REJECTION ⚠️⚠️⚠️
 ",
 
             // MANDATORY FILE SCANNING
