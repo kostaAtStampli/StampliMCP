@@ -19,17 +19,21 @@ Log.Logger = new LoggerConfiguration()
         new CompactJsonFormatter(),
         Path.Combine(logDir, "structured.jsonl"),
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30)
+        retainedFileCountLimit: 30,
+        buffered: false) // Disable buffering for immediate writes
     .CreateLogger();
 
-var builder = Host.CreateApplicationBuilder(args);
+try
+{
+    Log.Information("Starting StampliMCP Acumatica Server");
 
-// Add ServiceDefaults for OpenTelemetry, health checks, and resilience
-builder.AddServiceDefaults();
+    var builder = Host.CreateApplicationBuilder(args);
 
-// Use Serilog
-builder.Logging.ClearProviders();
-builder.Services.AddSerilog();
+    // Add ServiceDefaults for OpenTelemetry, health checks, and resilience
+    builder.AddServiceDefaults();
+
+    // Use Serilog with proper lifecycle management
+    builder.Services.AddSerilog(dispose: true); // dispose: true ensures CloseAndFlush on shutdown
 
 // Add memory cache for performance
 builder.Services.AddMemoryCache(options =>
@@ -70,11 +74,23 @@ builder.Services
 
 var app = builder.Build();
 
-// Log startup information
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("StampliMCP Acumatica Server v3.0.0 starting - Single Entry Point Architecture");
-logger.LogInformation("Main Tool: kotlin_tdd_workflow (start, continue, query, list)");
-logger.LogInformation("Diagnostic: health_check for system verification");
-logger.LogInformation("All other tools are now internal helpers, not exposed to MCP");
+    // Log startup information
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("StampliMCP Acumatica Server v3.0.0 starting - Single Entry Point Architecture");
+    logger.LogInformation("Main Tool: kotlin_tdd_workflow (start, continue, query, list)");
+    logger.LogInformation("Diagnostic: health_check for system verification");
+    logger.LogInformation("All other tools are now internal helpers, not exposed to MCP");
 
-await app.RunAsync();
+    await app.RunAsync();
+
+    Log.Information("StampliMCP Acumatica Server stopped gracefully");
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "StampliMCP Acumatica Server terminated unexpectedly");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}

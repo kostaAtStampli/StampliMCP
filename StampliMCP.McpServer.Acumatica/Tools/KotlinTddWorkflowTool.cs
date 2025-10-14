@@ -135,16 +135,15 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         FlowService flowService,
         IntelligenceService intelligence,
         MetricsService metrics,
-        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
-        var logger = loggerFactory.CreateLogger("KotlinTddWorkflowTool");
         var sw = System.Diagnostics.Stopwatch.StartNew();
         object? result = null;
         bool success = false;
         string? flowName = null;
 
-        logger.LogInformation("Tool {Tool} started: command={Command}, context={Context}",
+        // Use Serilog static API (works with static tool methods)
+        Serilog.Log.Information("Tool {Tool} started: command={Command}, context={Context}",
             "kotlin_tdd_workflow", command, context?.Substring(0, Math.Min(50, context?.Length ?? 0)));
 
         try
@@ -167,7 +166,7 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 
             success = result is not { } obj || !HasErrorProperty(obj);
 
-            logger.LogInformation(
+            Serilog.Log.Information(
                 "Tool {Tool} completed: command={Command}, flow={Flow}, duration={DurationMs}ms, tokens={Tokens}, success={Success}",
                 "kotlin_tdd_workflow", command, flowName, sw.Elapsed.TotalMilliseconds,
                 result != null ? JsonSerializer.Serialize(result).Length : 0, success);
@@ -176,7 +175,7 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Tool {Tool} failed: command={Command}, error={Error}",
+            Serilog.Log.Error(ex, "Tool {Tool} failed: command={Command}, error={Error}",
                 "kotlin_tdd_workflow", command, ex.Message);
 
             result = new
