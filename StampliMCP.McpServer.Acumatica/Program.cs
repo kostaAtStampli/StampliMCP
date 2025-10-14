@@ -3,18 +3,33 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
+using Serilog;
+using Serilog.Formatting.Compact;
 using StampliMCP.McpServer.Acumatica.Services;
+
+// Configure Serilog before creating host
+var logDir = Path.Combine(Path.GetTempPath(), "mcp_logs");
+Directory.CreateDirectory(logDir);
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Console(standardErrorFromLevel: Serilog.Events.LogEventLevel.Information) // MCP protocol: stderr for logs
+    .WriteTo.File(
+        new CompactJsonFormatter(),
+        Path.Combine(logDir, "structured.jsonl"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30)
+    .CreateLogger();
 
 var builder = Host.CreateApplicationBuilder(args);
 
 // Add ServiceDefaults for OpenTelemetry, health checks, and resilience
 builder.AddServiceDefaults();
 
-// Configure logging to stderr (MCP protocol requirement)
-builder.Logging.AddConsole(options =>
-{
-    options.LogToStandardErrorThreshold = LogLevel.Trace;
-});
+// Use Serilog
+builder.Logging.ClearProviders();
+builder.Services.AddSerilog();
 
 // Add memory cache for performance
 builder.Services.AddMemoryCache(options =>
@@ -36,6 +51,9 @@ builder.Services.AddSingleton<FlowService>();
 
 // Register intelligence service for showcase tools
 builder.Services.AddSingleton<IntelligenceService>();
+
+// Register MetricsService for observability
+builder.Services.AddSingleton<MetricsService>();
 
 // Configure MCP server with single entry point architecture
 builder.Services

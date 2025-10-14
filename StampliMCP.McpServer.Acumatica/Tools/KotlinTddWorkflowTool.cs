@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Services;
@@ -133,41 +134,86 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         SearchService search,
         FlowService flowService,
         IntelligenceService intelligence,
+        MetricsService metrics,
+        ILoggerFactory loggerFactory,
         CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger("KotlinTddWorkflowTool");
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        object? result = null;
+        bool success = false;
+        string? flowName = null;
+
+        logger.LogInformation("Tool {Tool} started: command={Command}, context={Context}",
+            "kotlin_tdd_workflow", command, context?.Substring(0, Math.Min(50, context?.Length ?? 0)));
+
         try
         {
-            return command?.ToLower() switch
+            result = command?.ToLower() switch
             {
-                "start" => await StartWorkflow(context, knowledge, flowService, intelligence, ct),
+                "start" => await StartWorkflowWithFlow(context, knowledge, flowService, intelligence, ct),
                 "continue" => await ContinueWorkflow(sessionId ?? "", context, knowledge, ct),
                 "query" => await QueryHelp(context, sessionId, knowledge, search, ct),
                 "list" => await ListAvailableOperations(knowledge, ct),
                 _ => new { error = "Unknown command. Use: start, continue, query, or list" }
             };
+
+            // Extract flowName from result if it's from StartWorkflow
+            if (command?.ToLower() == "start" && result is ValueTuple<object, string?> tuple)
+            {
+                flowName = tuple.Item2;
+                result = tuple.Item1;
+            }
+
+            success = result is not { } obj || !HasErrorProperty(obj);
+
+            logger.LogInformation(
+                "Tool {Tool} completed: command={Command}, flow={Flow}, duration={DurationMs}ms, tokens={Tokens}, success={Success}",
+                "kotlin_tdd_workflow", command, flowName, sw.Elapsed.TotalMilliseconds,
+                result != null ? JsonSerializer.Serialize(result).Length : 0, success);
+
+            return result;
         }
         catch (Exception ex)
         {
-            return new
+            logger.LogError(ex, "Tool {Tool} failed: command={Command}, error={Error}",
+                "kotlin_tdd_workflow", command, ex.Message);
+
+            result = new
             {
                 error = "Workflow failed",
                 details = ex.Message,
                 hint = "Try 'query' command for help or 'list' to see available operations"
             };
+            return result;
+        }
+        finally
+        {
+            sw.Stop();
+            var tokens = result != null ? JsonSerializer.Serialize(result).Length : 0;
+            metrics.RecordToolExecution("kotlin_tdd_workflow", command ?? "unknown", sw.Elapsed.TotalMilliseconds, tokens, success, flowName);
         }
     }
 
-    private static async Task<object> StartWorkflow(
+    private static bool HasErrorProperty(object obj)
+    {
+        var type = obj.GetType();
+        return type.GetProperty("error") != null;
+    }
+
+    private static async Task<(object result, string? flowName)> StartWorkflowWithFlow(
         string feature,
         KnowledgeService knowledge,
         FlowService flowService,
         IntelligenceService intelligence,
         CancellationToken ct)
     {
+        string? flowName = null;
+
         // Validate input
         if (string.IsNullOrWhiteSpace(feature))
         {
-            return new { error = "Feature description is required" };
+            return (new { error = "Feature description is required" }, null);
         }
 
         // FLOW-BASED TDD ARCHITECTURE:
@@ -177,12 +223,13 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         // 4. TDD workflow: RED → GREEN → REFACTOR
 
         // STEP 1: Match feature to flow
-        var (flowName, confidence, reasoning) = await flowService.MatchFeatureToFlowAsync(feature, ct);
+        var (matchedFlowName, confidence, reasoning) = await flowService.MatchFeatureToFlowAsync(feature, ct);
+        flowName = matchedFlowName;
         var flowDoc = await flowService.GetFlowAsync(flowName, ct);
 
         if (flowDoc == null)
         {
-            return new { error = $"Flow '{flowName}' not found. This is a server error." };
+            return (new { error = $"Flow '{flowName}' not found. This is a server error." }, flowName);
         }
 
         var flow = flowDoc.RootElement;
@@ -385,7 +432,7 @@ START YOUR RESPONSE WITH '═══ FILES SCANNED ═══'. NO SUMMARIES. NO P
             Console.Error.WriteLine($"[MCP] Logging failed: {logEx.Message}");
         }
 
-        return responseObject;
+        return (responseObject, flowName);
     }
 
     private static async Task<object> ContinueWorkflow(string sessionId, string progressReport, KnowledgeService knowledge, CancellationToken ct)
