@@ -4,6 +4,30 @@
   "usedByOperations": [
     "exportVendor"
   ],
+  "kotlinGoldenReference": {
+    "status": "IMPLEMENTED - Use as golden reference for Kotlin migration patterns",
+    "note": "exportVendor is the FIRST operation migrated to Kotlin - scan these files FIRST to learn Kotlin patterns",
+    "files": [
+      {
+        "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+        "lines": "1-27",
+        "purpose": "Main driver - shows override pattern",
+        "patterns": ["class KotlinAcumaticaDriver : AcumaticaDriver()", "override fun exportVendor", "Handler delegation", "try-catch return error"]
+      },
+      {
+        "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+        "lines": "1-132",
+        "purpose": "Handler class - shows Kotlin null safety and business logic",
+        "patterns": ["internal class", "companion object logger", "early returns", "null assertions (!!)", "safe chains (?.let)", "string interpolation"]
+      },
+      {
+        "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+        "lines": "1-71",
+        "purpose": "Mapper object - shows object singleton and extension functions",
+        "patterns": ["internal data object", "const val", "extension function JSONObject.withValue()", "apply builder"]
+      }
+    ]
+  },
   "criticalFiles": [
     {
       "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",

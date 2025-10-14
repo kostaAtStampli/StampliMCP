@@ -256,6 +256,28 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             }) ?? string.Empty;
     }
 
+    public async Task<object> GetKotlinGoldenReferenceAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "kotlin-golden-reference",
+            async entry =>
+            {
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("kotlin-golden-reference.json", ct);
+                    var reference = JsonSerializer.Deserialize<object>(json, _jsonOptions);
+                    logger.LogInformation("Loaded Kotlin golden reference (exportVendor example) from embedded resources");
+                    return reference ?? new { };
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading Kotlin golden reference from embedded resources");
+                    return new { error = "Failed to load Kotlin golden reference" };
+                }
+            }) ?? new { };
+    }
+
     public async Task<ErrorCatalog> GetErrorCatalogAsync(CancellationToken ct = default)
     {
         return await cache.GetOrCreateAsync(

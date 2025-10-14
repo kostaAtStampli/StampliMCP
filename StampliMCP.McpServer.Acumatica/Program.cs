@@ -62,6 +62,9 @@ builder.Services.AddSingleton<MetricsService>();
 // Register simple JSON file logger (no dependencies, works with PublishSingleFile)
 builder.Services.AddSingleton<JsonFileLogger>();
 
+// Register MCP response logger (for test ground truth validation)
+builder.Services.AddSingleton<McpResponseLogger>();
+
 // Configure MCP server with single entry point architecture
 builder.Services
     .AddMcpServer(options =>

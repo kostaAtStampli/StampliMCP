@@ -1,0 +1,294 @@
+{
+  "purpose": "GOLDEN REFERENCE for Kotlin migration patterns - use exportVendor as teaching example",
+  "usage": "When implementing ANY operation in Kotlin, scan this reference FIRST to learn patterns",
+
+  "goldenExample": {
+    "operation": "exportVendor",
+    "status": "COMPLETE - Use as reference for all future Kotlin migrations",
+    "why": "First operation migrated from Java to Kotlin - demonstrates all key patterns"
+  },
+
+  "kotlinSkeletonPath": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/",
+  "javaLegacyPath": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/",
+
+  "architecture": {
+    "pattern": "Incremental Override Pattern",
+    "description": "Kotlin driver extends Java driver, overrides methods one at a time via TDD",
+    "class": "class KotlinAcumaticaDriver : AcumaticaDriver()",
+    "delegation": "All non-overridden methods automatically delegate to Java parent",
+    "interface": "IDualFinsysDriver (~50 methods total)",
+    "currentProgress": "1 method migrated (exportVendor), 49 still in Java"
+  },
+
+  "goldenReferenceFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+      "lines": "1-27",
+      "purpose": "Main driver class - shows how to override parent method",
+      "keyPatterns": [
+        "class KotlinAcumaticaDriver : AcumaticaDriver() - extends Java parent",
+        "override fun exportVendor(...): ExportResponse - override single method",
+        "val handler = CreateVendorHandler() - delegate to separate handler class",
+        "handler.execute(apiCallerFactory, request) - pass parent's protected field",
+        "try-catch with ExportResponse - never throw exceptions, return error in response",
+        "response.error = message - Kotlin property syntax instead of setter"
+      ],
+      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java:396-405",
+      "comparison": "Java does same handler delegation - pattern is identical, syntax differs"
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+      "lines": "1-132",
+      "purpose": "Handler class - shows Kotlin idioms for business logic",
+      "keyPatterns": [
+        "internal class CreateVendorHandler - internal visibility (package-private in Java)",
+        "companion object { private val logger } - static logger via companion object",
+        "fun execute(...): ExportResponse - no 'public' keyword needed",
+        "val raw = request.rawData - Kotlin property access",
+        "if (raw == null) { response.error = ...; return response } - early returns for validation",
+        "StringUtils.isBlank(vendorName) - reuse Java Apache Commons",
+        "val validVendorName = vendorName!! - null assertion after validation",
+        "raw[\"vendorId\"]?.takeIf { StringUtils.isNotBlank(it) }?.let { vendorId -> - Kotlin null-safe chaining",
+        "VendorPayloadMapper.mapToAcumaticaJson() - call object singleton method",
+        "AcumaticaAuthenticator.authenticatedApiCall(request, apiCallerFactory) { client -> - lambda syntax for Java Function",
+        "val details = StringUtils.defaultIfBlank(createResp.content, \"<empty>\") - val immutability",
+        "catch (e: Exception) - Kotlin exception syntax"
+      ],
+      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java:24-127",
+      "comparison": "Kotlin version is more concise (132 lines vs Java's longer), uses null safety, early returns, and let/takeIf"
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+      "lines": "1-71",
+      "purpose": "Mapper object - shows Kotlin object singleton and extension functions",
+      "keyPatterns": [
+        "internal data object VendorPayloadMapper - data object singleton (not class with static methods)",
+        "const val STAMPLI_LINK_PREFIX = ... - compile-time constant",
+        "private fun JSONObject.withValue(value: String) = apply { put(\"value\", value) } - extension function on JSONObject",
+        "fun mapToAcumaticaJson(...): String - no 'public static' needed on object method",
+        "val root = JSONObject() - type inference",
+        "putValue(root, \"VendorName\", vendorName) - private helper function",
+        "val hasBankName = StringUtils.isNotBlank(raw[\"bankName\"]) - boolean val",
+        "var paymentMethod = StringUtils.trimToNull(raw[\"paymentMethod\"]) - var for mutable",
+        "if (paymentMethod == null && hasAnyInstructions) { paymentMethod = \"CHECK\" } - reassignment of var",
+        "raw[\"bankName\"]?.let { instructions.put(paymentInstruction(\"BANKNAME\", it)) } - let for non-null action",
+        "JSONObject().apply { put(...); put(...) } - apply builder pattern",
+        "root.toString() - implicit return"
+      ],
+      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java:16-80",
+      "comparison": "Java uses static class with static methods; Kotlin uses object singleton. Java verbose with explicit types; Kotlin uses inference."
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/test/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriverCreateVendorITest.kt",
+      "lines": "1-322",
+      "purpose": "Integration test - shows Kotlin test patterns with JUnit 5",
+      "keyPatterns": [
+        "class KotlinAcumaticaDriverCreateVendorITest - test class naming",
+        "companion object { @JvmStatic @BeforeAll fun checkConnectivity() } - static test setup",
+        "private const val BASE_URL = ... - test constants in companion object",
+        "private lateinit var driver: KotlinAcumaticaDriver - lateinit for @BeforeEach initialization",
+        "@BeforeEach fun setUp() - JUnit 5 annotation",
+        "@Test fun `test create vendor successfully`() - backtick test names for readability",
+        "var createdVendorId: String? = null - nullable var for cleanup tracking",
+        "try { ... } finally { createdVendorId?.let { deleteVendorQuietly(it) } } - safe cleanup",
+        "HashMap<String, String>().apply { put(...); put(...) } - apply for builder pattern",
+        "assertNull(response.error, \"Should not error: ${response.error}\") - string interpolation in messages",
+        "response.values.any { it.key == VENDOR_CLASS_PRODUCT } - collection operations with lambdas",
+        "println(\"\\n=== Title ===\\n\") - multiline strings with escapes",
+        "response.values.forEach { vc -> assertTrue(...) } - forEach with lambda"
+      ],
+      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverCreateVendorITest.java",
+      "comparison": "Kotlin tests mirror Java structure but use backtick names, lateinit vars, and collection lambdas"
+    }
+  ],
+
+  "kotlinPatternsCatalog": {
+    "classDefinition": {
+      "pattern": "class KotlinAcumaticaDriver : AcumaticaDriver()",
+      "java": "public class AcumaticaDriver implements IDualFinsysDriver",
+      "note": "Kotlin driver extends Java driver, no 'public' needed (default), () for parent constructor"
+    },
+    "methodOverride": {
+      "pattern": "override fun methodName(param: Type): ReturnType",
+      "java": "@Override public ReturnType methodName(Type param)",
+      "note": "'override' is mandatory keyword in Kotlin, 'fun' for functions, type after colon"
+    },
+    "handlerDelegation": {
+      "pattern": "val handler = HandlerClass(); handler.execute(apiCallerFactory, request)",
+      "java": "HandlerClass handler = new HandlerClass(); return handler.execute(apiCallerFactory, request);",
+      "note": "Same pattern, Kotlin omits 'new', uses 'val' for immutable local"
+    },
+    "errorHandling": {
+      "pattern": "catch (e: Exception) { response.error = \"message: ${e.message}\" }",
+      "java": "catch (Exception e) { response.setError(\"message: \" + e.getMessage()); }",
+      "note": "Never throw exceptions - return error in response. Kotlin uses property syntax and string interpolation"
+    },
+    "nullSafety": {
+      "earlyReturn": {
+        "pattern": "if (raw == null) { response.error = \"...\"; return response }",
+        "note": "Validate early, return immediately for errors"
+      },
+      "nullAssertion": {
+        "pattern": "val validName = name!!",
+        "note": "After validation, assert non-null with !!"
+      },
+      "safeChain": {
+        "pattern": "raw[\"id\"]?.takeIf { StringUtils.isNotBlank(it) }?.let { id -> ... }",
+        "note": "?. for safe access, takeIf for condition, let for non-null action"
+      }
+    },
+    "objectSingleton": {
+      "pattern": "internal data object MapperName { fun method() = ... }",
+      "java": "class MapperName { private MapperName() {} static String method() { ... } }",
+      "note": "Kotlin 'object' is singleton, no static needed, methods callable as MapperName.method()"
+    },
+    "extensionFunction": {
+      "pattern": "private fun JSONObject.withValue(v: String) = apply { put(\"value\", v) }",
+      "usage": "JSONObject().withValue(\"foo\")",
+      "note": "Adds method to existing class, 'this' is receiver, 'apply' returns receiver"
+    },
+    "lambdaSyntax": {
+      "pattern": "AcumaticaAuthenticator.authenticatedApiCall(req, factory) { client -> apiCaller.call(client) }",
+      "java": "AcumaticaAuthenticator.authenticatedApiCall(req, factory, (client) -> apiCaller.call(client))",
+      "note": "Lambda outside parens if last param, { param -> body } syntax"
+    },
+    "companionObject": {
+      "pattern": "companion object { private val logger = CustomLogFactory(ClassName::class.java) }",
+      "java": "private static final CustomLogFactory logger = new CustomLogFactory(ClassName.class);",
+      "note": "companion object for static members, ::class.java for Java Class reference"
+    },
+    "testPatterns": {
+      "backtickNames": "fun `test create vendor successfully`()",
+      "lateinitVars": "private lateinit var driver: KotlinAcumaticaDriver",
+      "applyBuilder": "HashMap<String, String>().apply { put(\"k\", \"v\") }",
+      "stringInterpolation": "\"Error: ${response.error}\"",
+      "collectionOps": "list.any { it.key == \"PRODUCT\" }"
+    }
+  },
+
+  "migrationChecklist": [
+    "1. Read this golden reference FIRST - learn Kotlin patterns from exportVendor",
+    "2. Scan Java legacy for operation-specific logic (pagination, auth, etc.)",
+    "3. Create integration test in Kotlin (mirror Java test structure, use Kotlin idioms)",
+    "4. Implement in KotlinAcumaticaDriver: override fun operationName(...)",
+    "5. Create Handler class (if complex logic) OR inline (if simple)",
+    "6. Use Kotlin patterns: object singletons, extension functions, null safety, early returns",
+    "7. Reuse Java infrastructure: ApiCallerFactory, AcumaticaAuthenticator, AcumaticaImportHelper",
+    "8. Never throw exceptions - return error in response object",
+    "9. Run integration test - verify works same as Java parent",
+    "10. Refactor using Kotlin idioms: let, apply, takeIf, string templates"
+  ],
+
+  "filesAlwaysScan": {
+    "kotlinGolden": [
+      "KotlinAcumaticaDriver.kt - learn override pattern",
+      "CreateVendorHandler.kt - learn handler pattern and null safety",
+      "VendorPayloadMapper.kt - learn object singleton and extension functions"
+    ],
+    "javaInfrastructure": [
+      "AcumaticaDriver.java - find method signature and Java implementation",
+      "AcumaticaImportHelper.java - for import operations (pagination, auth wrapper)",
+      "AcumaticaAuthenticator.java - for auth pattern (login-wrapper-logout)",
+      "AcumaticaConnectionManager.java - for connection refresh (TIME_LIMIT=10 mins)",
+      "AcumaticaUtil.java - for constants (RESPONSE_ROWS_LIMIT=2000)"
+    ]
+  },
+
+  "commonMistakes": [
+    "DON'T create new infrastructure - reuse Java ApiCallerFactory, AcumaticaImportHelper, etc.",
+    "DON'T throw exceptions - Acumatica driver ALWAYS returns error in response.error field",
+    "DON'T use static class for mappers - use 'object' singleton in Kotlin",
+    "DON'T forget null safety - validate first, then use !! or use ?. chains",
+    "DON'T skip integration tests - mirror Java test structure with Kotlin idioms",
+    "DON'T use Java-style getters/setters - use Kotlin property syntax (response.error not response.setError)",
+    "DON'T use 'public' keyword - it's default visibility in Kotlin",
+    "DON'T use 'new' keyword - Kotlin constructors called directly"
+  ],
+
+  "kotlinQuirks": {
+    "dataObjectVsObject": {
+      "use": "data object for singletons with no state",
+      "example": "internal data object VendorPayloadMapper",
+      "note": "data object generates toString/equals/hashCode automatically"
+    },
+    "nullSafetyGotchas": {
+      "doubleExclamation": "Use !! ONLY after explicit null/blank validation",
+      "safeCall": "Use ?. for optional chains, returns null if any step is null",
+      "elvis": "Use ?: for default values: raw[\"key\"] ?: \"default\"",
+      "let": "Use .let {} to execute block only if non-null",
+      "takeIf": "Use .takeIf { condition } for conditional chaining"
+    },
+    "propertyAccess": {
+      "kotlin": "response.error = \"message\"",
+      "java": "response.setError(\"message\")",
+      "note": "Kotlin properties compile to get/set methods for Java interop"
+    },
+    "stringTemplates": {
+      "simple": "\"Error: ${e.message}\"",
+      "expression": "\"Count: ${response.values.size}\"",
+      "escape": "Use \\$ to escape dollar sign: \"Price: \\$${amount}\""
+    },
+    "collectionOperations": {
+      "any": "list.any { it.key == \"PRODUCT\" }",
+      "find": "list.find { it.id == vendorId }",
+      "filter": "list.filter { it.active }",
+      "map": "list.map { it.name }",
+      "forEach": "list.forEach { println(it) }"
+    },
+    "applyVsLet": {
+      "apply": "Returns receiver, use for builder pattern: JSONObject().apply { put(\"k\", \"v\") }",
+      "let": "Returns lambda result, use for transformations: vendorId?.let { processVendor(it) }",
+      "also": "Like apply but lambda param is 'it' not 'this'",
+      "run": "Like let but receiver is 'this'"
+    },
+    "companionObject": {
+      "purpose": "Hold static members like logger, constants",
+      "syntax": "companion object { private val logger = CustomLogFactory(ClassName::class.java) }",
+      "jvmStatic": "Use @JvmStatic for true Java static access (needed for test setup methods)"
+    },
+    "internalVsPrivate": {
+      "internal": "Visible within module (like package-private but module-scoped)",
+      "private": "Visible within file only",
+      "note": "Use 'internal' for handler classes that should be package-private"
+    },
+    "whenExpression": {
+      "replacement": "Use 'when' instead of switch/case",
+      "example": "when (status) { \"active\" -> process(); else -> skip() }",
+      "exhaustive": "when is exhaustive for enums/sealed classes"
+    },
+    "extensionFunctions": {
+      "syntax": "fun ClassName.methodName() = implementation",
+      "receiver": "'this' is the receiver object",
+      "example": "fun JSONObject.withValue(v: String) = apply { put(\"value\", v) }"
+    },
+    "backtickEscapes": {
+      "testNames": "Use backticks for readable test names: fun `test create vendor successfully`()",
+      "javaKeywords": "Escape Java keywords: `is` if calling Java method named 'is'"
+    },
+    "lateinitVsVal": {
+      "lateinit": "Use for properties initialized in @BeforeEach: private lateinit var driver",
+      "val": "Immutable reference (can't reassign)",
+      "var": "Mutable reference (can reassign)",
+      "note": "lateinit only works with non-nullable types"
+    },
+    "smartCasts": {
+      "after": "After null check, Kotlin smart-casts: if (x != null) { x.method() // x is non-null here }",
+      "is": "After type check: if (obj is String) { obj.length // obj is String here }"
+    }
+  },
+
+  "acumaticaSpecificQuirks": {
+    "neverThrowExceptions": "CRITICAL: Always return error in response.error, never throw",
+    "customFieldPrefix": "Custom fields MUST start with 'Usr' prefix (ensureUsrPrefixAndCapitalization)",
+    "paginationLimit": "RESPONSE_ROWS_LIMIT=2000, hasNextPage checks if result.length == 2000",
+    "sessionTimeout": "TIME_LIMIT=10 minutes, auto-refresh via refreshConnectionWhenLimitReached()",
+    "maxResults": "maxResultsLimit=50000 per operation to prevent memory issues",
+    "authPattern": "Always use AcumaticaAuthenticator.authenticatedApiCall() wrapper",
+    "endpoints": "Use AcumaticaEndpoint enum (VENDOR, ATTRIBUTES, etc.)",
+    "odataFormat": "URL suffix: $expand for nested, $filter for conditions, $top for page size",
+    "stampliLinkPrefix": "Vendor notes use 'Stampli Link: ' prefix constant",
+    "idempotency": "Acumatica returns 422 if duplicate VendorID exists",
+    "nestedValuePattern": "Acumatica JSON uses nested {\"VendorID\": {\"value\": \"V123\"}} format",
+    "successCodes": "200 for API success, 204 for successful authentication"
+  }
+}

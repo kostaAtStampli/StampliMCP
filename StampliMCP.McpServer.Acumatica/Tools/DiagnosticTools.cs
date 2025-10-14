@@ -18,7 +18,10 @@ public static class DiagnosticTools
         {
             status = "ok",
             smokeTest = "kosta_2025_flow_based",
-            version = "2.0.0",
+            version = "3.0.0",
+            kotlinGoldenReference = "TOOL_BASED_2025_10_15", // UNIQUE MARKER - Kotlin via dedicated tool now
+            workflow = "get_kotlin_golden_reference_MANDATORY", // Must call get_kotlin_golden_reference before kotlin_tdd_workflow
+            toolArchitecture = "NUCLEAR_FIX_FILE_READING_IN_CSHARP", // C# reads Kotlin files, not Claude scanning
             serverName = "stampli-acumatica",
             timestamp = DateTime.UtcNow.ToString("O"),
             runtime = new

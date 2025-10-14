@@ -1,6 +1,16 @@
 {
   "flowName": "STANDARD_IMPORT_FLOW",
   "description": "Generic paginated import for master data entities (vendors, accounts, items, tax codes, custom fields, etc.) with authentication wrapper, automatic pagination, and delta import support",
+  "kotlinGoldenReference": {
+    "status": "LEARN FROM exportVendor - No import operations migrated yet",
+    "note": "Scan exportVendor implementation FIRST to learn Kotlin patterns, then apply to import operations",
+    "files": [
+      "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+      "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+      "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt"
+    ],
+    "applyPatternsFrom": "exportVendor shows: override fun, Handler classes, object singletons, null safety, error handling"
+  },
   "usedByOperations": [
     "getVendors",
     "getAccountSearchList",
@@ -23,9 +33,44 @@
   ],
   "criticalFiles": [
     {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+      "lines": "1-27",
+      "purpose": "KOTLIN GOLDEN REFERENCE - Learn override pattern, Handler delegation, try-catch error handling",
+      "keyPatterns": [
+        "class KotlinAcumaticaDriver : AcumaticaDriver()",
+        "override fun exportVendor",
+        "val handler = CreateVendorHandler()",
+        "response.error = message (property syntax)"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+      "lines": "1-132",
+      "purpose": "KOTLIN GOLDEN REFERENCE - Learn Handler pattern, null safety (!!, ?., let), early returns, Kotlin idioms",
+      "keyPatterns": [
+        "internal class CreateVendorHandler",
+        "companion object { logger }",
+        "if (raw == null) { response.error = ...; return response }",
+        "val validName = name!!",
+        "raw[\"id\"]?.takeIf { }.let { }",
+        "string interpolation ${e.message}"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+      "lines": "1-71",
+      "purpose": "KOTLIN GOLDEN REFERENCE - Learn object singleton, extension functions, apply/let usage",
+      "keyPatterns": [
+        "internal data object VendorPayloadMapper",
+        "fun JSONObject.withValue(v: String) = apply { }",
+        "const val STAMPLI_LINK_PREFIX",
+        "JSONObject().apply { put(...) }"
+      ]
+    },
+    {
       "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "102-117",
-      "purpose": "Entry point pattern - anonymous class extending AcumaticaImportHelper with createApiCallerList() and assembleResponse() overrides",
+      "purpose": "Java entry point pattern for OPERATION LOGIC REFERENCE (use Kotlin patterns from above)",
       "keyPatterns": [
         "new AcumaticaImportHelper<GetVendorsResponse>",
         "createApiCallerList() override",

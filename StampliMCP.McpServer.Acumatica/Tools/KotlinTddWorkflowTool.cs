@@ -98,25 +98,39 @@ Uses flow-based knowledge instead of 48 scattered operations for better focus.
 YOUR MANDATORY TDD WORKFLOW:
 ═══════════════════════════════════════════════════════════════════════
 
+STEP 0: GET KOTLIN GOLDEN REFERENCE (MANDATORY FIRST STEP!)
+⚠️ CRITICAL: You MUST call the get_kotlin_golden_reference tool BEFORE calling this tool!
+
+The get_kotlin_golden_reference tool returns:
+- Full source code of 3 Kotlin files (KotlinAcumaticaDriver.kt, CreateVendorHandler.kt, VendorPayloadMapper.kt)
+- Extracted Kotlin patterns: override fun, Handler classes, object singletons, null safety (!!, ?., let, takeIf)
+- Error handling rules: NEVER throw exceptions, return error in response.error field
+- Infrastructure reuse: ApiCallerFactory, AcumaticaAuthenticator, AcumaticaImportHelper from Java
+
+Why mandatory? exportVendor is the ONLY Kotlin operation implemented - you need its patterns to implement new operations.
+Default assumption: All other operations NOT in Kotlin yet (delegate to Java parent).
+
 STEP 1: REVIEW FLOW GUIDANCE
 - Tool returns selectedFlow with description and reasoning
 - Review relevantOperations that use this flow
 - Pick the operation matching user's request
 
-STEP 2: SCAN LEGACY FILES (MANDATORY - NO EXCEPTIONS!)
+STEP 2: SCAN JAVA LEGACY FILES (MANDATORY - NO EXCEPTIONS!)
 - Use Read tool on ALL files in mandatoryFileScanning
 - Files use WSL paths (/mnt/c/...)
 - Find the keyPatternsToFind listed for each file
 - Take notes on: constants, method signatures, patterns
+- These are REFERENCE for operation logic - you'll translate to Kotlin using STEP 0 patterns
 
 STEP 3: CREATE TDD TASKLIST
 - MUST include '=== FILES SCANNED ===' section proving you read files
-- Quote specific constants/methods you found
-- 10-20 steps following TDD: RED (tests first) → GREEN (impl) → REFACTOR
+- Quote specific constants/methods from BOTH get_kotlin_golden_reference output AND Java legacy files
+- 10-20 steps following TDD: RED (tests first) → GREEN (impl using Kotlin patterns) → REFACTOR
 - Reference specific line numbers from scanned files
 - Use flowAnatomy, codeSnippets, validationRules as guides
+- Apply Kotlin patterns from STEP 0 (get_kotlin_golden_reference) to Java logic from STEP 2
 
-FAILURE TO SCAN FILES = REJECTION OF TASKLIST
+FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TASKLIST
 
 Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 ")]
@@ -136,12 +150,14 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         IntelligenceService intelligence,
         MetricsService metrics,
         JsonFileLogger fileLogger,
+        McpResponseLogger responseLogger,
         CancellationToken ct)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         object? result = null;
         bool success = false;
         string? flowName = null;
+        int operationCount = 0;
 
         // Use Serilog static API (works with static tool methods)
         Serilog.Log.Information("Tool {Tool} started: command={Command}, context={Context}",
@@ -158,11 +174,22 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
                 _ => new { error = "Unknown command. Use: start, continue, query, or list" }
             };
 
-            // Extract flowName from result if it's from StartWorkflow
+            // Extract flowName and operationCount from result if it's from StartWorkflow
             if (command?.ToLower() == "start" && result is ValueTuple<object, string?> tuple)
             {
                 flowName = tuple.Item2;
                 result = tuple.Item1;
+
+                // Extract operation count from result
+                if (result != null)
+                {
+                    var resultJson = JsonSerializer.Serialize(result);
+                    using var doc = JsonDocument.Parse(resultJson);
+                    if (doc.RootElement.TryGetProperty("relevantOperations", out var ops))
+                    {
+                        operationCount = ops.GetArrayLength();
+                    }
+                }
             }
 
             success = result is not { } obj || !HasErrorProperty(obj);
@@ -174,7 +201,7 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
                 "Tool {Tool} completed: command={Command}, flow={Flow}, duration={DurationMs}ms, tokens={Tokens}, success={Success}",
                 "kotlin_tdd_workflow", command, flowName, durationMs, tokens, success);
 
-            // Write structured JSON to file
+            // Write OpenTelemetry structured log
             try
             {
                 await fileLogger.WriteAsync(new
@@ -191,7 +218,23 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
             }
             catch (Exception logEx)
             {
-                Serilog.Log.Warning(logEx, "Failed to write JSON log file");
+                Serilog.Log.Warning(logEx, "Failed to write OpenTelemetry log file");
+            }
+
+            // Write MCP response log (for test ground truth validation)
+            try
+            {
+                await responseLogger.LogToolExecutionAsync(
+                    tool: "kotlin_tdd_workflow",
+                    command: command ?? "unknown",
+                    context: context ?? "",
+                    flowName: flowName,
+                    responseSize: tokens,
+                    operationCount: operationCount);
+            }
+            catch (Exception logEx)
+            {
+                Serilog.Log.Warning(logEx, "Failed to write MCP response log");
             }
 
             return result;
@@ -237,6 +280,12 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         {
             return (new { error = "Feature description is required" }, null);
         }
+
+        // STEP 0: FORCE KOTLIN GOLDEN REFERENCE LOADING
+        // Call get_kotlin_golden_reference tool internally to guarantee Kotlin context
+        // This bypasses Claude's ability to ignore tool description recommendations
+        Serilog.Log.Information("Tool {Tool}: Force-loading Kotlin golden reference internally", "kotlin_tdd_workflow");
+        var kotlinGoldenRef = await GetKotlinGoldenReferenceTool.Execute(knowledge, ct);
 
         // FLOW-BASED TDD ARCHITECTURE:
         // 1. Match feature to flow (9 proven patterns)
@@ -288,6 +337,14 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
             // CONTEXT
             userRequest = feature,
 
+            // KOTLIN GOLDEN REFERENCE (FORCE-LOADED)
+            kotlinGoldenReference = new
+            {
+                note = "⚠️ CRITICAL: This Kotlin context is MANDATORY - read ALL 3 files before scanning Java files!",
+                instruction = "SCAN kotlinFiles below to learn Kotlin syntax BEFORE implementing. exportVendor is the ONLY Kotlin operation - use as teaching example.",
+                content = kotlinGoldenRef
+            },
+
             // FLOW GUIDANCE
             selectedFlow = new
             {
@@ -301,17 +358,25 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
             yourTddWorkflow = @"
 OUTPUT EXACTLY THIS FORMAT:
 
-═══ FILES SCANNED ═══
+═══ KOTLIN GOLDEN REFERENCE (READ FIRST!) ═══
+The kotlinGoldenReference section above contains 3 Kotlin files with FULL SOURCE CODE.
+SCAN all 3 files to learn Kotlin patterns before implementing:
+- KotlinAcumaticaDriver.kt (override pattern, error handling)
+- CreateVendorHandler.kt (null safety !!, ?., let, takeIf)
+- VendorPayloadMapper.kt (data object singletons, extension functions)
+═══════════════════
+
+═══ JAVA FILES SCANNED (for operation logic) ═══
 1. /mnt/c/STAMPLI4/.../[file].java:[lines]
    Constants: [list 2+ from file], Methods: [list 1+ from file], Patterns: [list 1+ from file]
 2. [repeat for ALL files in criticalFiles below]
 ═══════════════════
 
 ## TDD Steps
-1. [RED] Write test...
-2. [GREEN] Implement...
+1. [RED] Write test using Kotlin patterns from golden reference...
+2. [GREEN] Implement using Kotlin syntax from exportVendor example...
 
-START YOUR RESPONSE WITH '═══ FILES SCANNED ═══'. NO SUMMARIES. NO PREAMBLES.
+PROOF REQUIRED: Your response must show you read BOTH Kotlin golden reference AND Java files.
 ",
 
             // MANDATORY FILE SCANNING
