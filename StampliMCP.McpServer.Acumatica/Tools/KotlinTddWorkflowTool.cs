@@ -230,33 +230,55 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 
             // TDD WORKFLOW
             yourTddWorkflow = @"
-=== MANDATORY TDD WORKFLOW ===
+═══════════════════════════════════════════════════════════════════════
+MANDATORY TDD WORKFLOW - NO SHORTCUTS ALLOWED
+═══════════════════════════════════════════════════════════════════════
 
 STEP 1: PICK OPERATION
 - Review relevantOperations below
 - Pick the one matching user's request
-- Consider: import vs export, entity type
+- Note its category and summary
 
-STEP 2: SCAN LEGACY FILES (MANDATORY!)
-- Use Read tool on ALL files in mandatoryFileScanning
-- Files use WSL paths (/mnt/c/...)
-- Look for keyPatternsToFind in each file
-- Take notes: constants, method signatures, validation
+STEP 2: SCAN LEGACY FILES (MANDATORY - NO EXCEPTIONS!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+YOU MUST USE Read TOOL ON EVERY FILE IN mandatoryFileScanning.criticalFiles
+
+For EACH file, you MUST extract and quote:
+  ✓ Exact line range you read (e.g., ""lines 102-117"")
+  ✓ At least 2 constants found (e.g., ""RESPONSE_ROWS_LIMIT=2000"", ""TIME_LIMIT=10"")
+  ✓ At least 1 method signature (e.g., ""getVendors() returns GetVendorsResponse"")
+  ✓ At least 1 code pattern (e.g., ""Anonymous AcumaticaImportHelper class"")
+
+WHY? Because you need to understand EXISTING patterns before writing new code.
+Look for the keyPatterns listed for each file in mandatoryFileScanning.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 STEP 3: CREATE TDD TASKLIST (RED → GREEN → REFACTOR)
-- MUST include '=== FILES SCANNED ===' section with proof:
-  * File path + line range you read
-  * Constants you found (e.g., 'RESPONSE_ROWS_LIMIT=2000')
-  * Method signatures you found
-  * Patterns you identified
-- 10-20 steps following TDD:
-  * RED: Write failing test first
-  * GREEN: Implement to make test pass
-  * REFACTOR: Clean up code
-- Each step references specific line numbers from scanned files
 
-FAILURE TO SCAN FILES = REJECTION OF TASKLIST
-Your tasklist will be rejected if you don't prove you read the files.
+Your tasklist MUST start with this PROOF section:
+
+═══ FILES SCANNED (MANDATORY PROOF) ═══
+1. /mnt/c/STAMPLI4/.../[FileName].java:[StartLine]-[EndLine]
+   ✓ Constants: [LIST_CONSTANTS_FOUND]
+   ✓ Methods: [LIST_METHOD_SIGNATURES]
+   ✓ Patterns: [LIST_CODE_PATTERNS]
+
+2. /mnt/c/STAMPLI4/.../[NextFileName].java:[Lines]
+   ✓ Constants: [...]
+   ✓ Methods: [...]
+   ✓ Patterns: [...]
+
+[Repeat for ALL critical files]
+═══════════════════════════════════════
+
+After proof, create 10-20 TDD steps:
+  Phase RED: Write failing test
+  Phase GREEN: Implement minimal code
+  Phase REFACTOR: Clean up
+
+Each step must reference specific line numbers from scanned files.
+
+⚠️  TASKLIST WITHOUT FILES SCANNED SECTION = REJECTED ⚠️
 ",
 
             // MANDATORY FILE SCANNING
@@ -281,6 +303,33 @@ Your tasklist will be rejected if you don't prove you read the files.
                 errorPatterns = errorPatterns,
                 goldenPatterns = goldenPatterns,
                 workflow = tddWorkflow
+            },
+
+            // ENFORCEMENT RULES
+            enforcementRules = new
+            {
+                mustScanFiles = true,
+                minimumFilesScanned = flow.GetProperty("criticalFiles").GetArrayLength(),
+                requiredProofElements = new[]
+                {
+                    "File paths with line ranges",
+                    "At least 2 constants per file",
+                    "At least 1 method signature per file",
+                    "At least 1 code pattern per file"
+                },
+                rejectionCriteria = "Tasklist without '=== FILES SCANNED ===' section will be REJECTED",
+                exampleProofFormat = @"
+═══ FILES SCANNED (MANDATORY PROOF) ═══
+1. /mnt/c/STAMPLI4/.../AcumaticaDriver.java:102-117
+   ✓ Constants: RESPONSE_ROWS_LIMIT=2000
+   ✓ Methods: getVendors() returns GetVendorsResponse
+   ✓ Patterns: new AcumaticaImportHelper<T>(...) { ... }.getValues()
+
+2. /mnt/c/STAMPLI4/.../AcumaticaImportHelper.java:44-200
+   ✓ Constants: TIME_LIMIT=10, maxResultsLimit=50000
+   ✓ Methods: paginateQuery(client, connectionManager, ...)
+   ✓ Patterns: AcumaticaAuthenticator.authenticatedApiCall()
+═══════════════════════════════════════"
             },
 
             // PROJECT PATHS
@@ -310,22 +359,37 @@ Your tasklist will be rejected if you don't prove you read the files.
 
             // PRIMARY: Test isolation directory (MCP_LOG_DIR for test runs)
             var testLogDir = Environment.GetEnvironmentVariable("MCP_LOG_DIR");
+            Console.Error.WriteLine($"[MCP] MCP_LOG_DIR environment variable: {testLogDir ?? "(not set)"}");
+
             string? testLogPath = null;
             if (!string.IsNullOrEmpty(testLogDir))
             {
                 try
                 {
+                    Console.Error.WriteLine($"[MCP] Creating test log directory: {testLogDir}");
                     if (!Directory.Exists(testLogDir))
                     {
                         Directory.CreateDirectory(testLogDir);
+                        Console.Error.WriteLine($"[MCP] Test log directory created");
                     }
+                    else
+                    {
+                        Console.Error.WriteLine($"[MCP] Test log directory already exists");
+                    }
+
                     testLogPath = Path.Combine(testLogDir, $"mcp_flow_{DateTime.Now:yyyyMMdd_HHmmss}.jsonl");
                     await File.AppendAllTextAsync(testLogPath, logJson + "\n", ct);
+                    Console.Error.WriteLine($"[MCP] Test log written successfully: {testLogPath}");
                 }
                 catch (Exception ex)
                 {
-                    Console.Error.WriteLine($"[MCP] Test log write failed: {ex.Message}");
+                    Console.Error.WriteLine($"[MCP] Test log write FAILED: {ex.Message}");
+                    Console.Error.WriteLine($"[MCP] Exception type: {ex.GetType().Name}");
                 }
+            }
+            else
+            {
+                Console.Error.WriteLine($"[MCP] Skipping test-isolated logging (MCP_LOG_DIR not set)");
             }
 
             // SECONDARY: Fixed predictable location (ALWAYS available for verification)
