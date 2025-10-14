@@ -230,42 +230,19 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 
             // TDD WORKFLOW
             yourTddWorkflow = @"
-⚠️⚠️⚠️ YOUR RESPONSE FORMAT IS NON-NEGOTIABLE ⚠️⚠️⚠️
+OUTPUT EXACTLY THIS FORMAT:
 
-EXAMPLE FORMAT (COPY THIS EXACTLY):
-═══ FILES SCANNED (MANDATORY PROOF) ═══
-1. /mnt/c/STAMPLI4/.../AcumaticaDriver.java:102-117
-   ✓ Constants: RESPONSE_ROWS_LIMIT=2000
-   ✓ Methods: getVendors() returns GetVendorsResponse
-   ✓ Patterns: new AcumaticaImportHelper<T>(...) { ... }.getValues()
+═══ FILES SCANNED ═══
+1. /mnt/c/STAMPLI4/.../[file].java:[lines]
+   Constants: [list 2+ from file], Methods: [list 1+ from file], Patterns: [list 1+ from file]
+2. [repeat for ALL files in criticalFiles below]
+═══════════════════
 
-2. /mnt/c/STAMPLI4/.../AcumaticaImportHelper.java:44-200
-   ✓ Constants: TIME_LIMIT=10, maxResultsLimit=50000
-   ✓ Methods: paginateQuery(), authenticatedApiCall()
-   ✓ Patterns: while(hasNextPage()) loop, connection refresh
-
-[ALL FILES FROM mandatoryFileScanning.criticalFiles]
-═══════════════════════════════════════
-
-## TDD Tasklist
+## TDD Steps
 1. [RED] Write test...
 2. [GREEN] Implement...
-[etc.]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️  I WILL REJECT ANY RESPONSE THAT:
-⚠️  - DOES NOT START WITH '═══ FILES SCANNED (MANDATORY PROOF) ═══'
-⚠️  - DOES NOT LIST ALL FILES FROM mandatoryFileScanning.criticalFiles
-⚠️  - DOES NOT INCLUDE CONSTANTS/METHODS/PATTERNS FOR EACH FILE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-WORKFLOW:
-STEP 1: PICK OPERATION from relevantOperations
-STEP 2: USE Read TOOL ON ALL mandatoryFileScanning.criticalFiles
-STEP 3: COPY THE EXAMPLE FORMAT ABOVE WITH YOUR FINDINGS
-STEP 4: ADD TDD TASKLIST (RED → GREEN → REFACTOR phases)
-
-⚠️⚠️⚠️ NO FILES SCANNED SECTION = INSTANT REJECTION ⚠️⚠️⚠️
+START YOUR RESPONSE WITH '═══ FILES SCANNED ═══'. NO SUMMARIES. NO PREAMBLES.
 ",
 
             // MANDATORY FILE SCANNING
@@ -390,8 +367,13 @@ STEP 4: ADD TDD TASKLIST (RED → GREEN → REFACTOR phases)
                 var fixedLogPath = Path.Combine(fixedLogDir, $"mcp_responses_{DateTime.Now:yyyyMMdd}.jsonl");
                 await File.AppendAllTextAsync(fixedLogPath, logJson + "\n", ct);
 
+                // Write FULL response content for format verification
+                var fullResponsePath = Path.Combine(fixedLogDir, $"mcp_full_response_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+                await File.WriteAllTextAsync(fullResponsePath, responseJson, ct);
+
                 Console.Error.WriteLine($"[MCP] kotlin_tdd_workflow: flow={flowName}, ops={operations.Count}, size={responseJson.Length} chars");
                 Console.Error.WriteLine($"[MCP] Logs → TEST: {testLogPath ?? "none"} | FIXED: {fixedLogPath}");
+                Console.Error.WriteLine($"[MCP] Full response: {fullResponsePath}");
             }
             catch (Exception ex)
             {

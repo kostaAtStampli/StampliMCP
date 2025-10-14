@@ -7,13 +7,13 @@ namespace StampliMCP.McpServer.Acumatica.Tests.LiveLLM;
 public static class PromptTemplates
 {
     /// <summary>
-    /// Autonomous workflow prompt - 2025 AI-first approach
-    /// Trust AI judgment, natural output, verified via ground truth (MCP logs)
+    /// Autonomous workflow prompt - 2025 AI-first approach with FORMAT ENFORCEMENT
+    /// Uses MCP prompt (not tool) to enforce ═══ FILES SCANNED ═══ format
     /// </summary>
     public static string AutonomousWorkflow(string feature) =>
-        $"Use kotlin_tdd_workflow tool (command: start, context: {feature}). " +
-        "Analyze the response, pick the best operation, and create an implementation tasklist. " +
-        "Include operation name, key files you reviewed, and your recommended steps.";
+        $"Use the kotlin_tdd_tasklist MCP prompt with feature: '{feature}'. " +
+        "The prompt will guide you to call kotlin_tdd_workflow tool, scan files, and output a formatted tasklist. " +
+        "Follow the format requirements exactly: start with ═══ FILES SCANNED ═══, include Constants/Methods/Patterns proof, then TDD steps.";
 
     /// <summary>
     /// Explicit TDD workflow prompt - numbered steps ensure Claude follows exact sequence
