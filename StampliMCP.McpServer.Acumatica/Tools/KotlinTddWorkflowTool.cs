@@ -135,6 +135,7 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         FlowService flowService,
         IntelligenceService intelligence,
         MetricsService metrics,
+        JsonFileLogger fileLogger,
         CancellationToken ct)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -166,10 +167,32 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 
             success = result is not { } obj || !HasErrorProperty(obj);
 
+            var durationMs = sw.Elapsed.TotalMilliseconds;
+            var tokens = result != null ? JsonSerializer.Serialize(result).Length : 0;
+
             Serilog.Log.Information(
                 "Tool {Tool} completed: command={Command}, flow={Flow}, duration={DurationMs}ms, tokens={Tokens}, success={Success}",
-                "kotlin_tdd_workflow", command, flowName, sw.Elapsed.TotalMilliseconds,
-                result != null ? JsonSerializer.Serialize(result).Length : 0, success);
+                "kotlin_tdd_workflow", command, flowName, durationMs, tokens, success);
+
+            // Write structured JSON to file
+            try
+            {
+                await fileLogger.WriteAsync(new
+                {
+                    Timestamp = DateTimeOffset.UtcNow,
+                    Level = "Information",
+                    Tool = "kotlin_tdd_workflow",
+                    Command = command,
+                    Flow = flowName,
+                    DurationMs = durationMs,
+                    Tokens = tokens,
+                    Success = success
+                });
+            }
+            catch (Exception logEx)
+            {
+                Serilog.Log.Warning(logEx, "Failed to write JSON log file");
+            }
 
             return result;
         }

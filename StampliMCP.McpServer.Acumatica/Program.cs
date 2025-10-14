@@ -59,6 +59,9 @@ builder.Services.AddSingleton<IntelligenceService>();
 // Register MetricsService for observability
 builder.Services.AddSingleton<MetricsService>();
 
+// Register simple JSON file logger (no dependencies, works with PublishSingleFile)
+builder.Services.AddSingleton<JsonFileLogger>();
+
 // Configure MCP server with single entry point architecture
 builder.Services
     .AddMcpServer(options =>
