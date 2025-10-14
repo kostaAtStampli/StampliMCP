@@ -1,0 +1,62 @@
+{
+  "flowName": "PAYMENT_FLOW",
+  "description": "Export bill payments to Acumatica with international payment support, cross-rate calculation, amount validation, and release. Handles multi-currency payments.",
+  "usedByOperations": [
+    "exportBillPayment"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "501-517",
+      "purpose": "Entry point for payment export",
+      "keyPatterns": [
+        "exportBillPayment() method",
+        "AcumaticaPaymentSerializer",
+        "AcumaticaPaymentCalculator for international payments"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentSerializer.java",
+      "lines": "56-131",
+      "purpose": "Serializes payment to Acumatica JSON with international currency support",
+      "keyPatterns": [
+        "serialize() method",
+        "ApplicationDocuments array for linked bills",
+        "CurrencyID, PaymentAmount for international payments",
+        "Hold=true initially"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentCalculator.java",
+      "lines": "1-100",
+      "purpose": "Calculates cross-rates and amounts for international payments",
+      "keyPatterns": [
+        "calculateCrossRate() method",
+        "Multi-currency exchange rate logic",
+        "Applied amount calculations"
+      ]
+    }
+  ],
+  "anatomy": {
+    "flow": "Retrieve bills → Calculate amounts → Serialize → Create (Hold=true) → Update amounts → Validate balance → Release → Post",
+    "internationalLogic": "If payment currency != bill currency, use AcumaticaPaymentCalculator for cross-rate",
+    "billLinking": "ApplicationDocuments array links payment to bills"
+  },
+  "constants": {
+    "HOLD_TRUE_INITIALLY": {
+      "value": true,
+      "purpose": "Payments created on hold, released after validation"
+    }
+  },
+  "codeSnippets": {
+    "internationalPayment": "// AcumaticaPaymentSerializer.java:138-148\nif (isInternationalPayment(payment)) {\n    // Use payment calculator for cross-rate\n    AcumaticaPaymentCalculator calculator = new AcumaticaPaymentCalculator(\n        payment.getCurrencyId(),\n        bill.getCurrencyId(),\n        exchangeRate\n    );\n    \n    BigDecimal appliedAmount = calculator.calculateAppliedAmount(payment.getAmount());\n    writeDoubleValue(\"AmountPaid\", appliedAmount, jgen);\n    writeDoubleValue(\"CrossRate\", calculator.calculateCrossRate(), jgen);\n}",
+    "applicationDocuments": "// Link payment to bills\nJSONArray applicationDocuments = new JSONArray();\nfor (Bill bill : payment.getBills()) {\n    JSONObject doc = new JSONObject();\n    doc.put(\"DocType\", new JSONObject().put(\"value\", \"Invoice\"));\n    doc.put(\"ReferenceNbr\", new JSONObject().put(\"value\", bill.getReferenceNbr()));\n    doc.put(\"AmountPaid\", new JSONObject().put(\"value\", bill.getAmountPaid()));\n    applicationDocuments.put(doc);\n}\nroot.put(\"ApplicationDocuments\", applicationDocuments);"
+  },
+  "validationRules": [
+    "International payments require cross-rate calculation via AcumaticaPaymentCalculator",
+    "ApplicationDocuments array must link payment to bills",
+    "Amount validation: Sum of ApplicationDocuments.AmountPaid must equal payment amount",
+    "Balance validation after creation",
+    "Release and post after successful validation"
+  ]
+}

@@ -17,6 +17,7 @@ public static class DiagnosticTools
         return Task.FromResult<object>(new
         {
             status = "ok",
+            smokeTest = "kosta_2025_flow_based",
             version = "2.0.0",
             serverName = "stampli-acumatica",
             timestamp = DateTime.UtcNow.ToString("O"),

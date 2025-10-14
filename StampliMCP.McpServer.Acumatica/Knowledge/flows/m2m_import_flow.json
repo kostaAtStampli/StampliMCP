@@ -1,0 +1,93 @@
+{
+  "flowName": "M2M_IMPORT_FLOW",
+  "description": "Many-to-Many relationship import for entities with complex relationships: Branch→Project, Project→Task, Task→CostCode. Adds relationsList metadata to enable cascading imports.",
+  "usedByOperations": [
+    "getFieldSearchList (InvCust_BRANCH)",
+    "getFieldSearchList (InvCust_PROJECT)",
+    "getFieldSearchList (InvCust_TASK)",
+    "getFieldSearchList (InvCust_COST_CODE)"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "310-349",
+      "purpose": "Entry point with feature flag checks for M2M imports - delegates to specialized M2M helpers",
+      "keyPatterns": [
+        "isNonDeltaImport() check",
+        "AcumaticaM2MBranchImportHelper",
+        "AcumaticaM2MProjectImportHelper",
+        "AcumaticaM2MTaskImportHelper",
+        "AcumaticaM2MCostCodeImportHelper",
+        "FF_SUPPORT_NON_DELTA_IMPORTS_FOR_PROJECT_TASK feature flag"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaM2MBranchImportHelper.java",
+      "lines": "10-28",
+      "purpose": "M2M helper for Branch entity - adds Branch→Project relationship",
+      "keyPatterns": [
+        "extends AcumaticaImportHelper",
+        "implements IM2MImportHelper",
+        "fillInMany2ManyData() method",
+        "relationsList.put(FIELD_BRANCH, Set.of(FIELD_PROJECT))"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/IM2MImportHelper.java",
+      "lines": "10-49",
+      "purpose": "Interface defining M2M constants and helper methods",
+      "keyPatterns": [
+        "FIELD_BRANCH = \"BRANCH\"",
+        "FIELD_PROJECT = \"PROJECT\"",
+        "FIELD_TASK = \"TASK\"",
+        "FIELD_COST_CODE = \"COST_CODE\"",
+        "addRelation() default method"
+      ]
+    }
+  ],
+  "anatomy": {
+    "pattern": "Extends AcumaticaImportHelper + implements IM2MImportHelper → Override getValues() → Call fillInMany2ManyData() → Set relationsList",
+    "relationshipChain": "Branch → Project → Task → CostCode",
+    "responseEnhancement": "Standard import response + relationsList map added",
+    "featureFlag": "FF_SUPPORT_NON_DELTA_IMPORTS_FOR_PROJECT_TASK controls M2M behavior"
+  },
+  "constants": {
+    "FIELD_BRANCH": {
+      "value": "BRANCH",
+      "file": "IM2MImportHelper.java",
+      "line": 12,
+      "purpose": "M2M relationship key for Branch entity"
+    },
+    "FIELD_PROJECT": {
+      "value": "PROJECT",
+      "file": "IM2MImportHelper.java",
+      "line": 13,
+      "purpose": "M2M relationship key for Project entity"
+    },
+    "FIELD_TASK": {
+      "value": "TASK",
+      "file": "IM2MImportHelper.java",
+      "line": 14,
+      "purpose": "M2M relationship key for Task entity"
+    },
+    "FIELD_COST_CODE": {
+      "value": "COST_CODE",
+      "file": "IM2MImportHelper.java",
+      "line": 15,
+      "purpose": "M2M relationship key for CostCode entity"
+    }
+  },
+  "codeSnippets": {
+    "m2mHelper": "// AcumaticaM2MBranchImportHelper.java:10-28\npublic class AcumaticaM2MBranchImportHelper \n    extends AcumaticaImportHelper<GetGeneralFieldSearchListResponse>\n    implements IM2MImportHelper {\n    \n    public AcumaticaM2MBranchImportHelper(ApiCallerFactory apiCallerFactory,\n                                          FinSysBridgeBaseRequest request,\n                                          AcumaticaEndpoint entityUrl) {\n        super(apiCallerFactory, request, entityUrl);\n    }\n    \n    @Override\n    public GetGeneralFieldSearchListResponse getValues() {\n        return fillInMany2ManyData(super.getValues());\n    }\n    \n    private GetGeneralFieldSearchListResponse fillInMany2ManyData(GetGeneralFieldSearchListResponse res) {\n        Map<String, Set<String>> relationsList = new HashMap<>();\n        relationsList.put(FIELD_BRANCH, Set.of(FIELD_PROJECT));\n        res.setRelationsList(relationsList);\n        return res;\n    }\n}",
+    "relationshipDefinition": "// Branch → Project relationship\nrelationsList.put(FIELD_BRANCH, Set.of(FIELD_PROJECT));\n\n// Project → Task relationship  \nrelationsList.put(FIELD_PROJECT, Set.of(FIELD_TASK));\n\n// Task → CostCode relationship\nrelationsList.put(FIELD_TASK, Set.of(FIELD_COST_CODE));",
+    "featureFlagCheck": "// AcumaticaDriver.java:302-307\nprivate boolean isNonDeltaImport(Map<String, String> state) {\n    if (state == null) {\n        return false;\n    }\n    // This is temporary solution - core doesn't support M2M for delta import\n    return Boolean.TRUE.toString().equals(\n        state.get(FeatureFlags.FF_SUPPORT_NON_DELTA_IMPORTS_FOR_PROJECT_TASK)\n    );\n}"
+  },
+  "validationRules": [
+    "M2M imports only work with non-delta imports (full data sync)",
+    "Feature flag FF_SUPPORT_NON_DELTA_IMPORTS_FOR_PROJECT_TASK must be enabled",
+    "relationsList map defines parent→child relationships",
+    "Each M2M helper extends AcumaticaImportHelper and implements IM2MImportHelper",
+    "Relationship chain: Branch → Project → Task → CostCode (4-level hierarchy)",
+    "For CostCode: Pre-fetch PROJECT_BUDGET data before importing cost codes"
+  ]
+}

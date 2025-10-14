@@ -31,6 +31,9 @@ builder.Services.AddKeyedSingleton<SearchService>("search");
 builder.Services.AddSingleton<KnowledgeService>(sp => sp.GetRequiredKeyedService<KnowledgeService>("knowledge"));
 builder.Services.AddSingleton<SearchService>(sp => sp.GetRequiredKeyedService<SearchService>("search"));
 
+// Register FlowService for flow-based TDD architecture
+builder.Services.AddSingleton<FlowService>();
+
 // Register intelligence service for showcase tools
 builder.Services.AddSingleton<IntelligenceService>();
 

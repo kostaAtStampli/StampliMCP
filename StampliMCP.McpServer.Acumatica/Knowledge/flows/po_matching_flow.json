@@ -1,0 +1,91 @@
+{
+  "flowName": "PO_MATCHING_FLOW",
+  "description": "Specialized import for purchase order matching - retrieves PO headers, line items, and linked purchase receipts for a specific vendor/PO combination. Used for 3-way matching during invoice processing.",
+  "usedByOperations": [
+    "getPoDataForPoMatching"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "86-91",
+      "purpose": "Entry point for single PO matching - retrieves tax zone map first, then delegates to AcumaticaPoMatchingHelper",
+      "keyPatterns": [
+        "getPoDataForPoMatching() method",
+        "getAcumaticaTaxZoneMap() call",
+        "AcumaticaPoMatchingHelper.newInstance()",
+        "AcumaticaEndpoint.EXTENDED_PURCHASE_ORDER_PO_MATCHING"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPoMatchingHelper.java",
+      "lines": "28-148",
+      "purpose": "Specialized helper for PO matching - handles filtering, creates 3 separate API calls (PO headers, PR headers, PR line items)",
+      "keyPatterns": [
+        "newInstance() factory method",
+        "getFilteringFieldsData() at lines 48-61",
+        "createPurchaseOrderApiCallerList() at lines 101-148",
+        "splitPurchaseOrderKey() pattern",
+        "3 API calls: PO + PR header + PR contents"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderImportHelper.java",
+      "lines": "1-225",
+      "purpose": "Base helper that AcumaticaPoMatchingHelper extends - handles PO-specific logic",
+      "keyPatterns": [
+        "extends AcumaticaImportHelper",
+        "PO-specific methods",
+        "Purchase receipt handling"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaImportUtil.java",
+      "lines": "1-100",
+      "purpose": "Utility methods including splitPurchaseOrderKey() for parsing PO key format",
+      "keyPatterns": [
+        "splitPurchaseOrderKey() method",
+        "PO key format: 'PO - PO123456 PR - PR789012'"
+      ]
+    }
+  ],
+  "anatomy": {
+    "entryPattern": "AcumaticaPoMatchingHelper.newInstance(request, apiCallerFactory, endpoint, taxZoneMap, false).getValues();",
+    "helperClass": "AcumaticaPoMatchingHelper extends AcumaticaPurchaseOrderImportHelper extends AcumaticaImportHelper",
+    "filteringPattern": "filteringFieldsData map with OrderNbr and VendorID keys",
+    "apiCallPattern": "3 separate API calls: 1) PO orders 2) PR headers 3) PR line items (contents)",
+    "keyParsing": "splitPurchaseOrderKey() splits 'PO - PO123456 PR - PR789012' into PO and PR numbers"
+  },
+  "constants": {
+    "PO_KEY_FORMAT": {
+      "value": "PO - [PO_NUMBER] PR - [PR_NUMBER]",
+      "purpose": "Format for purchase order keys when linked to purchase receipts"
+    },
+    "PO_ONLY_FORMAT": {
+      "value": "PO - [PO_NUMBER]",
+      "purpose": "Format for purchase order keys without receipts"
+    },
+    "FETCH_MODE_PO_HEADERS": {
+      "value": "PO_HEADERS",
+      "purpose": "Fetch only PO headers, no line items"
+    },
+    "FETCH_MODE_PO_LINES": {
+      "value": "PO_LINES",
+      "purpose": "Fetch PO headers + line items + PR line items"
+    }
+  },
+  "codeSnippets": {
+    "entryPoint": "// AcumaticaDriver.java:86-91\nMap<String, AcumaticaTaxZone> taxZoneMap = getAcumaticaTaxZoneMap(request, request.getFetchMode());\nreturn AcumaticaPoMatchingHelper.newInstance(\n    request, \n    apiCallerFactory,\n    AcumaticaEndpoint.EXTENDED_PURCHASE_ORDER_PO_MATCHING, \n    taxZoneMap, \n    false  // isImportAllPos = false for single PO\n).getValues();",
+    "filteringLogic": "// AcumaticaPoMatchingHelper.java:48-61\nprivate HashMap<String, List<String>> getFilteringFieldsData(String purchaseOrderId, String vendorId) {\n    HashMap<String, List<String>> filteringFieldsData = new HashMap<>();\n    if (isImportAllPos) {\n        return filteringFieldsData;\n    }\n    if (!StringUtils.isEmpty(purchaseOrderId)) {\n        filteringFieldsData.put(\"OrderNbr\", Collections.singletonList(purchaseOrderId));\n    }\n    if (!StringUtils.isEmpty(vendorId)) {\n        filteringFieldsData.put(\"VendorID\", Collections.singletonList(vendorId));\n    }\n    return filteringFieldsData;\n}",
+    "keyParsing": "// AcumaticaImportUtil.splitPurchaseOrderKey()\npublic static Pair<String, String> splitPurchaseOrderKey(String poKey) {\n    if (StringUtils.isEmpty(poKey)) {\n        throw new AcumaticaApiException(\"Purchase order key is empty\");\n    }\n    String[] parts = poKey.split(\" PR - \");\n    String poNumber = parts[0].replace(\"PO - \", \"\").trim();\n    String prNumber = parts.length > 1 ? parts[1].trim() : null;\n    return Pair.of(poNumber, prNumber);\n}",
+    "threeApiCalls": "// AcumaticaPoMatchingHelper.java:101-148 - createPurchaseOrderApiCallerList()\n// Call 1: PO orders with OrderNbr and VendorID filters\naddPurchaseOrdersToApiCallerList(apiCallers, orderNbr, receiptNbr, vendorId);\n\n// Call 2: PR headers\nvar receiptApiCaller = createPurchaseReceiptRestApiCaller(request, orderNbr, receiptNbr, vendorId);\nif (receiptApiCaller != null) {\n    apiCallers.add(receiptApiCaller);\n}\n\n// Call 3: PR line items (if FetchMode.PO_LINES)\nif (fetchMode.equals(FetchMode.PO_LINES)) {\n    var receiptContentsApiCaller = getPurchaseReceiptContentsApiCaller(...);\n    if (receiptContentsApiCaller != null) {\n        apiCallers.add(receiptContentsApiCaller);\n        if (StringUtils.isNotEmpty(receiptNbr)) {\n            assembler.setParsePrItemsOnly(true);\n        }\n    }\n}"
+  },
+  "validationRules": [
+    "Always retrieve tax zone map before calling PO matching helper",
+    "PO key format must be parsed: 'PO - PO123456' or 'PO - PO123456 PR - PR789012'",
+    "3 separate API calls required: PO orders, PR headers, PR line items",
+    "FetchMode determines whether to include line items (PO_HEADERS vs PO_LINES)",
+    "Filtering uses OrderNbr and/or VendorID in filteringFieldsData map",
+    "Tax zone map must be passed to helper for tax calculations",
+    "Acumatica doesn't allow multiple 'and' operators on same key - hence 3 separate calls"
+  ]
+}

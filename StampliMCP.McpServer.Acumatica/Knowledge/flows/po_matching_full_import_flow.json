@@ -1,0 +1,71 @@
+{
+  "flowName": "PO_MATCHING_FULL_IMPORT_FLOW",
+  "description": "Comprehensive PO matching flow that imports ALL open POs, closed POs, and closed PRs for PO matching purposes. Used for bulk PO data synchronization.",
+  "usedByOperations": [
+    "getPoMatchingDataWithClosedPOs"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "94-99",
+      "purpose": "Entry point for full PO matching - delegates to AcumaticaPoMatchingFullImportHelper orchestration",
+      "keyPatterns": [
+        "getPoMatchingDataWithClosedPOs() method",
+        "getAcumaticaTaxZoneMap() with FetchMode.PO_LINES",
+        "AcumaticaPoMatchingFullImportHelper.getPoMatchingDataForOpenAndClosedPOs()"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPoMatchingFullImportHelper.java",
+      "lines": "26-225",
+      "purpose": "Orchestrates full PO/PR import - getAllOpenPOs + getAllClosedPos + getAllClosedPRs + merge",
+      "keyPatterns": [
+        "getPoMatchingDataForOpenAndClosedPOs() main method at lines 26-54",
+        "getAllOpenPOs() at lines 76-95",
+        "getAllClosedPos() at lines 56-75",
+        "getAllClosedPRs() at lines 98-118",
+        "MONTH_BACK_FOR_CLOSED_PRS=12 at line 213"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+      "lines": "35-36",
+      "purpose": "Constants for full import",
+      "keyPatterns": [
+        "BEGINNING_OF_TIME = \"1900-01-01T12:00:00+00:00\"",
+        "MONTH_BACK_FOR_CLOSED_PRS = 12"
+      ]
+    }
+  ],
+  "anatomy": {
+    "orchestration": "getAllOpenPOs() → enhancePoAndPrDocumentsWithLinksAndTypes() → getAllClosedPos() → getAllClosedPRs() → mergeClosedPOsAndPRs()",
+    "responseType": "GetPoDataForOpenAndClosedBridgeResponse with openPOsPerVendor + closedPoData maps",
+    "endpoints": "EXTENDED_PURCHASE_ORDER_PO_MATCHING (open), CLOSED_PURCHASE_ORDERS_FOR_PO_MATCHING (closed POs), CLOSED_PURCHASE_RECEIPTS_FOR_PO_MATCHING (closed PRs)"
+  },
+  "constants": {
+    "MONTH_BACK_FOR_CLOSED_PRS": {
+      "value": 12,
+      "file": "AcumaticaImportHelper.java",
+      "line": 36,
+      "purpose": "Retrieve 12 months of closed PRs on first import"
+    },
+    "BEGINNING_OF_TIME": {
+      "value": "1900-01-01T12:00:00+00:00",
+      "file": "AcumaticaImportHelper.java",
+      "line": 35,
+      "purpose": "Full import filter (no delta) - retrieves all data since beginning of time"
+    }
+  },
+  "codeSnippets": {
+    "mainOrchestration": "// AcumaticaPoMatchingFullImportHelper.java:26-54\npublic static GetPoDataForOpenAndClosedBridgeResponse getPoMatchingDataForOpenAndClosedPOs(...) {\n    GetPoDataForOpenAndClosedBridgeResponse response = new GetPoDataForOpenAndClosedBridgeResponse();\n    try {\n        Map<String, Set<String>> vendorToClosedPoPrs = new HashMap<>();\n        \n        // Step 1: Get all open POs\n        Map<String, List<POData>> openPOsPerVendor = getAllOpenPOs(request, taxZoneMap, vendorToClosedPoPrs);\n        \n        // Step 2: Enhance with links and document types\n        enhancePoAndPrDocumentsWithLinksAndTypes(openPOsPerVendor);\n        \n        // Step 3: Get closed POs and PRs\n        Map<String, List<ClosedPoPrData>> closedPOsPerVendor = getAllClosedPos(request);\n        Map<String, List<ClosedPoPrData>> closedPRsPerVendor = getAllClosedPRs(request, vendorToClosedPoPrs);\n        \n        // Step 4: Merge closed data\n        Map<String, List<ClosedPoPrData>> mergedClosedDataPerVendor = mergeClosedPOsAndPRs(closedPOsPerVendor, closedPRsPerVendor);\n        \n        response.setPoData(openPOsPerVendor);\n        response.setClosedPoData(mergedClosedDataPerVendor);\n        response.setResponseCode(200);\n    } catch (Exception e) {\n        response.setResponseCode(0);\n        response.setError(\"Failed to get Open And Closed POs data\");\n    }\n    return response;\n}",
+    "closedPRsLogic": "// AcumaticaPoMatchingFullImportHelper.java:212-225\nLocalDateTime dateWithMonthAgo = LocalDateTime.now().minusMonths(MONTH_BACK_FOR_CLOSED_PRS);\nString monthsAgoString = dateWithMonthAgo.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) + \"Z\";\n\n// If 1st time running - take ALL values, else limit to X months ago\nString queryDate = request.getLastImportDateTime() != null ? monthsAgoString : BEGINNING_OF_TIME;\n\nString requestBody = \"{\\\"CreatedDateTime\\\" : {\\\"value\\\" : \\\"\" + queryDate + \"\\\"}}\";\nAcumaticaUrlSuffixAssembler urlSuffixAssembler = new AcumaticaUrlSuffixAssembler();\nurlSuffixAssembler.addExpand(\"GetClosedPRsForPoMatchingDetails\");\n\nreturn List.of(apiCallerFactory.createPutRestApiCaller(\n    request, \n    AcumaticaEndpoint.CLOSED_PURCHASE_RECEIPTS_FOR_PO_MATCHING, \n    urlSuffixAssembler, \n    requestBody\n));"
+  },
+  "validationRules": [
+    "First import: Use BEGINNING_OF_TIME (1900-01-01) to get all historical data",
+    "Subsequent imports: Use last import date for closed POs, but 12 months back for closed PRs",
+    "Closed PRs use CreatedDateTime filter, closed POs use LastModifiedDateTime",
+    "Custom endpoints: CLOSED_PURCHASE_ORDERS_FOR_PO_MATCHING and CLOSED_PURCHASE_RECEIPTS_FOR_PO_MATCHING",
+    "Response merges closed POs and PRs into single map keyed by vendor",
+    "Enhancement step adds document links and types to open POs before returning"
+  ]
+}

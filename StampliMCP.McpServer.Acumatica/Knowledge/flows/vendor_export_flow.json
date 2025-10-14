@@ -1,0 +1,95 @@
+{
+  "flowName": "VENDOR_EXPORT_FLOW",
+  "description": "Export/create new vendors in Acumatica with validation, JSON mapping, idempotency check, and UI link generation. Includes payment instructions and bank details.",
+  "usedByOperations": [
+    "exportVendor"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "557-561",
+      "purpose": "Entry point - delegates to CreateVendorHandler",
+      "keyPatterns": [
+        "exportVendor() method",
+        "CreateVendorHandler.execute()"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+      "lines": "24-127",
+      "purpose": "Complete vendor creation flow with validation, mapping, creation, and response building",
+      "keyPatterns": [
+        "execute() main method at lines 24-79",
+        "validateVendorRequest() at lines 107-127",
+        "extractVendorId() at lines 83-105",
+        "AcumaticaUiLinkBuilder.buildVendorUiLink()"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
+      "lines": "16-80",
+      "purpose": "Maps raw vendor data to Acumatica JSON format with payment instructions",
+      "keyPatterns": [
+        "mapToAcumaticaJson() at lines 16-61",
+        "STAMPLI_LINK_PREFIX constant at line 10",
+        "putValue() helper at lines 63-69",
+        "paymentInstruction() helper at lines 71-80",
+        "Payment method defaults to CHECK if bank info provided"
+      ]
+    }
+  ],
+  "anatomy": {
+    "flow": "Validate → Map to JSON → Create (PUT) → Extract VendorID → Build UI link → Return",
+    "validation": "vendorName required (max 60 chars), stampliLink required, vendorId optional (max 15 chars)",
+    "mapping": "Raw data → Acumatica JSON with nested {\"value\": ...} structure",
+    "paymentInstructions": "If bank details provided, create PaymentInstructions array with BANKNAME, ACCOUNT, ROUTINGNO"
+  },
+  "constants": {
+    "STAMPLI_LINK_PREFIX": {
+      "value": "Stampli Link: ",
+      "file": "VendorPayloadMapper.java",
+      "line": 10,
+      "purpose": "Prefix for Stampli link stored in vendor note field"
+    },
+    "VALUE_KEY": {
+      "value": "value",
+      "file": "VendorPayloadMapper.java",
+      "line": 11,
+      "purpose": "Standard Acumatica JSON value wrapper key"
+    },
+    "MAX_VENDOR_NAME_LENGTH": {
+      "value": 60,
+      "file": "CreateVendorHandler.java",
+      "line": 119,
+      "purpose": "Maximum length for vendor name"
+    },
+    "MAX_VENDOR_ID_LENGTH": {
+      "value": 15,
+      "file": "CreateVendorHandler.java",
+      "line": 123,
+      "purpose": "Maximum length for vendor ID"
+    },
+    "DEFAULT_PAYMENT_METHOD": {
+      "value": "CHECK",
+      "file": "VendorPayloadMapper.java",
+      "line": 43,
+      "purpose": "Default payment method if bank info provided but no method specified"
+    }
+  },
+  "codeSnippets": {
+    "validation": "// CreateVendorHandler.java:107-127\nprivate static String validateVendorRequest(Map<String, String> raw) {\n    if (raw == null) {\n        return \"Missing vendor data\";\n    }\n    \n    String vendorName = raw.get(\"vendorName\");\n    if (StringUtils.isBlank(vendorName)) {\n        return \"vendorName is required\";\n    }\n    \n    String stampliLink = raw.get(\"stampliLink\");\n    if (StringUtils.isBlank(stampliLink)) {\n        return \"stampliLink is required\";\n    }\n    \n    if (vendorName.length() > 60) {\n        return \"vendorName exceeds maximum length of 60 characters\";\n    }\n    \n    String vendorId = raw.get(\"vendorId\");\n    if (StringUtils.isNotBlank(vendorId) && vendorId.length() > 15) {\n        return \"vendorId exceeds maximum length of 15 characters\";\n    }\n    \n    return null;  // Validation passed\n}",
+    "mapping": "// VendorPayloadMapper.java:16-61\nstatic String mapToAcumaticaJson(Map<String, String> raw, String vendorName, String stampliLink) {\n    JSONObject root = new JSONObject();\n    \n    // Basic vendor fields\n    putValue(root, \"VendorName\", vendorName);\n    putValue(root, \"VendorID\", raw.get(\"vendorId\"));\n    putValue(root, \"VendorClass\", raw.get(\"vendorClass\"));\n    putValue(root, \"Terms\", raw.get(\"terms\"));\n    putValue(root, \"CurrencyID\", raw.get(\"currencyId\"));\n    \n    // Stampli link as note\n    JSONObject note = new JSONObject();\n    note.put(VALUE_KEY, STAMPLI_LINK_PREFIX + stampliLink.trim());\n    root.put(\"note\", note);\n    \n    // Payment method and bank instructions\n    String paymentMethod = StringUtils.trimToNull(raw.get(\"paymentMethod\"));\n    boolean hasBankInfo = StringUtils.isNotBlank(raw.get(\"bankName\")) || \n                         StringUtils.isNotBlank(raw.get(\"bankAccountNumber\")) ||\n                         StringUtils.isNotBlank(raw.get(\"bankRoutingNumber\"));\n    \n    if (paymentMethod == null && hasBankInfo) {\n        paymentMethod = \"CHECK\";  // Default to CHECK if bank info provided\n    }\n    putValue(root, \"PaymentMethod\", paymentMethod);\n    \n    // Payment instructions array\n    if (hasBankInfo) {\n        JSONArray instructions = new JSONArray();\n        if (StringUtils.isNotBlank(raw.get(\"bankName\"))) {\n            instructions.put(paymentInstruction(\"BANKNAME\", raw.get(\"bankName\")));\n        }\n        if (StringUtils.isNotBlank(raw.get(\"bankAccountNumber\"))) {\n            instructions.put(paymentInstruction(\"ACCOUNT\", raw.get(\"bankAccountNumber\")));\n        }\n        if (StringUtils.isNotBlank(raw.get(\"bankRoutingNumber\"))) {\n            instructions.put(paymentInstruction(\"ROUTINGNO\", raw.get(\"bankRoutingNumber\")));\n        }\n        root.put(\"PaymentInstructions\", instructions);\n    }\n    \n    return root.toString();\n}",
+    "extractVendorId": "// CreateVendorHandler.java:95-105\nprivate static String extractVendorId(JSONObject obj) {\n    if (obj == null) {\n        return null;\n    }\n    // Handle nested structure: {\"VendorID\": {\"value\": \"V123\"}}\n    JSONObject idObj = obj.optJSONObject(\"VendorID\");\n    if (idObj != null) {\n        return idObj.optString(\"value\");\n    }\n    // Handle flat structure: {\"VendorID\": \"V123\"}\n    String vendorId = obj.optString(\"VendorID\", null);\n    return StringUtils.defaultIfBlank(vendorId, null);\n}",
+    "uiLink": "// CreateVendorHandler.java:59-65\nString vendorUiLink = AcumaticaUiLinkBuilder.buildVendorUiLink(\n    request.getConnectionProperties(),\n    request.getSubsidiary(),\n    createdVendorId\n);\nif (StringUtils.isNotBlank(vendorUiLink)) {\n    link.setContent(vendorUiLink);\n}"
+  },
+  "validationRules": [
+    "vendorName: Required, max 60 characters",
+    "stampliLink: Required",
+    "vendorId: Optional, max 15 characters if provided",
+    "If bank details provided but no payment method, default to CHECK",
+    "Stampli link stored in note field with 'Stampli Link: ' prefix",
+    "Payment instructions use BANKNAME, ACCOUNT, ROUTINGNO instruction IDs",
+    "Idempotency: Acumatica returns 422 if VendorID already exists",
+    "Response includes erpVendorId and UI link to vendor in Acumatica"
+  ]
+}

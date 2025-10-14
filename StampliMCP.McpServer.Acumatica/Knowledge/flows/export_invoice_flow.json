@@ -1,0 +1,102 @@
+{
+  "flowName": "EXPORT_INVOICE_FLOW",
+  "description": "Export bills and quick checks to Acumatica with comprehensive validation (8 steps), tax processing, posting, and Stampli link attachment. Includes rollback on any error.",
+  "usedByOperations": [
+    "exportAPTransaction (TransactionType.BILL)",
+    "exportAPTransaction (TransactionType.PAID_INVOICE)"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "225-240, 679-714",
+      "purpose": "Entry point for bill/quick check export - routes to exportInvoice() or exportPaymentReceipt()",
+      "keyPatterns": [
+        "exportAPTransaction() at lines 225-240",
+        "exportInvoice() at lines 679-714",
+        "TransactionType.PAID_INVOICE check",
+        "AcumaticaInvoiceSerializer",
+        "AcumaticaExportValidator.isValidForExport()"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
+      "lines": "100-201",
+      "purpose": "Core export method with 8-step validation/tax/posting flow and rollback on error",
+      "keyPatterns": [
+        "export() method - main orchestration",
+        "Step 1: Create entity (PUT request)",
+        "Step 2-6: Tax processing (convertLinesToAppliedTaxes, modifyTaxableItemsCategory, updateTaxMap, validateRoundingDiff, isAmountMatching)",
+        "Step 7: releaseQuickCheckFromHold (Quick Check only)",
+        "Step 8: post()",
+        "Step 9: addStampliLink()",
+        "deleteEntity() rollback on any error"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaInvoiceSerializer.java",
+      "lines": "62-96",
+      "purpose": "Serializes bill to Acumatica JSON format",
+      "keyPatterns": [
+        "serialize() method",
+        "Hold=true (always create on hold)",
+        "VendorTaxZone if tax processing",
+        "writeCustomFieldsValue()",
+        "serializeTables() for line items"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportValidator.java",
+      "lines": "34-121",
+      "purpose": "Pre-export validation - 8 validation checks before attempting export",
+      "keyPatterns": [
+        "isValidForExport() at lines 34-82",
+        "isSameTaxCodes() at lines 102-121 - all lines must use same tax code",
+        "isValidTaxLines() - tax amount requires tax code",
+        "validateVendorLocationInReceipt()",
+        "isMissingReceiptsForItem()",
+        "isValidQuantitiesInPurchaseReceipts()"
+      ]
+    }
+  ],
+  "anatomy": {
+    "flow": "Validate → Serialize → Create (PUT) → [Tax Processing 5 steps] → Release from hold → Post → Add Stampli Link",
+    "taxProcessing": "convertLinesToAppliedTaxes → modifyTaxableItemsCategory → updateTaxMap → validateRoundingDiff → isAmountMatching",
+    "errorHandling": "Any error after creation triggers deleteEntity() rollback",
+    "quickCheckDifference": "Quick checks require releaseQuickCheckFromHold() step before posting"
+  },
+  "constants": {
+    "INVOICE_AMOUNT_HEADER": {
+      "value": "ControlTotal",
+      "purpose": "Field name for total amount in Acumatica bill"
+    },
+    "EXPORT_RATE_KEY_NAME": {
+      "value": "rate",
+      "purpose": "Key for exchange rate in message params"
+    },
+    "EXPORT_NET_AMOUNT_KEY_NAME": {
+      "value": "netAmount",
+      "purpose": "Key for net amount in message params"
+    },
+    "HOLD_TRUE": {
+      "value": true,
+      "purpose": "Always create bills on hold (Hold=true), released after validation"
+    }
+  },
+  "codeSnippets": {
+    "entryPoint": "// AcumaticaDriver.java:679-714\nprivate ExportResponse exportInvoice(ExportRequest exportRequest) {\n    AcumaticaInvoiceSerializer serializer = new AcumaticaInvoiceSerializer();\n    serializer.setSubsidiary(exportRequest.getSubsidiary());\n    \n    // Get PO receipts if PO-based bill\n    List<PurchaseReceipt> purchaseReceiptList = getPurchaseOrderToReceiptList(exportRequest);\n    \n    // Pre-export validation\n    ExportResponse exportResponse = AcumaticaExportValidator.isValidForExport(\n        exportRequest, purchaseReceiptList, apiCallerFactory\n    );\n    if (StringUtils.isNotEmpty(exportResponse.getError())) {\n        return exportResponse;\n    }\n    \n    // Get tax zone and map\n    String taxZone = getTaxZoneFromExportRequest(exportRequest);\n    Map<String, AcumaticaTaxZone> acumaticaTaxZoneMap = createTaxZoneMap(exportRequest, apiCallerFactory);\n    AcumaticaTaxZone acumaticaTaxZone = acumaticaTaxZoneMap.get(taxZone);\n    \n    // Serialize and export\n    String requestBody = AcumaticaExportUtil.createRequestBody(ApTransaction.class, serializer, exportRequest.getApTransaction());\n    AcumaticaUrlSuffixAssembler urlSuffixAssembler = new AcumaticaUrlSuffixAssembler();\n    urlSuffixAssembler.addExpand(\"TaxDetails\");\n    urlSuffixAssembler.addExpand(\"Details\");\n    \n    exportResponse = AcumaticaExportHelper.export(\n        apiCallerFactory, exportRequest, AcumaticaEndpoint.BILL,\n        urlSuffixAssembler, requestBody, acumaticaTaxZone, null\n    );\n    return exportResponse;\n}",
+    "eightStepFlow": "// AcumaticaExportHelper.java:100-201\n// STEP 1: Create entity\nResponseData response = apiCaller.call(client);\nExportResponse exportResponse = assembler.get();\n\n// STEP 2-6: Tax processing (if taxZone != null)\nif (taxZone != null) {\n    // STEP 2: Convert lines to applied taxes\n    convertLinesToAppliedTaxes(taxZone, request, exportResponse);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 3: Modify taxable items category\n    modifyTaxableItemsCategory(request, exportResponse, apiCallerFactory, entityUrl);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 4: Update tax map\n    AcumaticaJson taxResponse = updateTaxMap(...);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 5: Validate rounding differences\n    validateRoundingDiff(exportResponse, taxResponse, ...);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 6: Validate amounts match\n    isAmountMatching(request, exportResponse, totalAmount, netAmount, taxZone);\n    if (hasError) { deleteEntity(); return; }\n}\n\n// STEP 7: Release from hold (Quick Check only)\nif (AcumaticaEndpoint.QUICK_CHECK.equals(entityUrl)) {\n    releaseQuickCheckFromHold(request, exportResponse, apiCallerFactory, client);\n    if (hasError) { return; }\n}\n\n// STEP 8: Post/Release\npost(exportResponse, apiCallerFactory, entityUrl, request, client);\n\n// STEP 9: Add Stampli link\nboolean isLinkAdded = addStampliLink(apiCallerFactory, request, exportResponse, entityUrl, client);\nif (!isLinkAdded) {\n    deleteEntity();\n    throw new AcumaticaApiException(\"Failed to add Stampli link\");\n}",
+    "validation": "// AcumaticaExportValidator.java:102-121\nprivate static void isSameTaxCodes(ExportResponse exportResponse, ExportRequest exportRequest) {\n    Set<String> taxZones = new HashSet<>();\n    \n    // Collect tax codes from GL account lines\n    if (!CollectionUtils.isNullOrEmpty(exportRequest.getApTransaction().getAccounts())) {\n        taxZones.addAll(exportRequest.getApTransaction()\n            .getAccounts()\n            .stream().map(Line::getTaxCode)\n            .filter(StringUtils::isNotEmpty)\n            .collect(Collectors.toSet()));\n    }\n    \n    // Collect tax codes from item lines\n    if (!CollectionUtils.isNullOrEmpty(exportRequest.getApTransaction().getItems())) {\n        taxZones.addAll(exportRequest.getApTransaction()\n            .getItems()\n            .stream().map(Line::getTaxCode)\n            .filter(StringUtils::isNotEmpty)\n            .collect(Collectors.toSet()));\n    }\n    \n    // MUST use same tax code across all lines\n    if (taxZones.size() > 1) {\n        assembleErrorResponse(exportResponse, \"Found multiple tax codes in invoice - all lines must use same tax code\");\n    }\n}"
+  },
+  "validationRules": [
+    "All lines must use the same tax code (isSameTaxCodes validation)",
+    "Tax amount requires tax code (isValidTaxLines validation)",
+    "Vendor location must match receipt if PO-based (validateVendorLocationInReceipt)",
+    "PO-based lines must have receipts (isMissingReceiptsForItem)",
+    "Quantities must not exceed receipt quantities (isValidQuantitiesInPurchaseReceipts)",
+    "Always create on hold (Hold=true), then release after validation",
+    "ANY error after creation triggers deleteEntity() rollback",
+    "Stampli link must be added successfully or entire operation fails",
+    "Tax processing only if taxZone is provided",
+    "Quick checks require releaseQuickCheckFromHold() before posting"
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "flowName": "API_ACTION_FLOW",
+  "description": "Perform API actions on existing documents: Void, Release, ReleaseFromHold. Simple action-based operations using custom Acumatica endpoints.",
+  "usedByOperations": [
+    "voidPayment",
+    "releaseCheck",
+    "releaseFromHold"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+      "lines": "30-57",
+      "purpose": "Helper for API action operations - voidPayment example",
+      "keyPatterns": [
+        "voidPayment() method",
+        "Action endpoints: VOID_PAYMENT, RELEASE_CHECK, RELEASE_HOLD_VOID_CHECK",
+        "POST request to action endpoint",
+        "Empty body or minimal parameters"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaEndpoint.java",
+      "lines": "1-173",
+      "purpose": "Endpoint definitions including action endpoints",
+      "keyPatterns": [
+        "VOID_PAYMENT endpoint",
+        "RELEASE_CHECK endpoint",
+        "RELEASE_HOLD_VOID_CHECK endpoint"
+      ]
+    }
+  ],
+  "anatomy": {
+    "pattern": "Action → Release from hold (if needed) → Post → Rollback on error",
+    "simplicity": "Simpler than export flows - no validation, no serialization, just action invocation",
+    "errorHandling": "Basic error handling, no complex rollback logic"
+  },
+  "constants": {
+    "VOID_PAYMENT_ENDPOINT": {
+      "value": "/entity/Stampli/20.200.001/Payment/VoidPayment",
+      "purpose": "Endpoint to void a payment"
+    },
+    "RELEASE_CHECK_ENDPOINT": {
+      "value": "/entity/Stampli/20.200.001/Check/ReleaseCheck",
+      "purpose": "Endpoint to release a check"
+    },
+    "RELEASE_HOLD_VOID_CHECK_ENDPOINT": {
+      "value": "/entity/Stampli/20.200.001/Check/ReleaseFromHold",
+      "purpose": "Endpoint to release a check from hold before voiding"
+    }
+  },
+  "codeSnippets": {
+    "voidPayment": "// AcumaticaApiActionHelper.java:30-57\npublic static ExportResponse voidPayment(\n    ApiCallerFactory apiCallerFactory,\n    FinSysBridgeBaseRequest request,\n    String paymentReferenceNbr\n) {\n    ExportResponse response = new ExportResponse();\n    try {\n        // Build request body with payment reference\n        JSONObject body = new JSONObject();\n        body.put(\"ReferenceNbr\", new JSONObject().put(\"value\", paymentReferenceNbr));\n        \n        // Create POST caller for VOID_PAYMENT action endpoint\n        ApiCaller apiCaller = apiCallerFactory.createPostRestApiCaller(\n            request,\n            AcumaticaEndpoint.VOID_PAYMENT,\n            new AcumaticaUrlSuffixAssembler(),\n            body.toString()\n        );\n        \n        // Execute with authentication\n        ResponseData actionResponse = AcumaticaAuthenticator.authenticatedApiCall(\n            request,\n            apiCallerFactory,\n            apiCaller::call\n        );\n        \n        if (actionResponse.isSuccessful()) {\n            response.setResponseCode(200);\n        } else {\n            response.setError(\"Void payment failed: \" + actionResponse.getContent());\n        }\n    } catch (Exception e) {\n        response.setError(\"Exception during void: \" + e.getMessage());\n    }\n    return response;\n}"
+  },
+  "validationRules": [
+    "Action operations require document reference number (ReferenceNbr)",
+    "Use POST request to action endpoint (not PUT like create operations)",
+    "Minimal request body - usually just document identifier",
+    "No complex validation or serialization needed",
+    "Error handling is simpler than export operations"
+  ]
+}

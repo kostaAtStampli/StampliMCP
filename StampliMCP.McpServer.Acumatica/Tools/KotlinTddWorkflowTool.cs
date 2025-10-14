@@ -87,9 +87,40 @@ public static class KotlinTddWorkflowTool
     }
 
     [McpServerTool(Name = "kotlin_tdd_workflow")]
-    [Description("Single entry point for Kotlin TDD implementation. Handles all phases: discovery, test writing, implementation, validation. Commands: 'start' (new feature), 'continue' (next phase), 'query' (get help), 'list' (show operations).")]
+    [Description(@"
+TDD Workflow tool for Kotlin Acumatica implementation using FLOW-BASED architecture.
+
+Returns implementation guide for the matching Acumatica FLOW (9 proven patterns).
+Uses flow-based knowledge instead of 48 scattered operations for better focus.
+
+═══════════════════════════════════════════════════════════════════════
+YOUR MANDATORY TDD WORKFLOW:
+═══════════════════════════════════════════════════════════════════════
+
+STEP 1: REVIEW FLOW GUIDANCE
+- Tool returns selectedFlow with description and reasoning
+- Review relevantOperations that use this flow
+- Pick the operation matching user's request
+
+STEP 2: SCAN LEGACY FILES (MANDATORY - NO EXCEPTIONS!)
+- Use Read tool on ALL files in mandatoryFileScanning
+- Files use WSL paths (/mnt/c/...)
+- Find the keyPatternsToFind listed for each file
+- Take notes on: constants, method signatures, patterns
+
+STEP 3: CREATE TDD TASKLIST
+- MUST include '=== FILES SCANNED ===' section proving you read files
+- Quote specific constants/methods you found
+- 10-20 steps following TDD: RED (tests first) → GREEN (impl) → REFACTOR
+- Reference specific line numbers from scanned files
+- Use flowAnatomy, codeSnippets, validationRules as guides
+
+FAILURE TO SCAN FILES = REJECTION OF TASKLIST
+
+Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
+")]
     public static async Task<object> Execute(
-        [Description("Command: 'start' (new feature), 'continue' (next phase), 'query' (get help), 'list' (show operations)")]
+        [Description("Command: 'start' (new feature), 'continue' (next TDD phase), 'query' (help), 'list' (show flows)")]
         string command,
 
         [Description("Context: feature description for 'start', progress report for 'continue', question for 'query'")]
@@ -100,6 +131,7 @@ public static class KotlinTddWorkflowTool
 
         KnowledgeService knowledge,
         SearchService search,
+        FlowService flowService,
         IntelligenceService intelligence,
         CancellationToken ct)
     {
@@ -107,7 +139,7 @@ public static class KotlinTddWorkflowTool
         {
             return command?.ToLower() switch
             {
-                "start" => await StartWorkflow(context, knowledge, intelligence, ct),
+                "start" => await StartWorkflow(context, knowledge, flowService, intelligence, ct),
                 "continue" => await ContinueWorkflow(sessionId ?? "", context, knowledge, ct),
                 "query" => await QueryHelp(context, sessionId, knowledge, search, ct),
                 "list" => await ListAvailableOperations(knowledge, ct),
@@ -125,7 +157,12 @@ public static class KotlinTddWorkflowTool
         }
     }
 
-    private static async Task<object> StartWorkflow(string feature, KnowledgeService knowledge, IntelligenceService intelligence, CancellationToken ct)
+    private static async Task<object> StartWorkflow(
+        string feature,
+        KnowledgeService knowledge,
+        FlowService flowService,
+        IntelligenceService intelligence,
+        CancellationToken ct)
     {
         // Validate input
         if (string.IsNullOrWhiteSpace(feature))
@@ -133,149 +170,189 @@ public static class KotlinTddWorkflowTool
             return new { error = "Feature description is required" };
         }
 
-        // 1. Identify category using the existing logic from NuclearAnalyzeFeatureTool
-        var category = await IdentifyCategory(feature, knowledge, ct);
+        // FLOW-BASED TDD ARCHITECTURE:
+        // 1. Match feature to flow (9 proven patterns)
+        // 2. Return only relevant operations for that flow
+        // 3. Include mandatory file scanning with enforcement
+        // 4. TDD workflow: RED → GREEN → REFACTOR
 
-        // Handle unknown category
-        if (category == "unknown")
+        // STEP 1: Match feature to flow
+        var (flowName, confidence, reasoning) = await flowService.MatchFeatureToFlowAsync(feature, ct);
+        var flowDoc = await flowService.GetFlowAsync(flowName, ct);
+
+        if (flowDoc == null)
         {
-            var categories = await knowledge.GetCategoriesAsync(ct);
-            return new
-            {
-                needsClarification = true,
-                message = "Can't identify operation category. Please be more specific or choose from available categories.",
-                availableCategories = categories.Select(c => new
-                {
-                    name = c.Name,
-                    description = c.Description,
-                    operationCount = c.Count
-                }),
-                examples = new[]
-                {
-                    "export vendor to Acumatica",
-                    "create bill payment",
-                    "retrieve purchase orders",
-                    "validate GL accounts"
-                }
-            };
+            return new { error = $"Flow '{flowName}' not found. This is a server error." };
         }
 
-        // 2. Find best matching operation
-        var operations = await knowledge.GetOperationsByCategoryAsync(category, ct);
-        var operation = FindBestMatch(feature, operations);
+        var flow = flowDoc.RootElement;
 
-        if (operation == null)
+        // STEP 2: Get operations that use this flow
+        var usedByOperations = flow.GetProperty("usedByOperations");
+        var operations = new List<object>();
+
+        foreach (var opElement in usedByOperations.EnumerateArray())
         {
-            return new
+            var opName = opElement.GetString();
+            if (opName == null) continue;
+
+            var op = await knowledge.FindOperationAsync(opName, ct);
+            if (op != null)
             {
-                error = "No matching operation found",
-                category = category,
-                availableOperations = operations.Select(o => new
+                operations.Add(new
                 {
-                    method = o.Method,
-                    summary = o.Summary
-                }),
-                suggestion = $"Try one of these: {string.Join(", ", operations.Take(3).Select(o => o.Method))}"
-            };
+                    method = op.Method,
+                    summary = op.Summary,
+                    category = op.Category
+                });
+            }
         }
 
-        // 3. Load ALL knowledge upfront
-        var validationRules = GetValidationRules(operation);
-        var errorMessages = await GetErrorMessages(operation.Method, knowledge, ct);
-        var testTemplate = GenerateTestTemplate(operation);
-        var implTemplate = GenerateImplementationTemplate(operation);
+        // STEP 3: Load TDD knowledge (keep existing)
+        var errorPatterns = await knowledge.GetKotlinErrorPatternsAsync(ct);
+        var goldenPatterns = await knowledge.GetKotlinGoldenPatternsAsync(ct);
+        var tddWorkflow = await knowledge.GetKotlinTddWorkflowAsync(ct);
 
-        // 4. Create session
-        var session = new WorkflowSession
+        // STEP 4: Build response
+        var responseObject = new
         {
-            Id = $"tdd_{DateTime.UtcNow:yyyyMMdd}_{Guid.NewGuid().ToString().Substring(0, 8)}",
-            Phase = "RED",
-            Operation = operation,
-            Category = category,
-            CreatedAt = DateTime.UtcNow,
-            LastAccessedAt = DateTime.UtcNow
-        };
-        SaveSession(session);
+            // CONTEXT
+            userRequest = feature,
 
-        // 5. Return EVERYTHING the LLM needs
-        return new
-        {
-            sessionId = session.Id,
-            phase = "RED",
-            operation = new
+            // FLOW GUIDANCE
+            selectedFlow = new
             {
-                method = operation.Method,
-                category = category,
-                summary = operation.Summary,
-                enumName = operation.EnumName
+                name = flowName,
+                description = flow.GetProperty("description").GetString(),
+                confidence = confidence,
+                reasoning = reasoning
             },
 
-            // Complete tasklist
-            tasklist = new[]
+            // TDD WORKFLOW
+            yourTddWorkflow = @"
+=== MANDATORY TDD WORKFLOW ===
+
+STEP 1: PICK OPERATION
+- Review relevantOperations below
+- Pick the one matching user's request
+- Consider: import vs export, entity type
+
+STEP 2: SCAN LEGACY FILES (MANDATORY!)
+- Use Read tool on ALL files in mandatoryFileScanning
+- Files use WSL paths (/mnt/c/...)
+- Look for keyPatternsToFind in each file
+- Take notes: constants, method signatures, validation
+
+STEP 3: CREATE TDD TASKLIST (RED → GREEN → REFACTOR)
+- MUST include '=== FILES SCANNED ===' section with proof:
+  * File path + line range you read
+  * Constants you found (e.g., 'RESPONSE_ROWS_LIMIT=2000')
+  * Method signatures you found
+  * Patterns you identified
+- 10-20 steps following TDD:
+  * RED: Write failing test first
+  * GREEN: Implement to make test pass
+  * REFACTOR: Clean up code
+- Each step references specific line numbers from scanned files
+
+FAILURE TO SCAN FILES = REJECTION OF TASKLIST
+Your tasklist will be rejected if you don't prove you read the files.
+",
+
+            // MANDATORY FILE SCANNING
+            mandatoryFileScanning = new
             {
-                $"1. [RED] Write test for {operation.Method} in KotlinAcumaticaDriverTest.kt - MUST FAIL first",
-                $"2. [RED] Add validation tests for: {string.Join(", ", validationRules.Select(r => r["field"]))}",
-                "3. [RED] Run 'mvn test' and confirm all new tests fail",
-                $"4. [GREEN] Implement {operation.Method} in KotlinAcumaticaDriver.kt",
-                "5. [GREEN] Add field validations with exact error messages from templates",
-                "6. [GREEN] Run 'mvn test' until all tests pass",
-                "7. [REFACTOR] Optional: Extract validation to separate Validator class",
-                "8. [COMPLETE] Commit with message describing the feature"
+                instruction = "You MUST use Read tool on ALL files below before creating tasklist. No exceptions. Proof required.",
+                criticalFiles = flow.GetProperty("criticalFiles")
             },
 
-            // All knowledge provided upfront
-            knowledge = new
+            // OPERATIONS
+            relevantOperations = operations,
+
+            // FLOW DETAILS
+            flowAnatomy = flow.GetProperty("anatomy"),
+            criticalConstants = flow.GetProperty("constants"),
+            codeSnippets = flow.TryGetProperty("codeSnippets", out var snippets) ? snippets : (object?)null,
+            validationRules = flow.GetProperty("validationRules"),
+
+            // TDD KNOWLEDGE
+            tddKnowledge = new
             {
-                testCode = testTemplate,
-                implementationCode = implTemplate,
-
-                validationRules = validationRules,
-                errorMessages = errorMessages,
-
-                requiredFields = operation.RequiredFields?.Select(f => new
-                {
-                    name = f.Key,
-                    type = f.Value.Type,
-                    maxLength = f.Value.MaxLength,
-                    description = f.Value.Description
-                }),
-
-                optionalFields = operation.OptionalFields,
-
-                apiEndpoint = operation.ApiEndpoint != null ? new
-                {
-                    entity = operation.ApiEndpoint.Entity,
-                    method = operation.ApiEndpoint.Method,
-                    urlPattern = operation.ApiEndpoint.UrlPattern
-                } : null,
-
-                files = new
-                {
-                    moduleRoot = @"C:\STAMPLI4\core\kotlin-erp-harness",
-                    testFile = @"src\test\kotlin\com\stampli\kotlin\driver\KotlinAcumaticaDriverTest.kt",
-                    implFile = @"src\main\kotlin\com\stampli\kotlin\driver\KotlinAcumaticaDriver.kt"
-                },
-
-                legacyFiles = operation.ScanThese?.Select(s => new
-                {
-                    path = $@"C:\STAMPLI4\core\{s.File}",
-                    lines = s.Lines,
-                    purpose = s.Purpose,
-                    hint = $"Read lines {s.Lines} for {s.Purpose}"
-                })
+                errorPatterns = errorPatterns,
+                goldenPatterns = goldenPatterns,
+                workflow = tddWorkflow
             },
 
-            nextAction = "Write the test code first in KotlinAcumaticaDriverTest.kt. The test MUST fail before implementing.",
-
-            hints = new[]
+            // PROJECT PATHS
+            projectPaths = new
             {
-                "Use the testCode template exactly as provided",
-                "Tests must fail first (RED phase is mandatory)",
-                "Use exact error messages from errorMessages field",
-                "Test data should use System.currentTimeMillis() for uniqueness",
-                "Connection properties: hostname=http://63.32.187.185/StampliAcumaticaDB, user=admin, password=Password1"
+                moduleRoot = "/mnt/c/STAMPLI4/core/kotlin-erp-harness",
+                testFile = "src/test/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriverTest.kt",
+                implFile = "src/main/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriver.kt"
             }
         };
+
+        // STEP 5: Log response to BOTH locations (test isolation + fixed predictable)
+        try
+        {
+            var responseJson = JsonSerializer.Serialize(responseObject);
+            var logEntry = new
+            {
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                tool = "kotlin_tdd_workflow",
+                command = "start",
+                context = feature,
+                flowName = flowName,
+                responseSize = responseJson.Length,
+                operationCount = operations.Count
+            };
+            var logJson = JsonSerializer.Serialize(logEntry);
+
+            // PRIMARY: Test isolation directory (MCP_LOG_DIR for test runs)
+            var testLogDir = Environment.GetEnvironmentVariable("MCP_LOG_DIR");
+            string? testLogPath = null;
+            if (!string.IsNullOrEmpty(testLogDir))
+            {
+                try
+                {
+                    if (!Directory.Exists(testLogDir))
+                    {
+                        Directory.CreateDirectory(testLogDir);
+                    }
+                    testLogPath = Path.Combine(testLogDir, $"mcp_flow_{DateTime.Now:yyyyMMdd_HHmmss}.jsonl");
+                    await File.AppendAllTextAsync(testLogPath, logJson + "\n", ct);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"[MCP] Test log write failed: {ex.Message}");
+                }
+            }
+
+            // SECONDARY: Fixed predictable location (ALWAYS available for verification)
+            var fixedLogDir = Path.Combine(Path.GetTempPath(), "mcp_logs");
+            try
+            {
+                if (!Directory.Exists(fixedLogDir))
+                {
+                    Directory.CreateDirectory(fixedLogDir);
+                }
+                var fixedLogPath = Path.Combine(fixedLogDir, $"mcp_responses_{DateTime.Now:yyyyMMdd}.jsonl");
+                await File.AppendAllTextAsync(fixedLogPath, logJson + "\n", ct);
+
+                Console.Error.WriteLine($"[MCP] kotlin_tdd_workflow: flow={flowName}, ops={operations.Count}, size={responseJson.Length} chars");
+                Console.Error.WriteLine($"[MCP] Logs → TEST: {testLogPath ?? "none"} | FIXED: {fixedLogPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[MCP] Fixed log write failed: {ex.Message}");
+            }
+        }
+        catch (Exception logEx)
+        {
+            Console.Error.WriteLine($"[MCP] Logging failed: {logEx.Message}");
+        }
+
+        return responseObject;
     }
 
     private static async Task<object> ContinueWorkflow(string sessionId, string progressReport, KnowledgeService knowledge, CancellationToken ct)
@@ -640,15 +717,42 @@ if (vendorName.length > 60) {
             ["utility"] = new[] { "debug", "test", "utility" }
         };
 
+        // Score each category by counting matching keywords
+        var categoryScores = new Dictionary<string, int>();
         foreach (var kvp in categoryKeywords)
         {
-            if (kvp.Value.Any(keyword => lowerDesc.Contains(keyword)))
+            var score = CountKeywordMatches(lowerDesc, kvp.Value);
+            if (score > 0)
             {
-                return kvp.Key;
+                categoryScores[kvp.Key] = score;
             }
         }
 
+        // Return category with highest score (most keyword matches)
+        if (categoryScores.Any())
+        {
+            var bestMatch = categoryScores.OrderByDescending(kvp => kvp.Value).First();
+            return bestMatch.Key;
+        }
+
         return "unknown";
+    }
+
+    private static int CountKeywordMatches(string text, string[] keywords)
+    {
+        return keywords.Count(keyword => text.Contains(keyword));
+    }
+
+    private static string ConvertToWSLPath(string windowsPath)
+    {
+        // Convert Windows path to WSL format for Claude CLI running in bash context
+        // C:\STAMPLI4\core\... → /mnt/c/STAMPLI4/core/...
+        if (string.IsNullOrEmpty(windowsPath)) return windowsPath;
+
+        return windowsPath
+            .Replace(@"C:\", "/mnt/c/")
+            .Replace(@"c:\", "/mnt/c/")
+            .Replace("\\", "/");
     }
 
     private static Operation? FindBestMatch(string feature, List<Operation> operations)

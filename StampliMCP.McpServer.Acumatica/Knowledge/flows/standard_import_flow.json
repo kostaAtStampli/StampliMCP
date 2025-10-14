@@ -1,0 +1,130 @@
+{
+  "flowName": "STANDARD_IMPORT_FLOW",
+  "description": "Generic paginated import for master data entities (vendors, accounts, items, tax codes, custom fields, etc.) with authentication wrapper, automatic pagination, and delta import support",
+  "usedByOperations": [
+    "getVendors",
+    "getAccountSearchList",
+    "getItemSearchList",
+    "getTaxCodeSearchList",
+    "getCustomFieldSearchList",
+    "getBranchSearchList",
+    "getProjectSearchList",
+    "getSubAccountSearchList",
+    "getPaymentMethodSearchList",
+    "getFieldSearchList",
+    "getFieldSearchListForBilly",
+    "getCostCodeSearchListRequest",
+    "getCostTypeSearchListRequest",
+    "getJobNumberSearchListRequest",
+    "getClassSearchList",
+    "getCustomerSearchList",
+    "getUnitSearchList",
+    "getFilteringFieldsForField"
+  ],
+  "criticalFiles": [
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "lines": "102-117",
+      "purpose": "Entry point pattern - anonymous class extending AcumaticaImportHelper with createApiCallerList() and assembleResponse() overrides",
+      "keyPatterns": [
+        "new AcumaticaImportHelper<GetVendorsResponse>",
+        "createApiCallerList() override",
+        "assembleResponse() override",
+        ".getValues() call"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+      "lines": "44-200",
+      "purpose": "Base import template - handles pagination (2000 rows/page), authentication wrapper, connection refresh (every 10 mins), and delta import filtering",
+      "keyPatterns": [
+        "RESPONSE_ROWS_LIMIT constant",
+        "TIME_LIMIT=10 constant",
+        "getValues() orchestration method",
+        "paginateQuery() at lines 110-131",
+        "AcumaticaAuthenticator.authenticatedApiCall()",
+        "addDeltaParameterToSuffix() at lines 432-437"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaConnectionManager.java",
+      "lines": "53-66",
+      "purpose": "Connection refresh pattern - refreshes authentication every 10 minutes during long pagination",
+      "keyPatterns": [
+        "TIME_LIMIT=10 at line 19",
+        "refreshConnectionWhenLimitReached() method",
+        "isConnectionTimeLimitReached() check",
+        "logout(true) + login() pattern"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaAuthenticator.java",
+      "lines": "20-27",
+      "purpose": "Authentication wrapper - login-wrapper-logout pattern for all API operations",
+      "keyPatterns": [
+        "authenticatedApiCall() static method",
+        "Function<CloseableHttpClient, T> lambda pattern",
+        "try-finally with logout()"
+      ]
+    },
+    {
+      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaUtil.java",
+      "lines": "50-60",
+      "purpose": "Constants and utilities",
+      "keyPatterns": [
+        "RESPONSE_ROWS_LIMIT=2000 at line 53",
+        "ACUMATICA_API_SUCCESS_CODE=200",
+        "BEGINNING_OF_TIME constant"
+      ]
+    }
+  ],
+  "anatomy": {
+    "entryPattern": "new AcumaticaImportHelper<ResponseType>(apiCallerFactory, request, AcumaticaEndpoint.ENTITY) { @Override protected List<ApiCaller> createApiCallerList() { return create...ApiCallerList(request); } @Override protected ResponseType assembleResponse(List<ResponseData> responseList) { return assemble...Response(responseList); } }.getValues();",
+    "helperClass": "AcumaticaImportHelper - Template pattern with getValues() orchestration",
+    "authPattern": "AcumaticaAuthenticator.authenticatedApiCall(connectionManager, (client) -> lambda)",
+    "paginationPattern": "hasNextPage(jsonArray.length()) - returns true if length == pageSize (2000)",
+    "deltaPattern": "addDeltaParameterToSuffix() adds LastModifiedDateTime > [timestamp] filter to OData query"
+  },
+  "constants": {
+    "RESPONSE_ROWS_LIMIT": {
+      "value": 2000,
+      "file": "AcumaticaUtil.java",
+      "line": 53,
+      "purpose": "Pagination page size - all import operations use 2000 rows per page"
+    },
+    "TIME_LIMIT": {
+      "value": 10,
+      "file": "AcumaticaConnectionManager.java",
+      "line": 19,
+      "purpose": "Minutes before session refresh during long pagination"
+    },
+    "BEGINNING_OF_TIME": {
+      "value": "1900-01-01T12:00:00+00:00",
+      "file": "AcumaticaImportHelper.java",
+      "line": 35,
+      "purpose": "Default timestamp for full import (not delta)"
+    },
+    "maxResultsLimit": {
+      "value": 50000,
+      "file": "AcumaticaImportHelper.java",
+      "line": 163,
+      "purpose": "Maximum records returned per import operation"
+    }
+  },
+  "codeSnippets": {
+    "entryPoint": "// Example: getVendors() at AcumaticaDriver.java:103-113\nGetVendorsResponse response = new AcumaticaImportHelper<GetVendorsResponse>(\n    apiCallerFactory, request, AcumaticaEndpoint.VENDOR\n) {\n    @Override\n    protected List<ApiCaller> createApiCallerList() {\n        return createGetVendorApiCallerList(request);\n    }\n    @Override\n    protected GetVendorsResponse assembleResponse(List<ResponseData> responseList) {\n        return assembleVendorsResponse(responseList);\n    }\n}.getValues();",
+    "odataQuery": "/entity/Stampli/20.200.001/Vendor?$expand=PrimaryContact/Address,MainContact/Address&$filter=Status eq 'Active' and LastModifiedDateTime gt datetimeoffset'2024-01-01T00:00:00+00:00'&$top=2000&$skip=0",
+    "paginationLogic": "// AcumaticaImportHelper.java:116-128\nwhile (apiCaller.hasNextPage(jsonArray.length())) {\n    if (checkResponseLimitReached(responseList)) {\n        return;\n    }\n    connectionManager.refreshConnectionWhenLimitReached();\n    apiCaller.getNextPage();\n    apiResponse = apiCaller.call(client);\n    jsonArray = extractFirstArray(apiResponse.getContent());\n    if (jsonArray.length() > 0) {\n        responseList.add(apiResponse);\n    }\n}",
+    "authWrapper": "// AcumaticaAuthenticator.java:20-27\npublic static <T> T authenticatedApiCall(\n    AcumaticaConnectionManager connectionManager,\n    Function<CloseableHttpClient, T> function\n) throws IOException {\n    try {\n        connectionManager.login();\n        return function.apply(connectionManager.getClient());\n    } finally {\n        connectionManager.logout(false);\n    }\n}"
+  },
+  "validationRules": [
+    "All import operations use same pagination pattern (2000 rows per page)",
+    "Session refresh every 10 minutes during long imports to prevent timeout",
+    "Delta imports add LastModifiedDateTime > [timestamp] filter to OData query",
+    "hasNextPage() returns true if responseRowsCount == pageSize (indicates more pages)",
+    "Anonymous class pattern: override createApiCallerList() and optionally assembleResponse()",
+    "Always use AcumaticaAuthenticator.authenticatedApiCall() wrapper - never call API directly",
+    "Max 50,000 records per operation (checkResponseLimitReached)",
+    "URL suffix pattern: $expand for nested objects, $filter for conditions, $top for page size, $skip for pagination"
+  ]
+}
