@@ -6,23 +6,49 @@
 "/mnt/c/Program Files/dotnet/dotnet.exe" build \
   StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo
 
-# Publish
+# Publish (CRITICAL: Use C:\home\kosta not /home/kosta/)
 "/mnt/c/Program Files/dotnet/dotnet.exe" publish \
   StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
   -c Release -r win-x64 --self-contained /p:PublishSingleFile=true /p:PublishAot=false \
-  -o /home/kosta/ --nologo --no-build
+  -o "C:\home\kosta" --nologo --no-build
+
+# Copy to WSL home for testing
+cp /mnt/c/home/kosta/stampli-mcp-acumatica.exe /home/kosta/
 ```
 
-## Kill Cached Process (ALWAYS DO THIS!)
+## Kill Cached Processes (ALWAYS DO THIS!)
 ```bash
-ps aux | grep stampli-mcp-acumatica | grep -v grep | awk '{print $2}' | xargs -r kill -9
+# Kill WSL processes
+pkill -f stampli-mcp-acumatica
+
+# Kill Windows processes
+/mnt/c/Windows/System32/taskkill.exe /F /IM stampli-mcp-acumatica.exe 2>&1 || true
 ```
 
-## WSL Path Conversions
+## Path Handling (CRITICAL!)
+
+### Publish Location Trap
 ```
-Windows: C:\Users\Kosta\...        → WSL: /mnt/c/Users/Kosta/...
-Windows: C:\home\kosta\...          → WSL: /home/kosta/... (Linux home)
-Windows: C:\Program Files\...      → WSL: "/mnt/c/Program Files/..." (QUOTE IT!)
+-o /home/kosta/  → Creates C:\home\kosta\ (Windows path, NOT WSL!)
+-o C:\home\kosta → Creates C:\home\kosta\ (correct, explicit)
+```
+**Solution:** Publish to `C:\home\kosta` then copy to `/home/kosta/` for testing.
+
+### Windows .exe Path Interpretation
+```
+MCP server runs as Windows .exe → Use C:\ paths NOT /mnt/c/ paths
+/mnt/c/STAMPLI4 → Interpreted as C:\mnt\c\STAMPLI4 (WRONG!)
+C:\STAMPLI4     → Correct
+```
+**In C# file reads:** Use `@"C:\STAMPLI4\..."` format
+**In JSON files:** Use `C:\\\\STAMPLI4\\\\...` (double backslash escape)
+
+### WSL Path Conversions
+```
+Windows: C:\Users\Kosta\...       → WSL: /mnt/c/Users/Kosta/...
+Windows: C:\home\kosta\...         → WSL: /mnt/c/home/kosta/...
+Windows: C:\Program Files\...     → WSL: "/mnt/c/Program Files/..." (QUOTE IT!)
+WSL: /home/kosta/...               → Linux home (NOT visible to Windows .exe!)
 ```
 
 ## MCP Logs (Source of Truth)
@@ -68,13 +94,59 @@ tail -1 /mnt/c/Users/Kosta/AppData/Local/Temp/mcp_logs/mcp_responses_*.jsonl
 }
 ```
 
+## Debugging & Verification
+
+### Check Log Timestamps (CRITICAL!)
+```bash
+# Check latest log timestamp
+tail -1 /mnt/c/Users/Kosta/AppData/Local/Temp/mcp_logs/mcp_responses_*.jsonl | grep timestamp
+
+# Verify timestamp matches current test run time
+# Old timestamps = testing old executable!
+```
+
+### Response Size Smoke Test
+```
+Known good response sizes:
+- 39,811 chars = No Kotlin golden reference (BEFORE fix)
+- 42,763 chars = Error response (DirectoryNotFoundException)
+- 72,048 chars = With Kotlin golden reference (CORRECT)
+
++32KB difference = Kotlin files successfully embedded
+```
+
+### Verify Executable Location
+```bash
+# Check WSL home (test location)
+ls -lh /home/kosta/stampli-mcp-acumatica.exe
+
+# Check Windows publish location
+ls -lh /mnt/c/home/kosta/stampli-mcp-acumatica.exe
+```
+
 ## Full Rebuild Cycle
 ```bash
 cd /mnt/c/Users/Kosta/source/repos/StampliMCP
-"/mnt/c/Program Files/dotnet/dotnet.exe" build StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo
-ps aux | grep stampli-mcp-acumatica | grep -v grep | awk '{print $2}' | xargs -r kill -9
-"/mnt/c/Program Files/dotnet/dotnet.exe" publish StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release -r win-x64 --self-contained /p:PublishSingleFile=true /p:PublishAot=false -o /home/kosta/ --nologo --no-build
-md5sum /home/kosta/stampli-mcp-acumatica.exe
+
+# 1. Build
+"/mnt/c/Program Files/dotnet/dotnet.exe" build \
+  StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo
+
+# 2. Kill processes (WSL + Windows)
+pkill -f stampli-mcp-acumatica
+/mnt/c/Windows/System32/taskkill.exe /F /IM stampli-mcp-acumatica.exe 2>&1 || true
+
+# 3. Publish (to C:\home\kosta not /home/kosta/)
+"/mnt/c/Program Files/dotnet/dotnet.exe" publish \
+  StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
+  -c Release -r win-x64 --self-contained /p:PublishSingleFile=true /p:PublishAot=false \
+  -o "C:\home\kosta" --nologo --no-build
+
+# 4. Copy to WSL home for testing
+cp /mnt/c/home/kosta/stampli-mcp-acumatica.exe /home/kosta/
+
+# 5. Verify
+ls -lh /home/kosta/stampli-mcp-acumatica.exe
 ```
 
 ## MCP Primitives (Tools vs Prompts)
@@ -95,8 +167,21 @@ md5sum /home/kosta/stampli-mcp-acumatica.exe
 
 **Result:** 100% format compliance (was 0% with tool-only approach)
 
-## Current Status
+## Current Status & Lessons Learned
 ✅ Format enforcement via MCP Prompt
 ✅ Test-isolated logging (fallback to FIXED location works)
-✅ Process management (kill before rebuild)
+✅ Process management (kill WSL + Windows before rebuild)
 ✅ Ground truth validation via MCP logs
+✅ Path handling fixed (C:\ for Windows .exe, not /mnt/c/)
+✅ Publish location corrected (`C:\home\kosta` → copy to `/home/kosta/`)
+✅ Response size metrics for smoke testing (39KB → 72KB = success)
+✅ Log timestamp verification (old timestamps = testing old exe)
+
+## Common Gotchas
+❌ **DON'T** publish to `-o /home/kosta/` → creates `C:\home\kosta\`
+❌ **DON'T** use `/mnt/c/` paths in C# file reads → use `C:\`
+❌ **DON'T** forget to kill both WSL and Windows processes
+❌ **DON'T** trust response size alone → verify log timestamps
+✅ **DO** publish to `C:\home\kosta` then copy to `/home/kosta/`
+✅ **DO** check log timestamps match test run time
+✅ **DO** use response size as smoke test (72KB expected)
