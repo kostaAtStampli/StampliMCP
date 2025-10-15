@@ -38,7 +38,8 @@ Use exportVendor patterns to implement new Kotlin operations.
             Serilog.Log.Information("Tool {Tool} started: Reading Kotlin golden reference files", "get_kotlin_golden_reference");
 
             // GUARANTEED FILE READING - C# does this, not Claude
-            var basePath = "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver";
+            // NOTE: MCP server runs as Windows .exe, so use Windows paths (C:\) not WSL paths (/mnt/c/)
+            var basePath = @"C:\STAMPLI4\core\kotlin-drivers\kotlin-acumatica-driver\src\main\kotlin\com\stampli\kotlin\acumatica\driver";
 
             var driverPath = Path.Combine(basePath, "KotlinAcumaticaDriver.kt");
             var handlerPath = Path.Combine(basePath, "vendor", "CreateVendorHandler.kt");
@@ -46,11 +47,17 @@ Use exportVendor patterns to implement new Kotlin operations.
 
             // Read all 3 files
             var driver = await File.ReadAllTextAsync(driverPath, ct);
+            Serilog.Log.Information("DEBUG: Read {File} - {Size} chars", "KotlinAcumaticaDriver.kt", driver.Length);
+
             var handler = await File.ReadAllTextAsync(handlerPath, ct);
+            Serilog.Log.Information("DEBUG: Read {File} - {Size} chars", "CreateVendorHandler.kt", handler.Length);
+
             var mapper = await File.ReadAllTextAsync(mapperPath, ct);
+            Serilog.Log.Information("DEBUG: Read {File} - {Size} chars", "VendorPayloadMapper.kt", mapper.Length);
 
             // Get the extracted patterns from embedded knowledge
             var patterns = await knowledge.GetKotlinGoldenReferenceAsync(ct);
+            Serilog.Log.Information("DEBUG: Loaded Kotlin patterns from knowledge service");
 
             var result = new
             {
@@ -146,6 +153,11 @@ Use exportVendor patterns to implement new Kotlin operations.
                     "REUSE Java infrastructure: ApiCallerFactory, AcumaticaImportHelper, AcumaticaAuthenticator"
                 }
             };
+
+            // DEBUG: Serialize result to check total size
+            var resultJson = System.Text.Json.JsonSerializer.Serialize(result);
+            Serilog.Log.Information("DEBUG: GetKotlinGoldenReferenceTool result object serialized to {Size} chars JSON",
+                resultJson.Length);
 
             Serilog.Log.Information("Tool {Tool} completed: {DriverSize} + {HandlerSize} + {MapperSize} chars loaded",
                 "get_kotlin_golden_reference", driver.Length, handler.Length, mapper.Length);

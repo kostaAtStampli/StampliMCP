@@ -287,6 +287,10 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         Serilog.Log.Information("Tool {Tool}: Force-loading Kotlin golden reference internally", "kotlin_tdd_workflow");
         var kotlinGoldenRef = await GetKotlinGoldenReferenceTool.Execute(knowledge, ct);
 
+        // DEBUG: Check if kotlinGoldenRef is populated
+        var kotlinRefJson = System.Text.Json.JsonSerializer.Serialize(kotlinGoldenRef);
+        Serilog.Log.Information("DEBUG: kotlinGoldenRef object size: {Size} chars JSON", kotlinRefJson.Length);
+
         // FLOW-BASED TDD ARCHITECTURE:
         // 1. Match feature to flow (9 proven patterns)
         // 2. Return only relevant operations for that flow
@@ -518,6 +522,11 @@ PROOF REQUIRED: Your response must show you read BOTH Kotlin golden reference AN
         {
             Console.Error.WriteLine($"[MCP] Logging failed: {logEx.Message}");
         }
+
+        // DEBUG: Check final response size before returning
+        var finalResponseJson = System.Text.Json.JsonSerializer.Serialize(responseObject);
+        Serilog.Log.Information("DEBUG: Final responseObject size: {Size} chars JSON (includes kotlinGoldenReference section)",
+            finalResponseJson.Length);
 
         return (responseObject, flowName);
     }
