@@ -12,80 +12,6 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 [McpServerToolType]
 public static class KotlinTddWorkflowTool
 {
-    private static readonly Dictionary<string, WorkflowSession> _sessions = new();
-    private static readonly object _sessionLock = new();
-    private const int MaxSessions = 100;
-    private static readonly TimeSpan SessionTimeout = TimeSpan.FromMinutes(30);
-
-    private class WorkflowSession
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Phase { get; set; } = "DISCOVER";
-        public Operation? Operation { get; set; }
-        public string Category { get; set; } = string.Empty;
-        public List<string> CompletedTasks { get; set; } = new();
-        public Dictionary<string, object> Context { get; set; } = new();
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime LastAccessedAt { get; set; } = DateTime.UtcNow;
-    }
-
-    private static void CleanupExpiredSessions()
-    {
-        lock (_sessionLock)
-        {
-            var now = DateTime.UtcNow;
-            var expiredSessions = _sessions
-                .Where(kvp => now - kvp.Value.LastAccessedAt > SessionTimeout)
-                .Select(kvp => kvp.Key)
-                .ToList();
-
-            foreach (var sessionId in expiredSessions)
-            {
-                _sessions.Remove(sessionId);
-            }
-        }
-    }
-
-    private static WorkflowSession? GetSession(string sessionId)
-    {
-        lock (_sessionLock)
-        {
-            CleanupExpiredSessions();
-
-            if (_sessions.TryGetValue(sessionId, out var session))
-            {
-                session.LastAccessedAt = DateTime.UtcNow;
-                return session;
-            }
-            return null;
-        }
-    }
-
-    private static void SaveSession(WorkflowSession session)
-    {
-        lock (_sessionLock)
-        {
-            CleanupExpiredSessions();
-
-            // Enforce max sessions limit
-            if (_sessions.Count >= MaxSessions && !_sessions.ContainsKey(session.Id))
-            {
-                // Remove oldest session
-                var oldestSession = _sessions.OrderBy(kvp => kvp.Value.LastAccessedAt).First();
-                _sessions.Remove(oldestSession.Key);
-            }
-
-            _sessions[session.Id] = session;
-        }
-    }
-
-    private static void RemoveSession(string sessionId)
-    {
-        lock (_sessionLock)
-        {
-            _sessions.Remove(sessionId);
-        }
-    }
 
     [McpServerTool(Name = "kotlin_tdd_workflow")]
     [Description(@"
@@ -132,20 +58,12 @@ STEP 3: CREATE TDD TASKLIST
 
 FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TASKLIST
 
-Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
 ")]
     public static async Task<object> Execute(
-        [Description("Command: 'start' (new feature), 'continue' (next TDD phase), 'query' (help), 'list' (show flows)")]
-        string command,
-
-        [Description("Context: feature description for 'start', progress report for 'continue', question for 'query'")]
-        string context,
-
-        [Description("Session ID from previous response (null for 'start')")]
-        string? sessionId,
+        [Description("Feature description in natural language (e.g., 'vendor import from Acumatica', 'bill payment export')")]
+        string feature,
 
         KnowledgeService knowledge,
-        SearchService search,
         FlowService flowService,
         IntelligenceService intelligence,
         MetricsService metrics,
@@ -160,35 +78,24 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         int operationCount = 0;
 
         // Use Serilog static API (works with static tool methods)
-        Serilog.Log.Information("Tool {Tool} started: command={Command}, context={Context}",
-            "kotlin_tdd_workflow", command, context?.Substring(0, Math.Min(50, context?.Length ?? 0)));
+        Serilog.Log.Information("Tool {Tool} started: feature={Feature}",
+            "kotlin_tdd_workflow", feature?.Substring(0, Math.Min(50, feature?.Length ?? 0)));
 
         try
         {
-            result = command?.ToLower() switch
-            {
-                "start" => await StartWorkflowWithFlow(context, knowledge, flowService, intelligence, ct),
-                "continue" => await ContinueWorkflow(sessionId ?? "", context, knowledge, ct),
-                "query" => await QueryHelp(context, sessionId, knowledge, search, ct),
-                "list" => await ListAvailableOperations(knowledge, ct),
-                _ => new { error = "Unknown command. Use: start, continue, query, or list" }
-            };
+            // Always start new workflow (continue/query/list removed - DEAD CODE)
+            var (resultData, selectedFlowName) = await StartWorkflowWithFlow(feature, knowledge, flowService, intelligence, ct);
+            flowName = selectedFlowName;
+            result = resultData;
 
-            // Extract flowName and operationCount from result if it's from StartWorkflow
-            if (command?.ToLower() == "start" && result is ValueTuple<object, string?> tuple)
+            // Extract operation count from result
+            if (result != null)
             {
-                flowName = tuple.Item2;
-                result = tuple.Item1;
-
-                // Extract operation count from result
-                if (result != null)
+                var resultJson = JsonSerializer.Serialize(result);
+                using var doc = JsonDocument.Parse(resultJson);
+                if (doc.RootElement.TryGetProperty("relevantOperations", out var ops))
                 {
-                    var resultJson = JsonSerializer.Serialize(result);
-                    using var doc = JsonDocument.Parse(resultJson);
-                    if (doc.RootElement.TryGetProperty("relevantOperations", out var ops))
-                    {
-                        operationCount = ops.GetArrayLength();
-                    }
+                    operationCount = ops.GetArrayLength();
                 }
             }
 
@@ -198,8 +105,8 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
             var tokens = result != null ? JsonSerializer.Serialize(result).Length : 0;
 
             Serilog.Log.Information(
-                "Tool {Tool} completed: command={Command}, flow={Flow}, duration={DurationMs}ms, tokens={Tokens}, success={Success}",
-                "kotlin_tdd_workflow", command, flowName, durationMs, tokens, success);
+                "Tool {Tool} completed: flow={Flow}, duration={DurationMs}ms, tokens={Tokens}, success={Success}",
+                "kotlin_tdd_workflow", flowName, durationMs, tokens, success);
 
             // Write OpenTelemetry structured log
             try
@@ -209,7 +116,7 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
                     Timestamp = DateTimeOffset.UtcNow,
                     Level = "Information",
                     Tool = "kotlin_tdd_workflow",
-                    Command = command,
+                    Command = "start", // Always start now
                     Flow = flowName,
                     DurationMs = durationMs,
                     Tokens = tokens,
@@ -226,8 +133,8 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
             {
                 await responseLogger.LogToolExecutionAsync(
                     tool: "kotlin_tdd_workflow",
-                    command: command ?? "unknown",
-                    context: context ?? "",
+                    command: "start",
+                    context: feature ?? "",
                     flowName: flowName,
                     responseSize: tokens,
                     operationCount: operationCount);
@@ -241,14 +148,13 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         }
         catch (Exception ex)
         {
-            Serilog.Log.Error(ex, "Tool {Tool} failed: command={Command}, error={Error}",
-                "kotlin_tdd_workflow", command, ex.Message);
+            Serilog.Log.Error(ex, "Tool {Tool} failed: feature={Feature}, error={Error}",
+                "kotlin_tdd_workflow", feature, ex.Message);
 
             result = new
             {
                 error = "Workflow failed",
-                details = ex.Message,
-                hint = "Try 'query' command for help or 'list' to see available operations"
+                details = ex.Message
             };
             return result;
         }
@@ -256,7 +162,7 @@ Commands: 'start' (new feature), 'continue' (next TDD phase), 'query' (help)
         {
             sw.Stop();
             var tokens = result != null ? JsonSerializer.Serialize(result).Length : 0;
-            metrics.RecordToolExecution("kotlin_tdd_workflow", command ?? "unknown", sw.Elapsed.TotalMilliseconds, tokens, success, flowName);
+            metrics.RecordToolExecution("kotlin_tdd_workflow", "start", sw.Elapsed.TotalMilliseconds, tokens, success, flowName);
         }
     }
 
@@ -531,348 +437,6 @@ PROOF REQUIRED: Your response must show you read BOTH Kotlin golden reference AN
         return (responseObject, flowName);
     }
 
-    private static async Task<object> ContinueWorkflow(string sessionId, string progressReport, KnowledgeService knowledge, CancellationToken ct)
-    {
-        var session = GetSession(sessionId);
-        if (session == null)
-        {
-            return new
-            {
-                error = "Session not found or expired",
-                suggestion = "Start a new workflow with 'start' command",
-                hint = $"Sessions expire after {SessionTimeout.TotalMinutes} minutes of inactivity"
-            };
-        }
-
-        var reportLower = progressReport.ToLower();
-
-        switch (session.Phase)
-        {
-            case "RED":
-                if (reportLower.Contains("fail") || reportLower.Contains("red") || reportLower.Contains("failing"))
-                {
-                    session.Phase = "GREEN";
-                    session.CompletedTasks.Add("Tests written and failing");
-
-                    return new
-                    {
-                        sessionId = session.Id,
-                        phase = "GREEN",
-                        message = "Excellent! Tests are failing as expected (RED phase complete).",
-                        completedTasks = session.CompletedTasks,
-                        nextAction = "Now implement the Kotlin code in KotlinAcumaticaDriver.kt to make tests pass",
-                        implementationGuidance = new
-                        {
-                            useAuthWrapper = "Always use AcumaticaAuthenticator.authenticatedApiCall",
-                            apiCallerFactory = "Create with ApiCallerFactory()",
-                            jsonFormat = "Acumatica uses nested value objects: {\"VendorName\": {\"value\": \"Name\"}}",
-                            errorHandling = "Set response.error and return immediately, never throw exceptions"
-                        },
-                        reminder = "Implement minimal code to make tests pass. Don't over-engineer in GREEN phase."
-                    };
-                }
-                else
-                {
-                    return new
-                    {
-                        error = "Tests must fail first!",
-                        phase = "RED",
-                        hint = "Ensure tests are actually failing before implementing",
-                        checklist = new[]
-                        {
-                            "Did you run 'mvn test'?",
-                            "Are the new tests actually being executed?",
-                            "Check test output for failures"
-                        }
-                    };
-                }
-
-            case "GREEN":
-                if (reportLower.Contains("pass") || reportLower.Contains("green") || reportLower.Contains("passing"))
-                {
-                    session.Phase = "REFACTOR";
-                    session.CompletedTasks.Add("Implementation complete, tests passing");
-
-                    return new
-                    {
-                        sessionId = session.Id,
-                        phase = "REFACTOR",
-                        message = "Great! All tests are passing (GREEN phase complete).",
-                        completedTasks = session.CompletedTasks,
-                        refactoringOptions = new[]
-                        {
-                            "Extract validation logic to a separate Validator class",
-                            "Create a PayloadMapper for JSON transformation",
-                            "Add logging with appropriate log levels",
-                            "Extract constants for magic numbers/strings",
-                            "Consider adding integration test with real Acumatica instance"
-                        },
-                        nextAction = "Optional: Refactor while keeping tests green, or say 'continue' to complete"
-                    };
-                }
-                else
-                {
-                    return new
-                    {
-                        phase = "GREEN",
-                        hint = "Keep working until all tests pass",
-                        debugTips = new[]
-                        {
-                            "Check exact error message text (case-sensitive)",
-                            "Verify field names match exactly (vendorName vs VendorName)",
-                            "Ensure authentication is configured correctly",
-                            "Check JSON format - Acumatica needs nested value objects",
-                            "Verify API endpoint URL construction"
-                        },
-                        commonIssues = new[]
-                        {
-                            "Wrong error message: Must match EXACTLY from templates",
-                            "Missing authentication: Wrap in AcumaticaAuthenticator.authenticatedApiCall",
-                            "JSON format: Use {\"FieldName\": {\"value\": \"data\"}} not just {\"FieldName\": \"data\"}"
-                        }
-                    };
-                }
-
-            case "REFACTOR":
-                session.Phase = "COMPLETE";
-                session.CompletedTasks.Add("Refactoring complete (optional)");
-
-                var summary = new
-                {
-                    sessionId = session.Id,
-                    phase = "COMPLETE",
-                    message = $"Successfully implemented {session.Operation?.Method} using TDD workflow!",
-                    summary = new
-                    {
-                        operation = session.Operation?.Method,
-                        category = session.Category,
-                        tddPhases = new[] { "RED (tests failed)", "GREEN (tests pass)", "REFACTOR (optional)" },
-                        completedTasks = session.CompletedTasks,
-                        filesModified = new[]
-                        {
-                            "KotlinAcumaticaDriverTest.kt",
-                            "KotlinAcumaticaDriver.kt"
-                        }
-                    },
-                    nextSteps = new[]
-                    {
-                        "Run 'mvn clean install' to ensure full build passes",
-                        "Commit your changes with descriptive message",
-                        "Consider adding integration tests",
-                        "Document any special considerations",
-                        "Start new feature with 'start' command"
-                    }
-                };
-
-                // Clean up session
-                RemoveSession(sessionId);
-
-                return summary;
-
-            default:
-                return new { error = "Unknown phase", currentPhase = session.Phase };
-        }
-    }
-
-    private static async Task<object> QueryHelp(string question, string? sessionId, KnowledgeService knowledge, SearchService search, CancellationToken ct)
-    {
-        var questionLower = question.ToLower();
-
-        // Authentication issues
-        if (questionLower.Contains("auth") || questionLower.Contains("401") || questionLower.Contains("unauthorized"))
-        {
-            return new
-            {
-                problem = "Authentication issue",
-                solution = "Always use AcumaticaAuthenticator.authenticatedApiCall wrapper",
-                kotlinExample = @"
-val apiCaller = apiCallerFactory.createPutRestApiCaller(
-    request,
-    AcumaticaEndpoint.VENDOR,
-    AcumaticaUrlSuffixAssembler(),
-    jsonPayload
-)
-
-val apiResponse = AcumaticaAuthenticator.authenticatedApiCall(
-    request,
-    apiCallerFactory
-) { apiCaller.call() }",
-                checkList = new[]
-                {
-                    "Verify connectionProperties contains: hostname, user, password",
-                    "Check URL format: http://63.32.187.185/StampliAcumaticaDB",
-                    "No trailing slash in hostname",
-                    "Ensure subsidiary is set to 'StampliCompany'"
-                }
-            };
-        }
-
-        // Field validation questions
-        if (questionLower.Contains("field") || questionLower.Contains("required") || questionLower.Contains("validation"))
-        {
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                var session = GetSession(sessionId);
-                if (session?.Operation != null)
-                {
-                    return new
-                    {
-                        operation = session.Operation.Method,
-                        requiredFields = session.Operation.RequiredFields?.Select(f => new
-                        {
-                            field = f.Key,
-                            type = f.Value.Type,
-                            maxLength = f.Value.MaxLength,
-                            errorIfMissing = $"{f.Key} is required",
-                            errorIfTooLong = f.Value.MaxLength > 0 ? $"{f.Key} exceeds maximum length of {f.Value.MaxLength} characters" : null
-                        }),
-                        validationExample = @"
-val vendorName = rawData[""vendorName""]
-if (vendorName.isNullOrBlank()) {
-    response.error = ""vendorName is required""
-    return response
-}
-if (vendorName.length > 60) {
-    response.error = ""vendorName exceeds maximum length of 60 characters""
-    return response
-}"
-                    };
-                }
-            }
-
-            return new
-            {
-                hint = "Start a workflow first to get operation-specific field requirements",
-                generalValidationRules = new[]
-                {
-                    "All error messages must match EXACTLY (case-sensitive)",
-                    "Check required fields before optional ones",
-                    "Return immediately on first validation error",
-                    "Never throw exceptions, always set response.error"
-                }
-            };
-        }
-
-        // TDD workflow questions
-        if (questionLower.Contains("tdd") || questionLower.Contains("workflow") || questionLower.Contains("phase"))
-        {
-            var currentPhase = "Not in session";
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                var session = GetSession(sessionId);
-                if (session != null)
-                {
-                    currentPhase = session.Phase;
-                }
-            }
-
-            return new
-            {
-                tddWorkflow = new
-                {
-                    phases = new[]
-                    {
-                        "RED - Write tests that fail",
-                        "GREEN - Write minimal code to pass tests",
-                        "REFACTOR - Improve code while keeping tests green"
-                    },
-                    currentPhase = currentPhase,
-                    rules = new[]
-                    {
-                        "NEVER skip RED phase - tests must fail first",
-                        "Write minimal code in GREEN phase",
-                        "Refactoring is optional but recommended",
-                        "All tests must pass before moving to next operation"
-                    }
-                }
-            };
-        }
-
-        // Search for operations
-        if (questionLower.Contains("find") || questionLower.Contains("search"))
-        {
-            var searchTerm = question.Split(' ').LastOrDefault() ?? "vendor";
-            var results = await search.SearchAsync(searchTerm, ct);
-            return new
-            {
-                searchTerm = searchTerm,
-                matches = results.Take(5).Select(r => new
-                {
-                    operation = r.Operation,
-                    match = r.Match
-                }),
-                hint = "Use 'start [operation name]' to begin implementation"
-            };
-        }
-
-        // Default help
-        return new
-        {
-            availableCommands = new[]
-            {
-                "start [feature description] - Begin new TDD implementation",
-                "continue [progress report] - Move to next TDD phase",
-                "query [question] - Get specific help",
-                "list - Show all available operations"
-            },
-            examples = new[]
-            {
-                "start export vendor to acumatica",
-                "continue tests are failing",
-                "query how to handle authentication",
-                "list"
-            },
-            commonIssues = new[]
-            {
-                "Authentication: Always wrap in AcumaticaAuthenticator",
-                "Validation: Use exact error messages from templates",
-                "JSON Format: Acumatica needs nested value objects",
-                "Testing: Tests MUST fail first (RED phase)"
-            },
-            resources = new
-            {
-                testInstance = "http://63.32.187.185/StampliAcumaticaDB",
-                credentials = "admin / Password1",
-                moduleLocation = @"C:\STAMPLI4\core\kotlin-erp-harness",
-                mavenCommand = "mvn test"
-            }
-        };
-    }
-
-    private static async Task<object> ListAvailableOperations(KnowledgeService knowledge, CancellationToken ct)
-    {
-        var categories = await knowledge.GetCategoriesAsync(ct);
-        var allOperations = new List<object>();
-
-        foreach (var category in categories)
-        {
-            var operations = await knowledge.GetOperationsByCategoryAsync(category.Name, ct);
-            allOperations.Add(new
-            {
-                category = category.Name,
-                description = category.Description,
-                operations = operations.Select(o => new
-                {
-                    method = o.Method,
-                    summary = o.Summary
-                })
-            });
-        }
-
-        return new
-        {
-            totalCategories = categories.Count,
-            totalOperations = categories.Sum(c => c.Count),
-            categories = allOperations,
-            usage = "Use 'start [operation or feature description]' to begin implementation",
-            examples = new[]
-            {
-                "start exportVendor",
-                "start create bill payment",
-                "start retrieve purchase orders"
-            }
-        };
-    }
 
     // Helper methods
     private static async Task<string> IdentifyCategory(string featureDescription, KnowledgeService knowledge, CancellationToken ct)
