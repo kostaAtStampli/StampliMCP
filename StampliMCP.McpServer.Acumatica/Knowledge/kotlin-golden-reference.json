@@ -8,8 +8,9 @@
     "why": "First operation migrated from Java to Kotlin - demonstrates all key patterns"
   },
 
-  "kotlinSkeletonPath": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/",
-  "javaLegacyPath": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/",
+  "kotlinSkeletonPath": "C:\\STAMPLI4\\core\\kotlin-drivers\\kotlin-acumatica-driver\\",
+  "javaLegacyPath": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\",
+  "pathNote": "Use Windows paths (C:\\) - MCP server runs as .exe, NOT WSL paths (/mnt/c/)",
 
   "architecture": {
     "pattern": "Incremental Override Pattern",
@@ -22,7 +23,7 @@
 
   "goldenReferenceFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+      "file": "C:\\STAMPLI4\\core\\kotlin-drivers\\kotlin-acumatica-driver\\src\\main\\kotlin\\com\\stampli\\kotlin\\acumatica\\driver\\KotlinAcumaticaDriver.kt",
       "lines": "1-27",
       "purpose": "Main driver class - shows how to override parent method",
       "keyPatterns": [
@@ -33,11 +34,11 @@
         "try-catch with ExportResponse - never throw exceptions, return error in response",
         "response.error = message - Kotlin property syntax instead of setter"
       ],
-      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java:396-405",
+      "javaComparison": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\AcumaticaDriver.java:396-405",
       "comparison": "Java does same handler delegation - pattern is identical, syntax differs"
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+      "file": "C:\\STAMPLI4\\core\\kotlin-drivers\\kotlin-acumatica-driver\\src\\main\\kotlin\\com\\stampli\\kotlin\\acumatica\\driver\\vendor\\CreateVendorHandler.kt",
       "lines": "1-132",
       "purpose": "Handler class - shows Kotlin idioms for business logic",
       "keyPatterns": [
@@ -54,11 +55,11 @@
         "val details = StringUtils.defaultIfBlank(createResp.content, \"<empty>\") - val immutability",
         "catch (e: Exception) - Kotlin exception syntax"
       ],
-      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java:24-127",
+      "javaComparison": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\vendor\\CreateVendorHandler.java:24-127",
       "comparison": "Kotlin version is more concise (132 lines vs Java's longer), uses null safety, early returns, and let/takeIf"
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+      "file": "C:\\STAMPLI4\\core\\kotlin-drivers\\kotlin-acumatica-driver\\src\\main\\kotlin\\com\\stampli\\kotlin\\acumatica\\driver\\vendor\\VendorPayloadMapper.kt",
       "lines": "1-71",
       "purpose": "Mapper object - shows Kotlin object singleton and extension functions",
       "keyPatterns": [
@@ -75,11 +76,11 @@
         "JSONObject().apply { put(...); put(...) } - apply builder pattern",
         "root.toString() - implicit return"
       ],
-      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java:16-80",
+      "javaComparison": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\vendor\\VendorPayloadMapper.java:16-80",
       "comparison": "Java uses static class with static methods; Kotlin uses object singleton. Java verbose with explicit types; Kotlin uses inference."
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/test/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriverCreateVendorITest.kt",
+      "file": "C:\\STAMPLI4\\core\\kotlin-drivers\\kotlin-acumatica-driver\\src\\test\\kotlin\\com\\stampli\\kotlin\\acumatica\\driver\\KotlinAcumaticaDriverCreateVendorITest.kt",
       "lines": "1-322",
       "purpose": "Integration test - shows Kotlin test patterns with JUnit 5",
       "keyPatterns": [
@@ -97,7 +98,7 @@
         "println(\"\\n=== Title ===\\n\") - multiline strings with escapes",
         "response.values.forEach { vc -> assertTrue(...) } - forEach with lambda"
       ],
-      "javaComparison": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverCreateVendorITest.java",
+      "javaComparison": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\test\\java\\com\\stampli\\driver\\AcumaticaDriverCreateVendorITest.java",
       "comparison": "Kotlin tests mirror Java structure but use backtick names, lateinit vars, and collection lambdas"
     }
   ],
@@ -192,6 +193,22 @@
       "AcumaticaConnectionManager.java - for connection refresh (TIME_LIMIT=10 mins)",
       "AcumaticaUtil.java - for constants (RESPONSE_ROWS_LIMIT=2000)"
     ]
+  },
+
+  "knowledgeBaseFiles": {
+    "markdown": [
+      "Knowledge/kotlin/GOLDEN_PATTERNS.md - Comprehensive Kotlin patterns catalog",
+      "Knowledge/kotlin/TDD_WORKFLOW.md - 7-step TDD workflow for Kotlin migration",
+      "Knowledge/kotlin/KOTLIN_ARCHITECTURE.md - Kotlin module architecture overview",
+      "Knowledge/kotlin/ACUMATICA_COMPLETE_ANALYSIS.md - Complete Acumatica driver analysis"
+    ],
+    "xml": [
+      "Knowledge/kotlin/01_KOTLIN_MODULE_FOUNDATION.xml - Module foundation and setup",
+      "Knowledge/kotlin/02_KOTLIN_IMPLEMENTATION.xml - Implementation patterns",
+      "Knowledge/kotlin/03_AI_TDD_WORKFLOW.xml - AI-driven TDD workflow",
+      "Knowledge/kotlin/AI_KOTLIN_FEATURE_PROMPT.xml - AI feature implementation prompt"
+    ],
+    "note": "These files are embedded as resources in the MCP server and loaded via KnowledgeService"
   },
 
   "commonMistakes": [
@@ -290,5 +307,37 @@
     "idempotency": "Acumatica returns 422 if duplicate VendorID exists",
     "nestedValuePattern": "Acumatica JSON uses nested {\"VendorID\": {\"value\": \"V123\"}} format",
     "successCodes": "200 for API success, 204 for successful authentication"
+  },
+
+  "mcpDevelopmentQuirks": {
+    "pathHandling": {
+      "windowsExe": "MCP server runs as Windows .exe - use C:\\ paths NOT /mnt/c/ paths",
+      "wslMistake": "Windows .exe interprets /mnt/c/STAMPLI4 as C:\\mnt\\c\\STAMPLI4 (wrong!)",
+      "correctPattern": "Use @\"C:\\STAMPLI4\\...\" for embedded file reading in C# tools",
+      "jsonEscape": "In JSON files use C:\\\\STAMPLI4\\\\... (double backslash escape)"
+    },
+    "publishLocation": {
+      "trap": "dotnet publish -o /home/kosta → Windows creates C:\\home\\kosta\\ NOT /home/kosta/",
+      "wslHome": "WSL ~ is /home/kosta/, Windows .exe doesn't see it",
+      "solution": "Either publish to -o C:\\home\\kosta OR copy exe to /home/kosta/ after publish",
+      "verify": "ls /home/kosta/stampli-mcp-acumatica.exe before testing"
+    },
+    "processManagement": {
+      "killBeforeTest": "Always kill running MCP processes before republish/test",
+      "wslKill": "pkill -f stampli-mcp-acumatica kills WSL processes",
+      "windowsKill": "taskkill /F /IM stampli-mcp-acumatica.exe kills Windows processes",
+      "verify": "Check timestamps in logs - old timestamps = testing old executable"
+    },
+    "debugging": {
+      "responseSizeMetrics": "Token count in logs reveals content inclusion (39KB no Kotlin → 72KB with Kotlin)",
+      "debugLogs": "Add Serilog.Log.Information with DEBUG: prefix to verify file reads",
+      "serializedSize": "JsonSerializer.Serialize(obj).Length shows actual payload size",
+      "silentFailures": "File.ReadAllTextAsync with wrong path returns error object (620 chars vs 29KB expected)"
+    },
+    "testVerification": {
+      "logTimestamps": "Check log timestamps match test run time to verify correct executable",
+      "responseSizeSmokeTest": "Known good response: 72,048 chars (includes 32KB Kotlin files)",
+      "healthCheckMarkers": "Add unique version markers to health_check tool for verification"
+    }
   }
 }
