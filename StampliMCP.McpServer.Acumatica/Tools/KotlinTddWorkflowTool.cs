@@ -88,7 +88,7 @@ FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TA
         try
         {
             // Always start new workflow (continue/query/list removed - DEAD CODE)
-            var (resultData, selectedFlowName) = await StartWorkflowWithFlow(feature, knowledge, flowService, intelligence, ct);
+            var (resultData, selectedFlowName) = await StartWorkflowWithFlow(feature ?? "unknown feature", knowledge, flowService, intelligence, ct);
             flowName = selectedFlowName;
             result = resultData;
 
@@ -148,7 +148,7 @@ FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TA
                 Serilog.Log.Warning(logEx, "Failed to write MCP response log");
             }
 
-            return result;
+            return result ?? new { error = "No result generated" };
         }
         catch (Exception ex)
         {
@@ -208,7 +208,7 @@ FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TA
         // 4. TDD workflow: RED → GREEN → REFACTOR
 
         // STEP 1: Match feature to flow
-        var (matchedFlowName, confidence, reasoning) = await flowService.MatchFeatureToFlowAsync(feature, ct);
+        var (matchedFlowName, confidence, reasoning) = flowService.MatchFeatureToFlowAsync(feature, ct);
         flowName = matchedFlowName;
         var flowDoc = await flowService.GetFlowAsync(flowName, ct);
 

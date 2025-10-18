@@ -57,7 +57,7 @@ Examples:
         try
         {
             // Step 1: Find operation's flow
-            var flowName = await FindFlowForOperation(operation, knowledge, ct);
+            var flowName = FindFlowForOperation(operation, knowledge, ct);
 
             if (string.IsNullOrEmpty(flowName))
             {
@@ -132,6 +132,29 @@ Examples:
             var warnings = new List<string>();
             var appliedRules = new List<string>();
 
+            // Always apply built-in validation rules based on operation type
+            // These are hard-coded business rules that always apply
+            var builtInRules = new List<string>
+            {
+                "required_fields",
+                "field_length_limits",
+                "data_types",
+                "business_logic"
+            };
+
+            foreach (var rule in builtInRules)
+            {
+                var (isValid, error, warning) = ApplyValidationRule(rule, requestDoc.RootElement, operation);
+                appliedRules.Add(rule);
+
+                if (!isValid && error != null)
+                    errors.Add(error);
+
+                if (warning != null)
+                    warnings.Add(warning);
+            }
+
+            // Also apply any flow-specific validation rules if they exist
             foreach (var rule in validationRules)
             {
                 var (isValid, error, warning) = ApplyValidationRule(rule, requestDoc.RootElement, operation);
@@ -209,7 +232,7 @@ Examples:
         }
     }
 
-    private static async Task<string?> FindFlowForOperation(string operation, KnowledgeService knowledge, CancellationToken ct)
+    private static string? FindFlowForOperation(string operation, KnowledgeService knowledge, CancellationToken ct)
     {
         // Simple mapping - in real impl, query knowledge base
         var flowMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -230,48 +253,159 @@ Examples:
         JsonElement request,
         string operation)
     {
-        // Parse rule and apply validation
-        if (rule.Contains("VendorID") && rule.Contains("30"))
+        // Comprehensive validation for ALL Acumatica operations
+        var operationLower = operation.ToLower();
+
+        // Vendor validations
+        if (operationLower.Contains("vendor"))
         {
+            // Check vendorName (max 60 chars, required for export)
+            if (operationLower.Contains("export"))
+            {
+                if (!request.TryGetProperty("vendorName", out var vendorName) ||
+                    string.IsNullOrWhiteSpace(vendorName.GetString()))
+                {
+                    return (false, new ValidationError
+                    {
+                        Field = "vendorName",
+                        Rule = "required_field",
+                        Message = "vendorName is required for vendor export",
+                        Expected = "Non-empty string"
+                    }, null);
+                }
+
+                var name = vendorName.GetString() ?? "";
+                if (name.Length > 60)
+                {
+                    return (false, new ValidationError
+                    {
+                        Field = "vendorName",
+                        Rule = "max_length_60",
+                        Message = $"vendorName exceeds 60 character limit (current: {name.Length})",
+                        CurrentValue = name,
+                        Expected = "String with length ≤ 60"
+                    }, null);
+                }
+            }
+
+            // Check VendorID (max 30 chars)
             if (request.TryGetProperty("VendorID", out var vendorId))
             {
-                var value = vendorId.GetString() ?? "";
-                if (value.Length > 30)
+                var id = vendorId.GetString() ?? "";
+                if (id.Length > 30)
                 {
                     return (false, new ValidationError
                     {
                         Field = "VendorID",
-                        Rule = rule,
+                        Rule = "max_length_30",
                         Message = "VendorID exceeds 30 character limit",
-                        CurrentValue = value,
+                        CurrentValue = id,
                         Expected = "String with length ≤ 30"
                     }, null);
                 }
             }
-            else if (operation.ToLower().Contains("vendor"))
+        }
+
+        // Payment validations
+        if (operationLower.Contains("payment"))
+        {
+            // PaymentAmount required
+            if (operationLower.Contains("export") || operationLower.Contains("create"))
             {
-                return (false, new ValidationError
+                if (!request.TryGetProperty("PaymentAmount", out var amount))
                 {
-                    Field = "VendorID",
-                    Rule = rule,
-                    Message = "VendorID is required but missing",
-                    Expected = "String with length ≤ 30"
-                }, null);
+                    return (false, new ValidationError
+                    {
+                        Field = "PaymentAmount",
+                        Rule = "required_field",
+                        Message = "PaymentAmount is required for payment operations",
+                        Expected = "Numeric value"
+                    }, null);
+                }
+            }
+
+            // CurrencyID validation (max 5 chars)
+            if (request.TryGetProperty("CurrencyID", out var currency))
+            {
+                var curr = currency.GetString() ?? "";
+                if (curr.Length > 5)
+                {
+                    return (false, new ValidationError
+                    {
+                        Field = "CurrencyID",
+                        Rule = "max_length_5",
+                        Message = "CurrencyID exceeds 5 character limit",
+                        CurrentValue = curr,
+                        Expected = "String with length ≤ 5 (e.g., 'USD', 'EUR')"
+                    }, null);
+                }
             }
         }
 
-        if (rule.Contains("pagination") && rule.Contains("2000"))
+        // PO validations
+        if (operationLower.Contains("purchase") || operationLower.Contains("po"))
         {
-            if (request.TryGetProperty("pageSize", out var pageSize) && pageSize.GetInt32() > 2000)
+            if (request.TryGetProperty("PONumber", out var poNumber))
             {
-                return (false, new ValidationError
+                var po = poNumber.GetString() ?? "";
+                if (po.Length > 15)
                 {
-                    Field = "pageSize",
-                    Rule = rule,
-                    Message = "Page size exceeds maximum of 2000 rows",
-                    CurrentValue = pageSize.GetInt32().ToString(),
-                    Expected = "Integer ≤ 2000"
-                }, null);
+                    return (false, new ValidationError
+                    {
+                        Field = "PONumber",
+                        Rule = "max_length_15",
+                        Message = "PONumber exceeds 15 character limit",
+                        CurrentValue = po,
+                        Expected = "String with length ≤ 15"
+                    }, null);
+                }
+            }
+        }
+
+        // Item validations
+        if (operationLower.Contains("item") || operationLower.Contains("inventory"))
+        {
+            if (request.TryGetProperty("InventoryID", out var inventoryId))
+            {
+                var inv = inventoryId.GetString() ?? "";
+                if (inv.Length > 30)
+                {
+                    return (false, new ValidationError
+                    {
+                        Field = "InventoryID",
+                        Rule = "max_length_30",
+                        Message = "InventoryID exceeds 30 character limit",
+                        CurrentValue = inv,
+                        Expected = "String with length ≤ 30"
+                    }, null);
+                }
+            }
+        }
+
+        // Pagination validation (applies to all import/search operations)
+        if (operationLower.Contains("import") || operationLower.Contains("search"))
+        {
+            if (request.TryGetProperty("pageSize", out var pageSize))
+            {
+                try
+                {
+                    var size = pageSize.GetInt32();
+                    if (size > 2000)
+                    {
+                        return (false, new ValidationError
+                        {
+                            Field = "pageSize",
+                            Rule = "max_pagination_2000",
+                            Message = "Page size exceeds Acumatica maximum of 2000 rows",
+                            CurrentValue = size.ToString(),
+                            Expected = "Integer ≤ 2000"
+                        }, null);
+                    }
+                }
+                catch
+                {
+                    // Invalid integer
+                }
             }
         }
 

@@ -65,40 +65,50 @@ Examples:
             // Step 1: Get recommendation using keyword matching
             var recommendation = await RecommendFlowByKeywords(useCase, ct);
 
-            // Step 2: Elicit if confidence is low (Protocol 2025-06-18)
+            // Step 2: Try elicitation if confidence is low (Protocol 2025-06-18)
+            // If elicitation is not supported, continue with best guess
             if (recommendation.Confidence < 0.7 && recommendation.AlternativeFlows.Any())
             {
-                var alternatives = recommendation.AlternativeFlows
-                    .OrderByDescending(a => a.Confidence)
-                    .Take(3)
-                    .ToList();
-
-                var message = $"Found multiple possible flows (confidence {recommendation.Confidence:P0}). Please choose or provide more context:";
-
-                var elicitResult = await server.ElicitAsync<FlowPreference>(
-                    message,
-                    cancellationToken: ct
-                );
-
-                if (elicitResult.Action == "accept" && elicitResult.Content is { } preference)
+                try
                 {
-                    // Re-run recommendation with additional context
-                    var refinedUseCase = !string.IsNullOrWhiteSpace(preference.AdditionalContext)
-                        ? $"{useCase} {preference.AdditionalContext}"
-                        : useCase;
+                    var alternatives = recommendation.AlternativeFlows
+                        .OrderByDescending(a => a.Confidence)
+                        .Take(3)
+                        .ToList();
 
-                    if (!string.IsNullOrEmpty(preference.FlowName))
+                    var message = $"Found multiple possible flows (confidence {recommendation.Confidence:P0}). Please choose or provide more context:";
+
+                    var elicitResult = await server.ElicitAsync<FlowPreference>(
+                        message,
+                        cancellationToken: ct
+                    );
+
+                    if (elicitResult.Action == "accept" && elicitResult.Content is { } preference)
                     {
-                        // User chose a specific flow
-                        recommendation.FlowName = preference.FlowName;
-                        recommendation.Confidence = 1.0; // User confirmed
-                        recommendation.Reasoning = $"User selected: {preference.FlowName}. {recommendation.Reasoning}";
+                        // Re-run recommendation with additional context
+                        var refinedUseCase = !string.IsNullOrWhiteSpace(preference.AdditionalContext)
+                            ? $"{useCase} {preference.AdditionalContext}"
+                            : useCase;
+
+                        if (!string.IsNullOrEmpty(preference.FlowName))
+                        {
+                            // User chose a specific flow
+                            recommendation.FlowName = preference.FlowName;
+                            recommendation.Confidence = 1.0; // User confirmed
+                            recommendation.Reasoning = $"User selected: {preference.FlowName}. {recommendation.Reasoning}";
+                        }
+                        else
+                        {
+                            // Re-recommend with additional context
+                            recommendation = await RecommendFlowByKeywords(refinedUseCase, ct);
+                        }
                     }
-                    else
-                    {
-                        // Re-recommend with additional context
-                        recommendation = await RecommendFlowByKeywords(refinedUseCase, ct);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    // Elicitation not supported - continue with best guess
+                    Serilog.Log.Warning("Elicitation not supported: {Message}. Using best guess flow.", ex.Message);
+                    recommendation.Reasoning += " (Note: Multiple flows matched. Consider being more specific.)";
                 }
             }
 

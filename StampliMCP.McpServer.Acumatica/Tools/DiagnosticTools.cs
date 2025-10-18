@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Reflection;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
@@ -9,12 +10,12 @@ public static class DiagnosticTools
 {
     [McpServerTool(Name = "health_check", Title = "Health Check")]
     [Description("Simple health check to verify MCP server is running and responsive")]
-    public static Task<object> HealthCheck()
+    public static object HealthCheck()
     {
         var assembly = Assembly.GetExecutingAssembly();
         var knowledgePath = Path.Combine(AppContext.BaseDirectory, "Knowledge");
 
-        return Task.FromResult<object>(new
+        return new
         {
             status = "ok",
             smokeTest = "kosta_2025_flow_based",
@@ -34,17 +35,31 @@ public static class DiagnosticTools
             paths = new
             {
                 baseDirectory = AppContext.BaseDirectory,
-                executablePath = assembly.Location,
                 knowledgePath = knowledgePath,
                 knowledgeExists = Directory.Exists(knowledgePath),
                 workingDirectory = Environment.CurrentDirectory
+            },
+            nextActions = new[]
+            {
+                new ResourceLinkBlock
+                {
+                    Uri = "mcp://stampli-acumatica/query_acumatica_knowledge?query=vendor",
+                    Name = "Query knowledge base",
+                    Description = "Search for operations and flows"
+                },
+                new ResourceLinkBlock
+                {
+                    Uri = "mcp://stampli-acumatica/check_knowledge_files",
+                    Name = "List knowledge files",
+                    Description = "View all embedded knowledge resources"
+                }
             }
-        });
+        };
     }
 
     [McpServerTool(Name = "check_knowledge_files", Title = "Check Knowledge Files")]
     [Description("Check which Knowledge files are available as embedded resources")]
-    public static Task<object> CheckKnowledgeFiles()
+    public static object CheckKnowledgeFiles()
     {
         var assembly = Assembly.GetExecutingAssembly();
         var resourceNames = assembly.GetManifestResourceNames();
@@ -65,13 +80,13 @@ public static class DiagnosticTools
             })
             .ToList();
 
-        return Task.FromResult<object>(new
+        return new
         {
             embeddedResources = true,
             totalFiles = knowledgeResources.Count,
             missingFiles = 0,
             files = knowledgeResources
-        });
+        };
     }
 
     private static long GetResourceSize(Assembly assembly, string resourceName)

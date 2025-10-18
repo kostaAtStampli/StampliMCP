@@ -722,7 +722,7 @@ public class IntelligenceService
             tests.Add(new
             {
                 scenario = $"{field.Key} exactly at max length ({field.Value.MaxLength} characters)",
-                testData = new Dictionary<string, object> { [field.Key] = new string('A', field.Value.MaxLength.Value) },
+                testData = new Dictionary<string, object> { [field.Key] = new string('A', field.Value.MaxLength ?? 60) },
                 expectedResult = "Success (boundary test)",
                 priority = "P1"
             });

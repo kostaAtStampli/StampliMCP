@@ -7,7 +7,7 @@ using StampliMCP.McpServer.Acumatica.Models;
 namespace StampliMCP.McpServer.Acumatica.Prompts;
 
 [McpServerPromptType]
-public static class TwoScanEnforcementPrompt
+public sealed class TwoScanEnforcementPrompt
 {
     [McpServerPrompt(
         Name = "enforce_two_scan_extraction",

@@ -66,28 +66,37 @@ Returns:
             // Step 1: Search knowledge base
             var searchResults = await SearchKnowledge(query, scope, knowledge, flowService, ct);
 
-            // Step 2: Elicit clarification if ambiguous (Protocol 2025-06-18 - generic API)
+            // Step 2: Try elicitation if ambiguous (Protocol 2025-06-18 - generic API)
+            // If elicitation not supported, continue with results
             if (searchResults.IsAmbiguous)
             {
-                var message = searchResults.Operations.Any() && searchResults.Flows.Any()
-                    ? $"Found {searchResults.TotalMatches} matches ({searchResults.Operations.Count} operations, {searchResults.Flows.Count} flows). Refine search:"
-                    : searchResults.Operations.Any()
-                    ? $"Found {searchResults.Operations.Count} operations. Provide more specific terms:"
-                    : $"Found {searchResults.Flows.Count} flows. Provide more specific terms:";
-
-                var elicitResult = await server.ElicitAsync<RefinementInput>(message, cancellationToken: ct);
-
-                if (elicitResult.Action == "accept" && elicitResult.Content is { } refinement)
+                try
                 {
-                    var refinedScope = !string.IsNullOrEmpty(refinement.Type) && refinement.Type != "all"
-                        ? refinement.Type
-                        : scope;
+                    var message = searchResults.Operations.Any() && searchResults.Flows.Any()
+                        ? $"Found {searchResults.TotalMatches} matches ({searchResults.Operations.Count} operations, {searchResults.Flows.Count} flows). Refine search:"
+                        : searchResults.Operations.Any()
+                        ? $"Found {searchResults.Operations.Count} operations. Provide more specific terms:"
+                        : $"Found {searchResults.Flows.Count} flows. Provide more specific terms:";
 
-                    var refinedQuery = !string.IsNullOrWhiteSpace(refinement.Refinement)
-                        ? $"{query} {refinement.Refinement}"
-                        : query;
+                    var elicitResult = await server.ElicitAsync<RefinementInput>(message, cancellationToken: ct);
 
-                    searchResults = await SearchKnowledge(refinedQuery, refinedScope, knowledge, flowService, ct);
+                    if (elicitResult.Action == "accept" && elicitResult.Content is { } refinement)
+                    {
+                        var refinedScope = !string.IsNullOrEmpty(refinement.Type) && refinement.Type != "all"
+                            ? refinement.Type
+                            : scope;
+
+                        var refinedQuery = !string.IsNullOrWhiteSpace(refinement.Refinement)
+                            ? $"{query} {refinement.Refinement}"
+                            : query;
+
+                        searchResults = await SearchKnowledge(refinedQuery, refinedScope, knowledge, flowService, ct);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Elicitation not supported - continue with ambiguous results
+                    Serilog.Log.Warning("Elicitation not supported in query_acumatica_knowledge: {Message}", ex.Message);
                 }
             }
 
@@ -167,6 +176,83 @@ Returns:
                     Category = category.Name,
                     Flow = null // Will be set when matching to flows
                 }));
+            }
+        }
+
+        // Search constants specifically if requested
+        if (scope == "constants")
+        {
+            // Load common constants from all flows
+            var flowNames = new[]
+            {
+                "VENDOR_EXPORT_FLOW", "PAYMENT_FLOW", "STANDARD_IMPORT_FLOW",
+                "PO_MATCHING_FLOW", "PO_MATCHING_FULL_IMPORT_FLOW", "EXPORT_INVOICE_FLOW",
+                "EXPORT_PO_FLOW", "M2M_IMPORT_FLOW", "API_ACTION_FLOW"
+            };
+
+            // Add common Acumatica constants
+            results.Constants["RESPONSE_ROWS_LIMIT"] = new ConstantInfo
+            {
+                Name = "RESPONSE_ROWS_LIMIT",
+                Value = "2000",
+                Purpose = "Maximum rows per page for Acumatica pagination"
+            };
+
+            results.Constants["MAX_VENDOR_NAME_LENGTH"] = new ConstantInfo
+            {
+                Name = "MAX_VENDOR_NAME_LENGTH",
+                Value = "60",
+                Purpose = "Maximum length for vendor name field"
+            };
+
+            results.Constants["MAX_VENDOR_ID_LENGTH"] = new ConstantInfo
+            {
+                Name = "MAX_VENDOR_ID_LENGTH",
+                Value = "30",
+                Purpose = "Maximum length for VendorID field"
+            };
+
+            results.Constants["SESSION_TIMEOUT_MINUTES"] = new ConstantInfo
+            {
+                Name = "SESSION_TIMEOUT_MINUTES",
+                Value = "10",
+                Purpose = "Acumatica session timeout before re-authentication needed"
+            };
+
+            foreach (var flowName in flowNames)
+            {
+                try
+                {
+                    var flowDoc = await flowService.GetFlowAsync(flowName, ct);
+                    if (flowDoc == null) continue;
+
+                    var flow = flowDoc.RootElement;
+
+                    // Extract constants matching query
+                    if (flow.TryGetProperty("constants", out var constants))
+                    {
+                        foreach (var constant in constants.EnumerateObject())
+                        {
+                            var constNameLower = constant.Name.ToLower();
+                            if (queryTokens.Any(token => constNameLower.Contains(token)))
+                            {
+                                var constObj = constant.Value;
+                                results.Constants[constant.Name] = new ConstantInfo
+                                {
+                                    Name = constant.Name,
+                                    Value = constObj.TryGetProperty("value", out var val) ? val.ToString() : "",
+                                    File = constObj.TryGetProperty("file", out var file) ? file.GetString() : null,
+                                    Line = constObj.TryGetProperty("line", out var line) ? line.GetInt32() : null,
+                                    Purpose = constObj.TryGetProperty("purpose", out var purpose) ? purpose.GetString() : null
+                                };
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Serilog.Log.Warning("Failed to load flow {Flow} for constants: {Error}", flowName, ex.Message);
+                }
             }
         }
 

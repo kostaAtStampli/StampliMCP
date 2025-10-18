@@ -90,6 +90,7 @@ builder.Services
     .WithPrompts<TroubleshootingPrompt>()
     .WithPrompts<AnalyzeIntegrationPrompt>()
     .WithPrompts<KotlinFeaturePrompt>()
+    .WithPrompts<TwoScanEnforcementPrompt>()
     .WithResourcesFromAssembly(); // Auto-discover MCP resources
 
 var app = builder.Build();

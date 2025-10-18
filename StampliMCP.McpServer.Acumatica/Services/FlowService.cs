@@ -79,7 +79,7 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
             }) ?? new List<string>();
     }
 
-    public async Task<(string FlowName, string Confidence, string Reasoning)> MatchFeatureToFlowAsync(
+    public (string FlowName, string Confidence, string Reasoning) MatchFeatureToFlowAsync(
         string description,
         CancellationToken ct = default)
     {

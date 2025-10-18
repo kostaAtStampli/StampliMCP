@@ -89,7 +89,7 @@ Categories:
                 ErrorCategory = category,
                 PossibleCauses = GetPossibleCauses(category, errorMessage),
                 Solutions = GetSolutions(category, errorMessage),
-                RelatedFlowRules = await GetRelatedRules(operation, flowService, ct),
+                RelatedFlowRules = GetRelatedRules(operation, flowService, ct),
                 PreventionTips = GetPreventionTips(category),
                 NextActions = new List<ResourceLinkBlock>
                 {
@@ -116,8 +116,8 @@ Categories:
             return new ErrorDiagnostic
             {
                 ErrorMessage = errorMessage,
-                ErrorCategory = "Unknown",
-                PossibleCauses = new List<string> { "Unable to analyze error" },
+                ErrorCategory = "GeneralError",
+                PossibleCauses = new List<string> { "Error analysis failed - check error message details" },
                 Solutions = new List<ErrorSolution>()
             };
         }
@@ -126,15 +126,42 @@ Categories:
     private static string CategorizeError(string error)
     {
         var lower = error.ToLower();
-        if (lower.Contains("required") || lower.Contains("missing") || lower.Contains("invalid"))
+
+        // Validation errors
+        if (lower.Contains("required") || lower.Contains("missing") || lower.Contains("invalid") ||
+            lower.Contains("maximum length") || lower.Contains("exceeds") || lower.Contains("limit") ||
+            lower.Contains("field") || lower.Contains("property") || lower.Contains("attribute") ||
+            lower.Contains("format") || lower.Contains("must be") || lower.Contains("should be"))
             return "Validation";
-        if (lower.Contains("duplicate") || lower.Contains("exists") || lower.Contains("business"))
+
+        // Not found errors
+        if (lower.Contains("not found") || lower.Contains("does not exist") || lower.Contains("cannot find") ||
+            lower.Contains("no such") || lower.Contains("404"))
+            return "NotFound";
+
+        // Business logic errors
+        if (lower.Contains("duplicate") || lower.Contains("already exists") || lower.Contains("business") ||
+            lower.Contains("cannot") || lower.Contains("not allowed") || lower.Contains("conflict"))
             return "BusinessLogic";
-        if (lower.Contains("auth") || lower.Contains("session") || lower.Contains("unauthorized"))
+
+        // Authentication/Authorization errors
+        if (lower.Contains("auth") || lower.Contains("session") || lower.Contains("unauthorized") ||
+            lower.Contains("permission") || lower.Contains("access denied") || lower.Contains("forbidden") ||
+            lower.Contains("401") || lower.Contains("403"))
             return "Authentication";
-        if (lower.Contains("timeout") || lower.Contains("connection"))
+
+        // Rate limiting
+        if (lower.Contains("rate limit") || lower.Contains("too many") || lower.Contains("throttle") ||
+            lower.Contains("429"))
+            return "RateLimit";
+
+        // Network errors
+        if (lower.Contains("timeout") || lower.Contains("connection") || lower.Contains("network") ||
+            lower.Contains("unreachable") || lower.Contains("503"))
             return "Network";
-        return "Unknown";
+
+        // Default to GeneralError instead of Unknown
+        return "GeneralError";
     }
 
     private static string CategorizeErrorWithContext(string error, string operation)
@@ -152,21 +179,48 @@ Categories:
             {
                 "Missing required field in request payload",
                 "Field value exceeds maximum length",
-                "Invalid field format (date, number, etc.)"
+                "Invalid field format (date, number, etc.)",
+                "Value outside allowed range or constraints"
+            },
+            "NotFound" => new List<string>
+            {
+                "Entity does not exist in Acumatica",
+                "Incorrect ID or reference provided",
+                "Entity may have been deleted"
             },
             "BusinessLogic" => new List<string>
             {
                 "Acumatica business rule violation (e.g., duplicate VendorID)",
                 "Related entity not found (e.g., CurrencyID doesn't exist)",
-                "Operation not allowed in current state"
+                "Operation not allowed in current state",
+                "Conflicting data in related entities"
             },
             "Authentication" => new List<string>
             {
                 "Session expired",
                 "Invalid credentials",
-                "Insufficient permissions"
+                "Insufficient permissions",
+                "Account locked or disabled"
             },
-            _ => new List<string> { "Unknown cause - need more context" }
+            "RateLimit" => new List<string>
+            {
+                "Too many requests in short time",
+                "API throttling limit reached",
+                "Concurrent request limit exceeded"
+            },
+            "Network" => new List<string>
+            {
+                "Connection timeout",
+                "Service temporarily unavailable",
+                "Network configuration issue"
+            },
+            "GeneralError" => new List<string>
+            {
+                "Unexpected error in Acumatica",
+                "Internal server error",
+                "Configuration issue"
+            },
+            _ => new List<string> { "Error analysis incomplete - check logs" }
         };
     }
 
@@ -192,11 +246,38 @@ Categories:
                     FlowReference = "STANDARD_IMPORT_FLOW - auth wrapper pattern"
                 }
             },
+            "NotFound" => new List<ErrorSolution>
+            {
+                new ErrorSolution
+                {
+                    Description = "Verify entity exists in Acumatica",
+                    CodeExample = "Check entity ID using search operation first",
+                    FlowReference = "Use appropriate search operation before referencing"
+                }
+            },
+            "RateLimit" => new List<ErrorSolution>
+            {
+                new ErrorSolution
+                {
+                    Description = "Implement exponential backoff",
+                    CodeExample = "await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retryCount)));",
+                    FlowReference = "Add retry logic with delays"
+                }
+            },
+            "GeneralError" => new List<ErrorSolution>
+            {
+                new ErrorSolution
+                {
+                    Description = "Check Acumatica logs and configuration",
+                    CodeExample = "Review error details and Acumatica server logs",
+                    FlowReference = "Contact administrator if persists"
+                }
+            },
             _ => new List<ErrorSolution>()
         };
     }
 
-    private static async Task<List<string>> GetRelatedRules(string? operation, FlowService flowService, CancellationToken ct)
+    private static List<string> GetRelatedRules(string? operation, FlowService flowService, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(operation))
             return new List<string>();
