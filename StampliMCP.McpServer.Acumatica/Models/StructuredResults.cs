@@ -332,3 +332,129 @@ public class FileReference
     [Description("Key patterns to find in this file")]
     public List<string> KeyPatterns { get; set; } = new();
 }
+
+// ================== Knowledge Extraction (Auto-Update from Code Scans) ==================
+
+[Description("Result from challenge_scan_findings MCP tool")]
+public sealed class ChallengeScanResult
+{
+    [Description("Summary of what Scan 1 found")]
+    public string Scan1Summary { get; set; } = string.Empty;
+
+    [Description("Array of skeptical verification questions for Scan 2")]
+    public string[] ChallengeQuestions { get; set; } = Array.Empty<string>();
+
+    [Description("Number of challenge questions generated")]
+    public int ChallengeCount { get; set; }
+
+    [Description("Instructions for using these challenges")]
+    public string Instruction { get; set; } = string.Empty;
+}
+
+[Description("Knowledge extracted from code scanning (Scan 1 + Scan 2)")]
+public sealed class ExtractedKnowledge
+{
+    [Description("Required fields extracted from code validation")]
+    public Dictionary<string, object> RequiredFields { get; set; } = new();
+
+    [Description("File pointers extracted from code")]
+    public List<FilePointer> ScanThese { get; set; } = new();
+
+    [Description("Helper classes found")]
+    public List<Helper> Helpers { get; set; } = new();
+
+    [Description("Kotlin files discovered")]
+    public List<KotlinFile> KotlinFiles { get; set; } = new();
+
+    [Description("Kotlin migration progress status")]
+    public string KotlinProgress { get; set; } = string.Empty;
+
+    [Description("Number of findings where Scan 2 corrected Scan 1")]
+    public int Scan2Challenges { get; set; }
+}
+
+[Description("File pointer (keeps MCP responses small - points to files, not content)")]
+public sealed class FilePointer
+{
+    [Description("File path (C:\\STAMPLI4\\...)")]
+    public string File { get; set; } = string.Empty;
+
+    [Description("Line range (e.g., '24-127')")]
+    public string? Lines { get; set; }
+
+    [Description("Purpose of scanning this file")]
+    public string? Purpose { get; set; }
+
+    [Description("Key patterns to look for")]
+    public List<string> KeyPatterns { get; set; } = new();
+}
+
+[Description("Helper class reference")]
+public sealed class Helper
+{
+    [Description("Helper class name")]
+    public string Class { get; set; } = string.Empty;
+
+    [Description("File location")]
+    public FilePointer Location { get; set; } = new();
+
+    [Description("Purpose of this helper")]
+    public string? Purpose { get; set; }
+}
+
+[Description("Kotlin file reference")]
+public sealed class KotlinFile
+{
+    [Description("Kotlin file name")]
+    public string File { get; set; } = string.Empty;
+
+    [Description("Full file path")]
+    public string Path { get; set; } = string.Empty;
+
+    [Description("Line range")]
+    public string? Lines { get; set; }
+
+    [Description("Purpose of this file")]
+    public string? Purpose { get; set; }
+
+    [Description("Kotlin patterns used")]
+    public List<string> KeyPatterns { get; set; } = new();
+}
+
+[Description("Validation rule extracted from code")]
+public sealed class ValidationRule
+{
+    [Description("Field name")]
+    public string Field { get; set; } = string.Empty;
+
+    [Description("Rule type: required, maxLength, format, etc.")]
+    public string Type { get; set; } = string.Empty;
+
+    [Description("Rule value (e.g., maxLength=60)")]
+    public string? Value { get; set; }
+
+    [Description("Error message returned when violated")]
+    public string? ErrorMessage { get; set; }
+
+    [Description("Line number in source code")]
+    public int? Line { get; set; }
+}
+
+[Description("Constant extracted from code")]
+public sealed class ExtractedConstant
+{
+    [Description("Constant name")]
+    public string Name { get; set; } = string.Empty;
+
+    [Description("Constant value")]
+    public string Value { get; set; } = string.Empty;
+
+    [Description("File where defined")]
+    public string? File { get; set; }
+
+    [Description("Line number")]
+    public int? Line { get; set; }
+
+    [Description("Purpose/usage")]
+    public string? Purpose { get; set; }
+}

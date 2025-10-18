@@ -1,0 +1,153 @@
+{
+  "category": "accounts",
+  "description": "GL account, bank account, and AP account search operations",
+  "operations": {
+    "searchGlAccounts": {
+      "operationName": "searchGlAccounts",
+      "enumName": "SEARCH_GL_ACCOUNTS",
+      "category": "accounts",
+      "summary": "Search general ledger accounts",
+      "apiEndpoint": {
+        "primary": "Account",
+        "method": "GET",
+        "filter": "Active=true (for non-delta imports)"
+      },
+      "returns": {
+        "key": "AccountCD",
+        "name": "Description",
+        "inactive": "Flagged as toBeDeleted=true"
+      },
+      "scanThese": [
+        {
+          "file": "AccountResponseAssembler.java",
+          "lines": "22",
+          "purpose": "Returns AccountCD and Description"
+        },
+        {
+          "file": "AcumaticaImportHelper.java",
+          "lines": "260",
+          "purpose": "Active filter for non-delta imports"
+        }
+      ],
+      "format": {
+        "accountNumber": "AccountCD string (no enforced format)",
+        "hierarchy": "Not modeled - returns flat list",
+        "status": "Active/Inactive via toBeDeleted flag"
+      },
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchSubAccounts": {
+      "operationName": "searchSubAccounts",
+      "enumName": "SEARCH_SUB_ACCOUNTS",
+      "category": "accounts",
+      "summary": "Search sub-accounts",
+      "apiEndpoint": {
+        "primary": "SubAccount",
+        "method": "GET"
+      },
+      "returns": {
+        "key": "SubaccountCD",
+        "name": "Description"
+      },
+      "scanThese": [
+        {
+          "file": "SubAccountResponseAssembler.java",
+          "lines": "7",
+          "purpose": "Returns SubaccountCD and Description"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchBankAccounts": {
+      "operationName": "searchBankAccounts",
+      "enumName": "SEARCH_BANK_ACCOUNTS",
+      "category": "accounts",
+      "summary": "Search bank accounts with payment instructions",
+      "apiEndpoint": {
+        "primary": "CashAccount",
+        "expand": "PaymentInstructions",
+        "filter": "UseInAP=true, Currency=USD"
+      },
+      "returns": {
+        "key": "CashAccountID_PaymentMethod_Branch",
+        "enriched": {
+          "bankName": "From PaymentInstructions",
+          "accountNumber": "From PaymentInstructions",
+          "routingNumber": "From PaymentInstructions"
+        }
+      },
+      "scanThese": [
+        {
+          "file": "BankAccountResponseAssembler.java",
+          "lines": "72-112",
+          "purpose": "Enriches with payment instruction mapping"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchAPAccounts": {
+      "operationName": "searchAPAccounts",
+      "enumName": "SEARCH_AP_ACCOUNTS",
+      "category": "accounts",
+      "summary": "Search accounts payable accounts",
+      "apiEndpoint": {
+        "primary": "Account",
+        "filter": "AccountClass=AP"
+      },
+      "returns": {
+        "key": "AccountCD",
+        "value": "AccountCD (same as key)"
+      },
+      "scanThese": [
+        {
+          "file": "AccountPayableResponseAssembler.java",
+          "lines": "28",
+          "purpose": "Filters for AP class accounts"
+        },
+        {
+          "file": "AcumaticaEndpoint.java",
+          "lines": "88",
+          "purpose": "AP account endpoint definition"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchCashAccounts": {
+      "operationName": "searchCashAccounts",
+      "enumName": "SEARCH_CASH_ACCOUNTS",
+      "category": "accounts",
+      "summary": "Search cash accounts for payments",
+      "apiEndpoint": "CashAccount",
+      "filter": "UseInAP=true",
+      "returns": "CashAccountID with payment method association",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchExpenseAccounts": {
+      "operationName": "searchExpenseAccounts",
+      "enumName": "SEARCH_EXPENSE_ACCOUNTS",
+      "category": "accounts",
+      "summary": "Search expense accounts",
+      "notes": "Uses general Account endpoint with possible filtering",
+      "kotlinStatus": "NOT_MIGRATED"
+    }
+  },
+  "commonPatterns": {
+    "activeFiltering": {
+      "standard": "Active=true for non-delta imports",
+      "delta": "Includes inactive with toBeDeleted flag"
+    },
+    "keyFormat": {
+      "simple": "AccountCD or SubaccountCD",
+      "composite": "CashAccountID_PaymentMethod_Branch for bank accounts"
+    },
+    "hierarchy": {
+      "support": "Not modeled in assemblers",
+      "format": "Returns flat lists"
+    }
+  },
+  "relatedEndpoints": {
+    "Branch": "For branch filtering",
+    "PaymentMethod": "For payment method association",
+    "AccountClass": "For account classification"
+  }
+}

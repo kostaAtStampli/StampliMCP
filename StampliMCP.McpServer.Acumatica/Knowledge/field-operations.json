@@ -1,0 +1,229 @@
+{
+  "category": "fields",
+  "description": "Custom fields, dimensions, and classification search operations",
+  "operations": {
+    "searchClasses": {
+      "operationName": "searchClasses",
+      "enumName": "SEARCH_CLASSES",
+      "category": "fields",
+      "summary": "Search vendor classes",
+      "apiEndpoint": "VendorClass",
+      "implementation": "Returns empty response - no endpoint call implemented",
+      "scanThese": [
+        {
+          "file": "AcumaticaDriver.java",
+          "lines": "149",
+          "purpose": "Returns empty response (not implemented)"
+        }
+      ],
+      "kotlinStatus": "NOT_IMPLEMENTED",
+      "notes": "Currently returns empty list - implementation missing"
+    },
+    "searchCostCodes": {
+      "operationName": "searchCostCodes",
+      "enumName": "SEARCH_COST_CODES",
+      "category": "fields",
+      "summary": "Search cost codes",
+      "apiEndpoint": "CostCode",
+      "returns": {
+        "key": "CostCodeID",
+        "name": "Description"
+      },
+      "scanThese": [
+        {
+          "file": "CostCodeResponseAssembler.java",
+          "lines": "10",
+          "purpose": "Returns CostCodeID + Description"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchDepartments": {
+      "operationName": "searchDepartments",
+      "enumName": "SEARCH_DEPARTMENTS",
+      "category": "fields",
+      "summary": "Search departments",
+      "implementation": "NO IMPLEMENTATION FOUND",
+      "notes": "No 'Department' endpoint or assembler found in codebase",
+      "kotlinStatus": "NOT_IMPLEMENTED"
+    },
+    "searchLocations": {
+      "operationName": "searchLocations",
+      "enumName": "SEARCH_LOCATIONS",
+      "category": "fields",
+      "summary": "Search vendor locations",
+      "apiEndpoint": "VendorLocation",
+      "returns": {
+        "key": "VendorID/LocationID",
+        "indexedBy": "VendorID for lookup"
+      },
+      "scanThese": [
+        {
+          "file": "VendorLocationResponseAssembler.java",
+          "lines": "37",
+          "purpose": "Combined key with vendor indexing"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchBranches": {
+      "operationName": "searchBranches",
+      "enumName": "SEARCH_BRANCHES",
+      "category": "fields",
+      "summary": "Search company branches",
+      "apiEndpoint": "Branch",
+      "returns": {
+        "key": "BranchID",
+        "name": "BranchName (optional)"
+      },
+      "scanThese": [
+        {
+          "file": "BranchResponseAssembler.java",
+          "lines": "6",
+          "purpose": "Returns BranchID with optional BranchName"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchProjects": {
+      "operationName": "searchProjects",
+      "enumName": "SEARCH_PROJECTS",
+      "category": "fields",
+      "summary": "Search projects",
+      "apiEndpoint": {
+        "primary": "Project",
+        "expand": "BillingAndAllocationSettings"
+      },
+      "returns": {
+        "key": "ProjectID",
+        "name": "Description",
+        "branch": "From BillingAndAllocationSettings"
+      },
+      "scanThese": [
+        {
+          "file": "ProjectResponseAssembler.java",
+          "lines": "21",
+          "purpose": "Includes branch from billing settings"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchProjectTasks": {
+      "operationName": "searchProjectTasks",
+      "enumName": "SEARCH_PROJECT_TASKS",
+      "category": "fields",
+      "summary": "Search project tasks",
+      "apiEndpoint": "ProjectTask",
+      "returns": {
+        "key": "ProjectID/ProjectTaskID",
+        "name": "Description"
+      },
+      "scanThese": [
+        {
+          "file": "ProjectTaskResponseAssembler.java",
+          "lines": "8",
+          "purpose": "Combined project/task key"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchWarehouses": {
+      "operationName": "searchWarehouses",
+      "enumName": "SEARCH_WAREHOUSES",
+      "category": "fields",
+      "summary": "Search warehouses/sites",
+      "apiEndpoint": {
+        "primary": "Warehouse",
+        "filter": "Active=true"
+      },
+      "returns": {
+        "key": "WarehouseID",
+        "name": "Description"
+      },
+      "scanThese": [
+        {
+          "file": "WarehouseResponseAssembler.java",
+          "lines": "7",
+          "purpose": "Returns active warehouses only"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchTaxCodes": {
+      "operationName": "searchTaxCodes",
+      "enumName": "SEARCH_TAX_CODES",
+      "category": "fields",
+      "summary": "Search tax codes/rates",
+      "apiEndpoint": {
+        "primary": "TaxRate",
+        "expand": "TaxRateDetails"
+      },
+      "scanThese": [
+        {
+          "file": "AcumaticaDriver.java",
+          "lines": "333",
+          "purpose": "Tax rate with details expansion"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchCustomFields": {
+      "operationName": "searchCustomFields",
+      "enumName": "SEARCH_CUSTOM_FIELDS",
+      "category": "fields",
+      "summary": "Search custom field attributes",
+      "apiEndpoint": "Attribute",
+      "filter": "Not disabled",
+      "returns": {
+        "key": "ValueID",
+        "name": "Description"
+      },
+      "scanThese": [
+        {
+          "file": "AttributesResponseAssembler.java",
+          "lines": "28",
+          "purpose": "Attribute values where not disabled"
+        }
+      ],
+      "customFieldHandling": {
+        "byAttributeId": "Direct attribute ID reference",
+        "byUDF": "Usr-prefixed field names",
+        "helper": "Ensures Usr prefix and capitalization"
+      },
+      "kotlinStatus": "NOT_MIGRATED"
+    }
+  },
+  "fieldPatterns": {
+    "fetchMode": "All fetched realtime via REST (no caching)",
+    "characterLimits": "Not enforced in assemblers (no truncation)",
+    "customFields": {
+      "poContents": "Read by Attribute ID or Usr-prefixed names",
+      "usrPrefix": "Helper ensures proper Usr prefix/capitalization"
+    },
+    "activeFiltering": {
+      "warehouses": "Active=true filter",
+      "attributes": "Excludes disabled values"
+    }
+  },
+  "missingImplementations": [
+    {
+      "operation": "searchClasses",
+      "status": "Returns empty response",
+      "reason": "No endpoint call implemented"
+    },
+    {
+      "operation": "searchDepartments",
+      "status": "Not found",
+      "reason": "No Department endpoint or assembler exists"
+    }
+  ],
+  "relatedUtilities": {
+    "AcumaticaUtil": {
+      "line": "210",
+      "purpose": "Usr prefix helper for custom fields"
+    },
+    "GeneralResponseAssembler": {
+      "usage": "Standard formatting for simple endpoints"
+    }
+  }
+}

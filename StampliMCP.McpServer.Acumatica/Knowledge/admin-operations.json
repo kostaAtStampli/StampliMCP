@@ -1,0 +1,150 @@
+{
+  "category": "admin",
+  "description": "Connection, configuration, and administrative operations",
+  "operations": {
+    "connect": {
+      "operationName": "connect",
+      "enumName": "CONNECT",
+      "category": "admin",
+      "summary": "Establish connection to Acumatica instance",
+      "authentication": {
+        "endpoint": "/entity/auth/login",
+        "method": "POST",
+        "successCode": 204,
+        "fields": ["name", "password", "company"]
+      },
+      "errorHandling": {
+        "concurrentLimit": "Detects 'concurrent API login limit' message",
+        "raises": "AcumaticaApiException with isConcurrentApiLimit=true"
+      },
+      "scanThese": [
+        {
+          "file": "AuthenticationRestApiCaller.java",
+          "lines": "31",
+          "purpose": "Login with concurrent limit detection"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "disconnect": {
+      "operationName": "disconnect",
+      "enumName": "DISCONNECT",
+      "category": "admin",
+      "summary": "Close connection to Acumatica",
+      "endpoint": "/entity/auth/logout",
+      "method": "POST",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "getAccountConfig": {
+      "operationName": "getAccountConfig",
+      "enumName": "GET_ACCOUNT_CONFIG",
+      "category": "admin",
+      "summary": "Retrieve account configuration and settings",
+      "returns": "Configuration object with settings",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "validateConnection": {
+      "operationName": "validateConnection",
+      "enumName": "VALIDATE_CONNECTION",
+      "category": "admin",
+      "summary": "Test if connection is valid and active",
+      "implementation": "Attempts login and checks response",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "getVersion": {
+      "operationName": "getVersion",
+      "enumName": "GET_VERSION",
+      "category": "admin",
+      "summary": "Get Acumatica API version",
+      "endpoint": "/entity/Default/22.200.001",
+      "notes": "Version embedded in API path",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "getCompanies": {
+      "operationName": "getCompanies",
+      "enumName": "GET_COMPANIES",
+      "category": "admin",
+      "summary": "List available companies",
+      "notes": "Company parameter used in login",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "testApiAccess": {
+      "operationName": "testApiAccess",
+      "enumName": "TEST_API_ACCESS",
+      "category": "admin",
+      "summary": "Test API access permissions",
+      "implementation": "Tests various endpoints for access",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "getSystemStatus": {
+      "operationName": "getSystemStatus",
+      "enumName": "GET_SYSTEM_STATUS",
+      "category": "admin",
+      "summary": "Get system health and status",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "clearCache": {
+      "operationName": "clearCache",
+      "enumName": "CLEAR_CACHE",
+      "category": "admin",
+      "summary": "Clear local caches if any",
+      "notes": "Driver doesn't implement caching",
+      "kotlinStatus": "NOT_IMPLEMENTED"
+    }
+  },
+  "connectionManagement": {
+    "timeout": {
+      "connectionRequest": "60 minutes",
+      "connect": "60 minutes",
+      "response": "60 minutes",
+      "location": "AcumaticaUtil.java:133"
+    },
+    "retryLogic": {
+      "202Accepted": "Triggers retry loop",
+      "validateRelease": {
+        "configurable": true,
+        "params": ["validateReleaseInvoiceNumTries", "validateReleaseInvoiceTimeInterval"]
+      }
+    },
+    "errorParsing": {
+      "422": "Unprocessable entity - detailed messages",
+      "500": "Server error - extracts innerException",
+      "location": "RestApiCaller.java:177-227"
+    }
+  },
+  "apiConfiguration": {
+    "baseUrl": "https://{instance}/entity/Default/22.200.001",
+    "apiVersion": "22.200.001",
+    "pageSize": 2000,
+    "authPath": "/entity/auth/",
+    "endpoints": {
+      "login": "/entity/auth/login",
+      "logout": "/entity/auth/logout"
+    }
+  },
+  "errorMessages": {
+    "mapping": "AcumaticaErrorMessage.parseErrorMessage",
+    "aggregation": "From Details, Result, TaxDetails, Document fields",
+    "location": "AcumaticaErrorMessage.java:106",
+    "friendlyMessages": "Maps known Acumatica phrases to user-friendly text"
+  },
+  "performanceSettings": {
+    "defaultPageSize": 2000,
+    "paging": "Enabled where supported",
+    "noRateLimit": "Beyond 202 retry and concurrent login detection"
+  },
+  "unimplementedMethods": [
+    {
+      "method": "voidPayment(VoidPaymentRequest)",
+      "throws": "UnsupportedOperationException"
+    },
+    {
+      "method": "getGLCategoriesSearchList",
+      "throws": "UnsupportedOperationException"
+    },
+    {
+      "method": "getItemCategoriesSearchList",
+      "throws": "UnsupportedOperationException"
+    }
+  ]
+}

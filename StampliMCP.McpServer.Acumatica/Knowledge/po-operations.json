@@ -1,0 +1,209 @@
+{
+  "category": "purchaseOrders",
+  "description": "Purchase order operations including search, matching, and bill export with PO linkage",
+  "operations": {
+    "searchPurchaseOrders": {
+      "operationName": "searchPurchaseOrders",
+      "enumName": "SEARCH_PURCHASE_ORDERS",
+      "category": "purchaseOrders",
+      "summary": "Search and retrieve purchase orders from Acumatica",
+      "apiEndpoint": {
+        "primary": "PurchaseOrder",
+        "method": "GET",
+        "pageSize": 2000
+      },
+      "filters": {
+        "status": {
+          "normal": ["Open", "Completed", "Pending Email"],
+          "deltaImport": ["Closed", "Canceled"],
+          "description": "Status filter based on import type"
+        },
+        "orderNumber": {
+          "field": "OrderNbr",
+          "type": "string",
+          "optional": true
+        },
+        "vendorId": {
+          "field": "VendorID",
+          "type": "string",
+          "optional": true
+        },
+        "lastModified": {
+          "field": "LastModifiedDateTime",
+          "type": "datetime",
+          "usage": "Delta imports only"
+        }
+      },
+      "scanThese": [
+        {
+          "file": "AcumaticaPurchaseOrderImportHelper.java",
+          "lines": "64",
+          "purpose": "Fetches POs and PRs with metrics"
+        },
+        {
+          "file": "AcumaticaPoMatchingHelper.java",
+          "lines": "268-289",
+          "purpose": "PO header filters and fetch logic"
+        }
+      ],
+      "returns": {
+        "headers": "PO data with status, vendor, dates",
+        "lines": "UnBilledQty, UnBilledAmount per line",
+        "availability": "Excludes canceled/closed lines"
+      },
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "searchPurchaseReceipts": {
+      "operationName": "searchPurchaseReceipts",
+      "enumName": "SEARCH_PURCHASE_RECEIPTS",
+      "category": "purchaseOrders",
+      "summary": "Search purchase receipts for receipt-based billing",
+      "apiEndpoint": {
+        "primary": "PurchaseReceipt",
+        "filter": "Status=Released"
+      },
+      "filters": {
+        "status": "Released (always)",
+        "receiptNumber": {
+          "field": "ReceiptNbr",
+          "optional": true
+        },
+        "vendorId": {
+          "field": "VendorID",
+          "optional": true
+        },
+        "lastModified": {
+          "usage": "Via body for vendor+date fetch"
+        }
+      },
+      "scanThese": [
+        {
+          "file": "AcumaticaPoMatchingHelper.java",
+          "lines": "185-213",
+          "purpose": "PR item filters and fetch"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "exportBillMatchedToPOs": {
+      "operationName": "exportBillMatchedToPOs",
+      "enumName": "EXPORT_BILL_MATCHED_TO_POS",
+      "category": "purchaseOrders",
+      "summary": "Export bill with PO line matching",
+      "features": {
+        "multiPOSupport": "Single bill can match multiple POs/PRs",
+        "lineLevel": "Uses poLineId per line for matching",
+        "partialBilling": "Supports partial quantities/amounts"
+      },
+      "scanThese": [
+        {
+          "file": "AcumaticaPoMatchingHelper.java",
+          "lines": "214-260",
+          "purpose": "Receipt-based matching logic"
+        },
+        {
+          "file": "PurchaseOrderContentsResponseAssemblerUtil.java",
+          "lines": "265",
+          "purpose": "Multi-PO support via poLineId"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "exportPOMatchedBill": {
+      "operationName": "exportPOMatchedBill",
+      "enumName": "EXPORT_PO_MATCHED_BILL",
+      "category": "purchaseOrders",
+      "summary": "Export bill matched to purchase order",
+      "notes": "Similar to exportBillMatchedToPOs",
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "getPurchaseOrderContents": {
+      "operationName": "getPurchaseOrderContents",
+      "enumName": "GET_PURCHASE_ORDER_CONTENTS",
+      "category": "purchaseOrders",
+      "summary": "Get detailed PO line items",
+      "lineDetails": {
+        "quantities": ["UnBilledQty", "QtyOnReceipts"],
+        "financial": ["rate", "amount", "taxCode", "taxAmount"],
+        "dimensions": ["GL/subaccount", "project/task", "warehouse", "costCode"],
+        "metadata": "Generated hidden id for matching"
+      },
+      "scanThese": [
+        {
+          "file": "PurchaseOrderContentsResponseAssemblerUtil.java",
+          "lines": "171-317",
+          "purpose": "Line item assembly with all fields"
+        },
+        {
+          "file": "PurchaseOrderContentsResponseAssemblerUtil.java",
+          "lines": "344-381",
+          "purpose": "Unbilled metrics and line inclusion logic"
+        }
+      ],
+      "businessRules": {
+        "lineInclusion": "UnBilledQty > 0 OR UnBilledAmount != 0",
+        "closedPOs": "Header marked toBeDeleted=true",
+        "canceledLines": "Excluded from results"
+      },
+      "kotlinStatus": "NOT_MIGRATED"
+    },
+    "importPurchaseOrders": {
+      "operationName": "importPurchaseOrders",
+      "enumName": "IMPORT_PURCHASE_ORDERS",
+      "category": "purchaseOrders",
+      "summary": "Import POs for matching and reference",
+      "modes": {
+        "standard": "Open, Completed, Pending Email statuses",
+        "delta": "Includes Closed/Canceled with lastModified filter",
+        "receiptBased": "Uses BillingBasedOn field for PR selection"
+      },
+      "scanThese": [
+        {
+          "file": "AcumaticaPoMatchingHelper.java",
+          "lines": "260",
+          "purpose": "BillingBasedOn determines receipt items"
+        },
+        {
+          "file": "PurchaseOrderResponseAssemblerUtil.java",
+          "lines": "87",
+          "purpose": "Closed/Canceled marked as toBeDeleted"
+        }
+      ],
+      "kotlinStatus": "NOT_MIGRATED"
+    }
+  },
+  "poMatchingLogic": {
+    "approach": "Line-by-line matching with unbilled quantity/amount tracking",
+    "partialSupport": "Yes - tracks UnBilledQty and UnBilledAmount per line",
+    "multiPO": "Supported via poLineId per line item",
+    "receiptBased": {
+      "trigger": "BillingBasedOn field",
+      "filter": "UnBilledQty > 0 on PR items"
+    },
+    "closedHandling": {
+      "header": "toBeDeleted=true for Closed/Canceled",
+      "lines": "Excluded if canceled/closed or unbilled=0"
+    }
+  },
+  "customFields": {
+    "reading": "Via Attribute ID or Usr-prefixed UDF names",
+    "helper": "Ensures Usr prefix and proper capitalization",
+    "scanThese": [
+      {
+        "file": "AcumaticaPurchaseOrderImportHelper.java",
+        "lines": "193",
+        "purpose": "Custom field extraction"
+      },
+      {
+        "file": "AcumaticaUtil.java",
+        "lines": "210",
+        "purpose": "Usr prefix helper"
+      }
+    ]
+  },
+  "performance": {
+    "pageSize": 2000,
+    "paging": "Enabled where supported",
+    "taxCalculation": "Via tax zones for line items"
+  }
+}

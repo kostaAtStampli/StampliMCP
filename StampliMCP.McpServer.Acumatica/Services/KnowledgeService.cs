@@ -70,14 +70,48 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
                 try
                 {
                     entry.SetOptions(_cacheOptions);
-                    var json = await ReadEmbeddedResourceAsync($"operations.{category}.json", ct);
-                    var data = JsonSerializer.Deserialize<OperationsFile>(json, _jsonOptions);
-                    var ops = data?.Operations ?? [];
+
+                    // Map category to the appropriate knowledge file
+                    var knowledgeFile = category switch
+                    {
+                        "payments" => "payment-operations.json",
+                        "purchaseOrders" => "po-operations.json",
+                        "accounts" => "account-operations.json",
+                        "fields" => "field-operations.json",
+                        "admin" => "admin-operations.json",
+                        "vendors" => "vendor-operations.json", // Future file when we create it
+                        "items" => "item-operations.json", // Future file
+                        _ => $"operations.{category}.json" // Fallback to old pattern
+                    };
+
+                    var json = await ReadEmbeddedResourceAsync(knowledgeFile, ct);
+
+                    // Parse the JSON structure which has operations as a nested object
+                    var document = JsonDocument.Parse(json);
+                    var ops = new List<Operation>();
+
+                    if (document.RootElement.TryGetProperty("operations", out var operationsElement))
+                    {
+                        // New structure: { "operations": { "opName": {...}, ... } }
+                        foreach (var opProperty in operationsElement.EnumerateObject())
+                        {
+                            var op = JsonSerializer.Deserialize<Operation>(opProperty.Value.GetRawText(), _jsonOptions);
+                            if (op != null)
+                            {
+                                ops.Add(op);
+                            }
+                        }
+                    }
+                    else if (document.RootElement.TryGetProperty("Operations", out var operationsArray))
+                    {
+                        // Old structure: { "Operations": [...] }
+                        ops = JsonSerializer.Deserialize<List<Operation>>(operationsArray.GetRawText(), _jsonOptions) ?? [];
+                    }
 
                     // Also store in concurrent dictionary for fast lookup
                     _operationsByCategory.TryAdd(category, ops);
 
-                    logger.LogInformation("Loaded {Count} operations for {Category} from embedded resources", ops.Count, category);
+                    logger.LogInformation("Loaded {Count} operations for {Category} from {File}", ops.Count, category, knowledgeFile);
                     return ops;
                 }
                 catch (Exception ex)
