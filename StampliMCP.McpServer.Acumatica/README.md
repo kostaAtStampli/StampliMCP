@@ -2,12 +2,12 @@
 
 **Model Context Protocol (MCP) server providing intelligent access to Acumatica ERP integration knowledge.**
 
-**Status:** ✅ 90% Golden - Production Ready  
-**Build:** ✅ Success (0 errors)  
-**Tests:** ✅ 32/32 Passed  
-**Operations:** 51 indexed, 12 fully detailed, 39 with pattern references  
-**Tools:** 9 MCP tools  
-**Knowledge:** 13 JSON files (~40 KB)
+**Status:** ✅ Production Ready (v4.0.0 - Composable Architecture)
+**Build:** ✅ Success (0 errors)
+**Tests:** ✅ 10/10 MinimalTests Passing
+**MCP Primitives:** 9 Tools + 5 Prompts = 14 total
+**Operations:** 48 operations across 9 flows
+**Knowledge:** 13 Kotlin files + 10 operation JSON files (~40 KB)
 
 ## What is this?
 
@@ -33,20 +33,33 @@ Instead of dumping 5000-line JSON blobs:
 
 **Result:** ~10KB context usage vs 50KB+ dumping everything
 
-## MCP Tools (7 Tools)
+## MCP Tools (9 Composable Tools)
 
-### Discovery Tools
-1. **`list_categories`** - List all 9 operation categories
-2. **`list_operations`** - List operations (all or filtered by category)
-3. **`search_operations`** - Search by keyword
+### v4.0 Composable Flow Tools
+1. **`query_acumatica_knowledge`** - Search operations/flows by keyword (entry point)
+2. **`recommend_flow`** - Get recommended TDD flow with confidence score
+3. **`get_flow_details`** - Get flow anatomy, steps, and critical constants
+4. **`validate_request`** - Validate feature request against operation schemas
+5. **`diagnose_error`** - Root cause analysis for integration errors
 
-### Operation Details
-4. **`get_operation`** - Full operation details with code pointers, schemas, errors
-5. **`get_operation_flow`** - End-to-end call chain through layers
+### Kotlin TDD Tools
+6. **`get_kotlin_golden_reference`** - Get Kotlin golden reference files
+7. **`kotlin_tdd_workflow`** - Complete TDD workflow with structured output
 
-### Reference Data
-6. **`get_enums`** - All 6 enum types with mappings
-7. **`get_test_config`** - Test customer config + golden examples
+### Diagnostic Tools
+8. **`health_check`** - Server health, version, and buildId verification
+9. **`check_knowledge_files`** - Verify all knowledge files loaded correctly
+
+## MCP Prompts (5 Interactive Conversations)
+
+### Conversational Workflows
+1. **`kotlin_tdd_tasklist`** - Autonomous 7-step TDD workflow conversation
+2. **`implement_feature_guided`** - Interactive pair-programming TDD session
+3. **`plan_comprehensive_tests`** - QA test planning conversation
+4. **`debug_with_expert`** - Senior developer debugging conversation
+5. **`analyze_integration_strategy`** - Solutions architect planning conversation
+
+**Note:** Prompts provide guided conversations, while tools return structured data.
 
 ## Knowledge Files
 

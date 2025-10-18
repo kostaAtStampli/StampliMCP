@@ -1,5 +1,5 @@
-# 🚀 Nuclear MCP 2025 v2.0.0 - Deployment & Usage Guide
-## Now with Interactive Prompts! 💬
+# 🚀 Nuclear MCP v4.0.0 - Deployment & Usage Guide
+## Composable Architecture with Interactive Prompts! 💬
 
 ## 📦 Release Build Location
 
@@ -16,13 +16,14 @@ C:\Users\Kosta\source\repos\StampliMCP\
 ```
 
 ### 📊 Build Details
-- **Version**: 2.0.0 (NEW: Interactive Prompts feature!)
+- **Version**: 4.0.0-BUILD_2025_10_18_PROMPT_FIX
 - **Type**: Self-contained Release (includes .NET 10 runtime)
 - **Platform**: Windows x64
 - **Size**: ~31 MB (single file + Knowledge folder)
-- **Features**: 10 Tools + 4 Prompts = 14 MCP primitives
+- **Features**: **9 Tools + 5 Prompts = 14 MCP primitives**
 - **Dependencies**: ZERO (no .NET runtime needed)
-- **AOT**: Not compiled (requires C++ build tools - see below)
+- **Protocol**: MCP 2025-06-18 (Composable tools, elicitation, structured outputs)
+- **SDK Workaround**: Explicit prompt registration (0.4.0-preview.2 bug fix)
 
 ---
 
@@ -72,12 +73,32 @@ Mac: ~/Library/Application Support/Claude/claude_desktop_config.json
 - Click 🔌 icon (bottom-right)
 - Should see "stampli-acumatica" with ✅ **Connected**
 
-#### Step 4: Use Nuclear Tools
-In Claude chat:
-```
-You: Use implement_kotlin_feature to add vendor bulk import
+#### Step 4: Use MCP Tools & Prompts
 
-Claude: [Calls MCP tool, returns 7-step enforced TDD workflow]
+**9 Composable Tools:**
+- `query_acumatica_knowledge` - Search operations/flows
+- `recommend_flow` - Get TDD flow with confidence score
+- `get_flow_details` - Flow anatomy and steps
+- `validate_request` - Validate against schemas
+- `diagnose_error` - Root cause analysis
+- `get_kotlin_golden_reference` - Golden reference files
+- `kotlin_tdd_workflow` - Complete TDD workflow
+- `health_check` - Server health verification
+- `check_knowledge_files` - Knowledge verification
+
+**5 Interactive Prompts:**
+- `kotlin_tdd_tasklist` - Autonomous 7-step TDD workflow
+- `implement_feature_guided` - Pair-programming TDD session
+- `plan_comprehensive_tests` - QA test planning
+- `debug_with_expert` - Debugging conversation
+- `analyze_integration_strategy` - Architecture planning
+
+**Example Usage:**
+```
+You: Use implement_feature_guided to add vendor bulk import
+
+Claude: [Starts interactive TDD conversation, guides through:
+         Discover → Query → Scan → Test(RED) → Implement → Test(GREEN)]
 ```
 
 ---
@@ -99,14 +120,8 @@ Open Cline Settings → MCP Servers → Add:
 }
 ```
 
-#### Step 3: Use Tools
-Cline will auto-discover:
-- `implement_kotlin_feature`
-- `get_operation_details`
-- `list_categories`
-- `search_operations`
-- `get_enums`
-- `get_error_catalog`
+#### Step 3: Use Tools & Prompts
+Cline will auto-discover all 9 tools + 5 prompts (see list above)
 
 ---
 

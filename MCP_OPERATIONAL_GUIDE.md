@@ -94,6 +94,27 @@ tail -1 /mnt/c/Users/Kosta/AppData/Local/Temp/mcp_logs/mcp_responses_*.jsonl
 }
 ```
 
+## Verify MCP Capabilities
+
+### Check Tools & Prompts Registered
+```bash
+# After MCP reconnect, verify in Claude CLI:
+# Should see:
+# Capabilities: tools, prompts
+
+# Or via health_check tool:
+claude --print "Call health_check tool from stampli-acumatica"
+# Expected: version: "4.0.0-BUILD_2025_10_18_PROMPT_FIX"
+```
+
+### Expected Counts
+- ✅ **9 Tools**: query_acumatica_knowledge, recommend_flow, get_flow_details, validate_request, diagnose_error, get_kotlin_golden_reference, kotlin_tdd_workflow, health_check, check_knowledge_files
+- ✅ **5 Prompts**: kotlin_tdd_tasklist, implement_feature_guided, plan_comprehensive_tests, debug_with_expert, analyze_integration_strategy
+
+**SDK 0.4.0-preview.2 Workaround:**
+- Program.cs uses explicit `.WithPrompts<T>()` per prompt (not `.WithPromptsFromAssembly()`)
+- All prompt classes are `sealed` (not `static`) to work with generic registration
+
 ## Debugging & Verification
 
 ### Check Log Timestamps (CRITICAL!)
