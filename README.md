@@ -1,14 +1,6 @@
 # Acumatica MCP Server
 
-MCP (Model Context Protocol) server providing AI access to Acumatica ERP integration patterns from a legacy Java codebase.
-
-## What This Is
-
-A **real MCP protocol implementation** (not REST API) that gives LLMs surgical, context-efficient access to:
-- 48 Acumatica operations across 7 categories
-- Code pointers to Java implementation (file + line ranges)
-- Request/response schemas with validation rules
-- Error catalogs and golden test examples
+MCP (Model Context Protocol) server for Acumatica ERP integration - provides AI with surgical access to 48 operations across 7 categories via code pointers instead of document dumps.
 
 ## Installation
 
@@ -40,18 +32,20 @@ mcp__stampli-acumatica__query_acumatica_knowledge("payment")
 // Returns: Operations related to payments
 ```
 
-### Available MCP Tools
+### MCP Tools (10)
 
-1. **query_acumatica_knowledge** - Natural language search for operations/flows
-2. **health_check** - Server status and version info
-3. **kotlin_tdd_workflow** - Complete TDD implementation workflow
-4. **recommend_flow** - AI-powered integration pattern recommendation
-5. **get_flow_details** - Detailed flow anatomy with constants
-6. **validate_request** - Pre-flight validation of JSON payloads
-7. **diagnose_error** - Root cause analysis for Acumatica errors
-8. **get_kotlin_golden_reference** - Kotlin patterns (exportVendor only implemented)
-9. **check_knowledge_files** - List all 48 embedded knowledge files
-10. **challenge_scan_findings** - Verify scan accuracy (enforces double-checking)
+| Tool | Purpose |
+|------|---------|
+| `query_acumatica_knowledge` | Search operations/flows |
+| `kotlin_tdd_workflow` | TDD implementation workflow |
+| `recommend_flow` | AI flow recommendation |
+| `validate_request` | Pre-flight validation |
+| `diagnose_error` | Error root cause analysis |
+| `get_kotlin_golden_reference` | Kotlin patterns (exportVendor) |
+| `get_flow_details` | Flow anatomy/constants |
+| `health_check` | Server status |
+| `check_knowledge_files` | List 48 embedded files |
+| `challenge_scan_findings` | Verify scan accuracy |
 
 ## Build & Deploy
 

@@ -1,28 +1,18 @@
 # Technical Reference
 
-## WSL Path Quirks (Critical!)
+## Critical WSL/Windows Path Quirks
 
-### Publishing Trap
 ```bash
-# WRONG - Creates C:\home\kosta\ on Windows!
--o /home/kosta/
+# Publishing: NEVER use WSL paths for output!
+-o /home/kosta/              # ❌ Creates C:\home\kosta\
+-o "C:\home\kosta"           # ✅ Correct Windows path
 
-# CORRECT - Explicit Windows path
--o "C:\home\kosta"
-```
+# In C# code: MCP runs as Windows .exe
+@"C:\STAMPLI4\..."           # ✅ Native Windows path
+"/mnt/c/STAMPLI4/..."        # ❌ Becomes C:\mnt\c\STAMPLI4
 
-### Windows .exe Path Interpretation
-```csharp
-// MCP server runs as Windows .exe
-@"C:\STAMPLI4\..."     // ✅ Correct
-"/mnt/c/STAMPLI4/..."  // ❌ Becomes C:\mnt\c\STAMPLI4
-```
-
-### WSL to Windows Path Conversion
-```bash
-# Always quote paths with spaces!
-"/mnt/c/Program Files/dotnet/dotnet.exe"  # Quoted
-/mnt/c/Users/Kosta/source/repos           # No spaces, no quotes needed
+# WSL commands: Quote paths with spaces
+"/mnt/c/Program Files/dotnet/dotnet.exe"  # ✅ Quoted
 ```
 
 ## Process Management
@@ -104,21 +94,13 @@ public sealed record Operation
 
 ## Common Issues & Solutions
 
-### Empty Query Results
-**Cause**: JSON structure mismatch with Operation model
-**Fix**: Ensure RequiredFields are FieldInfo objects, not strings
-
-### MCP Not Reconnecting
-**Cause**: Claude doesn't auto-reconnect after process restart
-**Fix**: Manually run `/mcp` command
-
-### Build Access Denied
-**Cause**: stampli-mcp-acumatica.exe still running
-**Fix**: `taskkill /F /IM stampli-mcp-acumatica.exe`
-
-### Knowledge Not Updating
-**Cause**: Files are embedded resources
-**Fix**: Rebuild project after changing Knowledge/*.json
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Empty query results | JSON structure mismatch | RequiredFields must be FieldInfo objects, not strings |
+| MCP not reconnecting | Claude doesn't auto-reconnect | Run `/mcp` command manually |
+| Build access denied | exe still running | `taskkill /F /IM stampli-mcp-acumatica.exe` |
+| Knowledge not updating | Embedded resources | Rebuild after changing Knowledge/*.json |
+| Wrong error category | Pattern missing | Check ErrorDiagnosticTool.CategorizeError() |
 
 ## Testing Checklist
 

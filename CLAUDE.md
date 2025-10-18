@@ -1,16 +1,9 @@
 # Acumatica MCP Server Context
 
-## Project Identity
-MCP server for Acumatica ERP integration knowledge
-Version: 4.0.0 (October 2025)
-Protocol: MCP 2025-06-18
-Build: BUILD_2025_10_18_PROMPT_FIX
+**Version**: 4.0.0 | **Build**: BUILD_2025_10_18_PROMPT_FIX | **Protocol**: MCP 2025-06-18
 
-## Architecture Overview
-- **10 MCP tools** for querying 48 operations across 7 categories
-- **Knowledge**: 48 embedded resources (JSON/MD/XML files)
-- **Pattern**: Code GPS not document dumper - returns pointers to Java legacy code
-- **Server**: Self-contained Windows exe (~31 MB) with embedded .NET runtime
+10 tools, 48 operations, 7 categories. Returns code pointers not document dumps.
+Self-contained Windows exe (~31 MB) with embedded knowledge.
 
 ## Key MCP Tools
 1. `query_acumatica_knowledge` - Natural language search for operations
@@ -42,21 +35,21 @@ Build: BUILD_2025_10_18_PROMPT_FIX
 /mcp
 ```
 
-## Critical Development Rules
-- **ALWAYS kill process before rebuild** - exe gets locked
-- **Use Windows paths in C#**: `@"C:\STAMPLI4\..."` not `/mnt/c/`
-- **Rebuild after knowledge changes** - files are embedded resources
-- **EnumName is nullable** in Operation model - not all ops have enums
-- **FieldInfo objects required** - not plain strings in JSON
-- **Test queries after reconnect** - MCP doesn't auto-reconnect
+## Critical Rules & Quirks
 
-## Do NOT
-- Edit legacy Java files directly
-- Create documentation unless explicitly requested
-- Add emojis unless user asks
-- Assume tool counts from old docs (was wrong everywhere)
-- Use `/home/kosta` for publish (creates `C:\home\kosta` instead!)
-- Trust path conversions - be explicit with C:\ paths
+**MUST DO:**
+- Kill process before rebuild (exe gets locked)
+- Use `@"C:\STAMPLI4\..."` in C# code (NOT `/mnt/c/`)
+- Rebuild after Knowledge/*.json changes (embedded)
+- Run `/mcp` after rebuild (no auto-reconnect)
+- Use FieldInfo objects in JSON (not strings)
+
+**NEVER:**
+- Edit Java files directly
+- Create docs unless asked
+- Add emojis unless requested
+- Use `/home/kosta` for publish (creates `C:\home\kosta\`!)
+- Return "Unknown" error category (use "GeneralError")
 
 ## Recent Fixes
 - Fixed vendor-operations.json and item-operations.json structure
