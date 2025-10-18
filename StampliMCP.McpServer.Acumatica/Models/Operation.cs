@@ -3,7 +3,7 @@ namespace StampliMCP.McpServer.Acumatica.Models;
 public sealed record Operation
 {
     required public string Method { get; init; }
-    required public string EnumName { get; init; }
+    public string? EnumName { get; init; }  // Made nullable - not all operations have enum names
     required public string Summary { get; init; }
     required public string Category { get; init; }
     public Dictionary<string, FieldInfo> RequiredFields { get; init; } = [];

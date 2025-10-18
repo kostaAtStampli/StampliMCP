@@ -7,7 +7,7 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 [McpServerToolType]
 public static class DiagnosticTools
 {
-    [McpServerTool(Name = "health_check")]
+    [McpServerTool(Name = "health_check", Title = "Health Check")]
     [Description("Simple health check to verify MCP server is running and responsive")]
     public static Task<object> HealthCheck()
     {
@@ -42,7 +42,7 @@ public static class DiagnosticTools
         });
     }
 
-    [McpServerTool(Name = "check_knowledge_files")]
+    [McpServerTool(Name = "check_knowledge_files", Title = "Check Knowledge Files")]
     [Description("Check which Knowledge files are available as embedded resources")]
     public static Task<object> CheckKnowledgeFiles()
     {

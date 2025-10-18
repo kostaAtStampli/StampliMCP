@@ -1,0 +1,32 @@
+{
+  "operations": {
+    "searchItems": {
+      "method": "searchItems",
+      "enumName": "SEARCH_ITEMS",
+      "summary": "Search and merge results from TWO endpoints: StockItem + NonStockItem",
+      "category": "items",
+      "requiredFields": {}
+    },
+    "importItems": {
+      "method": "importItems",
+      "enumName": "IMPORT_ITEMS",
+      "summary": "Import/create items in Acumatica (NOT IMPLEMENTED)",
+      "category": "items",
+      "requiredFields": {}
+    },
+    "getItemContents": {
+      "method": "getItemContents",
+      "enumName": "GET_ITEM_CONTENTS",
+      "summary": "Get detailed item information with GL accounts",
+      "category": "items",
+      "requiredFields": {}
+    },
+    "searchItemCategories": {
+      "method": "searchItemCategories",
+      "enumName": "SEARCH_ITEM_CATEGORIES",
+      "summary": "Search for item categories (BROKEN - throws UnsupportedOperationException)",
+      "category": "items",
+      "requiredFields": {}
+    }
+  }
+}
