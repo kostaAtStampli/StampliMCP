@@ -12,7 +12,11 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 [McpServerToolType]
 public static class GetKotlinGoldenReferenceTool
 {
-    [McpServerTool(Name = "get_kotlin_golden_reference")]
+    [McpServerTool(
+        Name = "get_kotlin_golden_reference",
+        Title = "Kotlin Golden Reference",
+        UseStructuredContent = true
+    )]
     [Description(@"
 MANDATORY PREREQUISITE for kotlin_tdd_workflow tool.
 
@@ -39,7 +43,7 @@ Use exportVendor patterns to implement new Kotlin operations.
 
             // GUARANTEED FILE READING - C# does this, not Claude
             // NOTE: MCP server runs as Windows .exe, so use Windows paths (C:\) not WSL paths (/mnt/c/)
-            var basePath = @"C:\STAMPLI4\core\kotlin-drivers\kotlin-acumatica-driver\src\main\kotlin\com\stampli\kotlin\acumatica\driver";
+            var basePath = @"C:\STAMPLI4\core\finsys-modern\kotlin-acumatica-driver\src\main\kotlin\com\stampli\kotlin\acumatica\driver";
 
             var driverPath = Path.Combine(basePath, "KotlinAcumaticaDriver.kt");
             var handlerPath = Path.Combine(basePath, "vendor", "CreateVendorHandler.kt");

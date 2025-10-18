@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 namespace StampliMCP.McpServer.Acumatica.Prompts;
 
 [McpServerPromptType]
-public static class AnalyzeIntegrationPrompt
+public sealed class AnalyzeIntegrationPrompt
 {
     [McpServerPrompt(Name = "analyze_integration_strategy")]
     [Description("Strategic planning conversation for complex integrations. AI acts as solutions architect, breaking down features into operations, estimating effort, identifying risks. More engaging than tool output.")]

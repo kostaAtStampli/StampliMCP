@@ -13,7 +13,11 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 public static class KotlinTddWorkflowTool
 {
 
-    [McpServerTool(Name = "kotlin_tdd_workflow")]
+    [McpServerTool(
+        Name = "kotlin_tdd_workflow",
+        Title = "Kotlin TDD Workflow Generator",
+        UseStructuredContent = true
+    )]
     [Description(@"
 TDD Workflow tool for Kotlin Acumatica implementation using FLOW-BASED architecture.
 

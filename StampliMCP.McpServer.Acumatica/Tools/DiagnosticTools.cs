@@ -18,7 +18,8 @@ public static class DiagnosticTools
         {
             status = "ok",
             smokeTest = "kosta_2025_flow_based",
-            version = "3.0.0",
+            version = "4.0.0",
+            buildId = "BUILD_2025_10_18_PROMPT_FIX", // UNIQUE MARKER - Proves tokenization + explicit prompt registration (SDK bug workaround)
             kotlinGoldenReference = "TOOL_BASED_2025_10_15", // UNIQUE MARKER - Kotlin via dedicated tool now
             workflow = "get_kotlin_golden_reference_MANDATORY", // Must call get_kotlin_golden_reference before kotlin_tdd_workflow
             toolArchitecture = "NUCLEAR_FIX_FILE_READING_IN_CSHARP", // C# reads Kotlin files, not Claude scanning

@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 namespace StampliMCP.McpServer.Acumatica.Prompts;
 
 [McpServerPromptType]
-public static class KotlinFeaturePrompt
+public sealed class KotlinFeaturePrompt
 {
     [McpServerPrompt(Name = "implement_feature_guided")]
     [Description("Interactive TDD workflow conversation that guides AI through implementing Kotlin feature step-by-step. More engaging than tool - AI feels like it's pair-programming with senior developer.")]

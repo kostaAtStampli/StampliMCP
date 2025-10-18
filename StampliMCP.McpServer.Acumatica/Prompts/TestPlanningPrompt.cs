@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 namespace StampliMCP.McpServer.Acumatica.Prompts;
 
 [McpServerPromptType]
-public static class TestPlanningPrompt
+public sealed class TestPlanningPrompt
 {
     [McpServerPrompt(Name = "plan_comprehensive_tests")]
     [Description("QA engineer conversation for test planning. AI generates comprehensive test scenarios: happy path, edge cases, error cases, performance, security. More engaging than tool - feels like collaborative test design session.")]

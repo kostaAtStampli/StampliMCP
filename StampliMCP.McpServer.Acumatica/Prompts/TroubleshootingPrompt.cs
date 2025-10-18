@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 namespace StampliMCP.McpServer.Acumatica.Prompts;
 
 [McpServerPromptType]
-public static class TroubleshootingPrompt
+public sealed class TroubleshootingPrompt
 {
     [McpServerPrompt(Name = "debug_with_expert")]
     [Description("Interactive debugging conversation with expert AI. Analyzes errors, identifies root cause, provides fix steps and prevention strategies. Like pair-programming with senior developer during crisis.")]

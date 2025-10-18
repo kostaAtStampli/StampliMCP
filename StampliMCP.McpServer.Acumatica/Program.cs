@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Serilog;
 using Serilog.Formatting.Compact;
+using StampliMCP.McpServer.Acumatica.Prompts;
 using StampliMCP.McpServer.Acumatica.Services;
 
 // Configure Serilog before creating host
@@ -65,27 +66,40 @@ builder.Services.AddSingleton<JsonFileLogger>();
 // Register MCP response logger (for test ground truth validation)
 builder.Services.AddSingleton<McpResponseLogger>();
 
-// Configure MCP server with single entry point architecture
+// Configure MCP server with composable knowledge architecture
 builder.Services
     .AddMcpServer(options =>
     {
         options.ServerInfo = new()
         {
             Name = "stampli-acumatica",
-            Version = "3.0.0" // Major version for single entry point architecture
+            Version = "4.0.0-BUILD_2025_10_18_PROMPT_FIX" // Protocol 2025-06-18: Composable tools, elicitation, structured outputs + tokenization fix + EXPLICIT PROMPT REGISTRATION (SDK 0.4.0-preview.2 bug workaround)
         };
+
+        // Note: Elicitation is a CLIENT capability, not server
+        // Servers request elicitation via McpServer.ElicitAsync<T>()
     })
     .WithStdioServerTransport() // stdio is default for MCP
-    .WithToolsFromAssembly(); // Still auto-discover but only decorated tools will be found
+    .WithToolsFromAssembly() // Auto-discover tools
+    // WORKAROUND: WithPromptsFromAssembly() broken in 0.4.0-preview.2 (fixed in later versions)
+    // GitHub PR "Fixing WithPromptsFromAssembly" merged after 0.4.0-preview.2
+    // Using explicit .WithPrompts<T>() registration with NON-STATIC classes
+    // Made all prompt classes sealed (non-static) so generic overload works
+    .WithPrompts<KotlinTddTasklistPrompt>()
+    .WithPrompts<TestPlanningPrompt>()
+    .WithPrompts<TroubleshootingPrompt>()
+    .WithPrompts<AnalyzeIntegrationPrompt>()
+    .WithPrompts<KotlinFeaturePrompt>()
+    .WithResourcesFromAssembly(); // Auto-discover MCP resources
 
 var app = builder.Build();
 
     // Log startup information
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("StampliMCP Acumatica Server v3.0.0 starting - Single Entry Point Architecture");
-    logger.LogInformation("Main Tool: kotlin_tdd_workflow (start, continue, query, list)");
-    logger.LogInformation("Diagnostic: health_check for system verification");
-    logger.LogInformation("All other tools are now internal helpers, not exposed to MCP");
+    logger.LogInformation("StampliMCP Acumatica Server v4.0.0 - Protocol 2025-06-18 Composable Architecture");
+    logger.LogInformation("Composable Tools (9): query_acumatica_knowledge, get_flow_details, recommend_flow, validate_request, diagnose_error, get_kotlin_golden_reference, kotlin_tdd_workflow, health_check, check_knowledge_files");
+    logger.LogInformation("Features: Structured outputs, Elicitation (interactive refinement), Tool chaining (resource links)");
+    logger.LogInformation("Knowledge: 48 operations, 9 flows, Kotlin golden reference (exportVendor)");
 
     await app.RunAsync();
 

@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 namespace StampliMCP.McpServer.Acumatica.Prompts;
 
 [McpServerPromptType]
-public static class KotlinTddTasklistPrompt
+public sealed class KotlinTddTasklistPrompt
 {
     [McpServerPrompt(Name = "kotlin_tdd_tasklist")]
     [Description("Enforces strict format for Kotlin TDD implementation tasklist. Returns conversation that primes AI to output ═══ FILES SCANNED ═══ format with Constants/Methods/Patterns proof, followed by RED→GREEN→REFACTOR steps. Use this instead of calling kotlin_tdd_workflow tool directly when you need format compliance.")]

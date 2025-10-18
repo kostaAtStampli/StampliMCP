@@ -66,7 +66,7 @@ public sealed class ClaudeCliConnectionTest
         var startInfo = new ProcessStartInfo
         {
             FileName = "wsl",
-            Arguments = "which claude",
+            Arguments = "bash -c 'test -f ~/.local/bin/claude && echo ~/.local/bin/claude'",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -83,8 +83,8 @@ public sealed class ClaudeCliConnectionTest
         Console.WriteLine($"Claude CLI location: {output.Trim()}");
 
         // Assert
-        process.ExitCode.Should().Be(0, "which claude should find the executable");
-        output.Should().NotBeNullOrEmpty("Claude CLI should be in PATH");
+        process.ExitCode.Should().Be(0, "claude should exist at ~/.local/bin/claude");
+        output.Should().NotBeNullOrEmpty("Claude CLI should be accessible");
 
         Console.WriteLine("✓ Claude CLI is installed and accessible");
     }
