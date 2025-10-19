@@ -229,59 +229,115 @@ Examples:
 
     private static Task<FlowRecommendation> RecommendFlowByKeywords(string useCase, CancellationToken ct)
     {
-        var lowerCase = useCase.ToLower();
-
-        // Keyword-based flow matching with confidence scores
+        // Use smart matcher with SearchValues (7x faster than Contains)
+        var analysis = Services.SmartFlowMatcher.AnalyzeQuery(useCase);
         var matches = new List<(string flow, double confidence, string reason)>();
 
-        if (lowerCase.Contains("vendor") && (lowerCase.Contains("export") || lowerCase.Contains("send") || lowerCase.Contains("sync")))
-            matches.Add(("vendor_export_flow", 0.95, "Detected vendor export scenario with validation + UI link generation"));
+        // Extract flags from analysis
+        var hasImport = analysis.Actions.Any(a => a is "import" or "get" or "fetch" or "retrieve");
+        var hasExport = analysis.Actions.Any(a => a is "export" or "send" or "create" or "sync");
+        var hasSubmit = analysis.Actions.Any(a => a is "submit" or "release");
 
-        if (lowerCase.Contains("payment") || lowerCase.Contains("pay"))
+        var hasVendor = analysis.Entities.Contains("vendor");
+        var hasInvoice = analysis.Entities.Contains("invoice");
+        var hasPayment = analysis.Entities.Contains("payment");
+        var hasItem = analysis.Entities.Contains("item");
+        var hasPO = analysis.Entities.Any(e => e is "po" or "purchase" or "order");
+        var hasTransaction = analysis.Entities.Contains("transaction");
+
+        // Check for special keywords in original words
+        var hasMatch = analysis.Words.Any(w => w.Contains("match"));
+        var hasReceipt = analysis.Words.Any(w => w.Contains("receipt"));
+        var hasFull = analysis.Words.Any(w => w is "full" or "complete" or "all");
+        var hasInternational = analysis.Words.Any(w => w is "international" or "currency" or "multicurrency");
+        var hasM2M = analysis.Words.Any(w => w is "many" or "m2m" or "relationship");
+
+        // Smart entity-specific matching (fixes "import items" bug!)
+        if (hasImport && hasItem)
+            matches.Add(("standard_import_flow", 0.95, "Import items from Acumatica"));
+
+        if (hasImport && hasVendor)
+            matches.Add(("standard_import_flow", 0.95, "Import vendors from Acumatica"));
+
+        if (hasExport && hasVendor)
+            matches.Add(("vendor_export_flow", 0.95, "Export/create vendors in Acumatica with validation + UI links"));
+
+        if (hasPayment)
         {
-            if (lowerCase.Contains("international") || lowerCase.Contains("currency"))
-                matches.Add(("payment_flow", 0.95, "International payment with cross-rate calculation required"));
+            if (hasInternational)
+                matches.Add(("payment_flow", 0.95, "International payment with cross-rate calculation"));
+            else if (hasExport)
+                matches.Add(("payment_flow", 0.90, "Export bill payments to Acumatica"));
+            else if (hasImport)
+                matches.Add(("standard_import_flow", 0.85, "Import payment data"));
             else
                 matches.Add(("payment_flow", 0.85, "Payment processing flow"));
         }
 
-        if (lowerCase.Contains("import") && !lowerCase.Contains("po") && !lowerCase.Contains("purchase"))
-            matches.Add(("standard_import_flow", 0.90, "Standard paginated import (2000 rows/page) with auth wrapper"));
-
-        if (lowerCase.Contains("purchase order") || lowerCase.Contains("po"))
+        if (hasInvoice || hasTransaction)
         {
-            if (lowerCase.Contains("match") || lowerCase.Contains("receipt"))
-                matches.Add(("po_matching_flow", 0.90, "PO matching with receipt lookup"));
-            else if (lowerCase.Contains("import") && (lowerCase.Contains("full") || lowerCase.Contains("complete")))
-                matches.Add(("po_matching_full_import_flow", 0.90, "Full PO import with line items"));
-            else if (lowerCase.Contains("export"))
-                matches.Add(("export_po_flow", 0.85, "Purchase order export"));
+            if (hasExport)
+                matches.Add(("export_invoice_flow", 0.95, "Export bills/invoices to Acumatica with validation"));
+            else if (hasImport)
+                matches.Add(("standard_import_flow", 0.85, "Import invoice/transaction data"));
         }
 
-        if (lowerCase.Contains("invoice") && lowerCase.Contains("export"))
-            matches.Add(("export_invoice_flow", 0.90, "Invoice export with line items"));
+        if (hasPO)
+        {
+            if (hasMatch || hasReceipt)
+                matches.Add(("po_matching_flow", 0.95, "PO matching with receipt lookup for 3-way matching"));
+            else if (hasImport && hasFull)
+                matches.Add(("po_matching_full_import_flow", 0.90, "Full PO import with line items"));
+            else if (hasExport)
+                matches.Add(("export_po_flow", 0.90, "Export purchase orders to Acumatica"));
+            else if (hasImport)
+                matches.Add(("standard_import_flow", 0.85, "Import purchase order data"));
+        }
 
-        if (lowerCase.Contains("many") || lowerCase.Contains("m2m") || lowerCase.Contains("relationship"))
-            matches.Add(("m2m_import_flow", 0.85, "Many-to-many relationship import"));
+        if (hasM2M)
+            matches.Add(("m2m_import_flow", 0.85, "Many-to-many relationship import (Branch→Project→Task)"));
 
-        if (lowerCase.Contains("submit") || lowerCase.Contains("release") || lowerCase.Contains("action"))
-            matches.Add(("api_action_flow", 0.80, "Generic API actions (submit/release/etc.)"));
+        if (hasSubmit)
+            matches.Add(("api_action_flow", 0.85, "API actions (submit/release/void operations)"));
 
-        // Sort by confidence and prepare result
+        // Generic import/export fallbacks
+        if (!matches.Any())
+        {
+            if (hasImport)
+                matches.Add(("standard_import_flow", 0.70, "Generic paginated import (2000 rows/page)"));
+            else if (hasExport)
+                matches.Add(("standard_import_flow", 0.60, "No specific export flow matched - try refining query"));
+        }
+
+        // Typo tolerance - check common queries with Levenshtein distance
+        if (!matches.Any() || matches.Max(m => m.confidence) < 0.7)
+        {
+            var typoMatches = CheckTypoTolerance(useCase);
+            matches.AddRange(typoMatches);
+        }
+
+        // Sort by confidence
         var ordered = matches.OrderByDescending(m => m.confidence).ToList();
 
         if (!ordered.Any())
         {
-            // No matches - return generic import flow as fallback
+            // No matches at all - return helpful choices
             return Task.FromResult(new FlowRecommendation
             {
-                FlowName = "standard_import_flow",
-                Confidence = 0.5,
-                Reasoning = "No specific keywords matched. Recommending generic import flow. Please refine your use case.",
+                FlowName = "UNKNOWN",
+                Confidence = 0.0,
+                Reasoning = "Could not match your request. Please choose one of these:\n" +
+                           "• vendor_export_flow - Create vendors in Acumatica\n" +
+                           "• standard_import_flow - Import vendors, items, accounts, etc.\n" +
+                           "• payment_flow - Process payments\n" +
+                           "• export_invoice_flow - Export bills/invoices\n" +
+                           "• export_po_flow - Export purchase orders\n\n" +
+                           "Or use: mcp__stampli-acumatica__list_flows to see all 9 flows",
                 AlternativeFlows = new List<AlternativeFlow>
                 {
-                    new AlternativeFlow { Name = "vendor_export_flow", Confidence = 0.3, Reason = "If exporting vendors" },
-                    new AlternativeFlow { Name = "payment_flow", Confidence = 0.3, Reason = "If processing payments" }
+                    new AlternativeFlow { Name = "vendor_export_flow", Confidence = 0.3, Reason = "For vendor operations" },
+                    new AlternativeFlow { Name = "standard_import_flow", Confidence = 0.3, Reason = "For importing data" },
+                    new AlternativeFlow { Name = "payment_flow", Confidence = 0.3, Reason = "For payments" }
                 }
             });
         }
@@ -298,8 +354,36 @@ Examples:
         {
             FlowName = best.flow,
             Confidence = best.confidence,
-            Reasoning = best.reason,
+            Reasoning = best.reason + (best.confidence < 0.9 ? " (Note: Multiple flows matched. Consider being more specific.)" : ""),
             AlternativeFlows = alternatives
         });
+    }
+
+    private static List<(string flow, double confidence, string reason)> CheckTypoTolerance(string query)
+    {
+        var matches = new List<(string flow, double confidence, string reason)>();
+
+        // Common query patterns to check against
+        var commonQueries = new (string expected, string flow, string reason)[]
+        {
+            ("import items", "standard_import_flow", "Import items from Acumatica (typo corrected)"),
+            ("import vendors", "standard_import_flow", "Import vendors from Acumatica (typo corrected)"),
+            ("export vendor", "vendor_export_flow", "Export vendors to Acumatica (typo corrected)"),
+            ("export vendors", "vendor_export_flow", "Export vendors to Acumatica (typo corrected)"),
+            ("import payments", "standard_import_flow", "Import payment data (typo corrected)"),
+            ("export invoice", "export_invoice_flow", "Export invoices to Acumatica (typo corrected)"),
+            ("export payment", "payment_flow", "Export bill payments (typo corrected)")
+        };
+
+        foreach (var (expected, flow, reason) in commonQueries)
+        {
+            var confidence = Services.SmartFlowMatcher.CalculateTypoDistance(query, expected);
+            if (confidence >= 0.8) // Only accept if similarity is 80%+ (max 2 char difference)
+            {
+                matches.Add((flow, confidence, reason));
+            }
+        }
+
+        return matches;
     }
 }

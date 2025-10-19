@@ -11,7 +11,22 @@
       "mcp__stampli-acumatica__challenge_scan_findings",
       "Bash(/mnt/c/Windows/System32/taskkill.exe /F /PID 11124)",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" clean StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo)",
-      "Bash(git restore StampliMCP.McpServer.Acumatica.Tests/KnowledgeExtractionTests/KnowledgeExtractionTestBase.cs)"
+      "Bash(git restore StampliMCP.McpServer.Acumatica.Tests/KnowledgeExtractionTests/KnowledgeExtractionTestBase.cs)",
+      "mcp__stampli-acumatica__mcp_overview",
+      "mcp__stampli-acumatica__health_check",
+      "mcp__stampli-acumatica__list_flows",
+      "mcp__stampli-acumatica__list_operations",
+      "mcp__stampli-acumatica__check_knowledge_files",
+      "mcp__stampli-acumatica__query_acumatica_knowledge",
+      "mcp__stampli-acumatica__get_flow_details",
+      "mcp__stampli-acumatica__modern_harness_guide",
+      "mcp__stampli-acumatica__kotlin_tdd_workflow",
+      "WebSearch",
+      "Bash(/mnt/c/Windows/System32/taskkill.exe /F /IM stampli-mcp-acumatica.exe)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" publish StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release -r win-x64 --self-contained /p:PublishSingleFile=true /p:PublishAot=false --nologo --no-build)",
+      "Bash(git add -A)",
+      "Bash(git commit -m \"feat: add FuzzyMatchingService with optimal Fastenshtein pattern (no cache)\n\n- Add FuzzyMatchingService: Optimal pattern (create Levenshtein(query), compare against patterns)\n- Add FuzzyMatch model: Pattern, Distance, Confidence\n- Add FuzzyMatchingConfig: Generous thresholds (0.60-0.70)\n- NO CACHING: Simple direct usage\n- Benchmarks logged via Serilog\n- Register services in DI (Program.cs)\n\nPerformance: 7x faster than backwards pattern (create instance per pattern)\")"
     ],
     "deny": [],
     "ask": []

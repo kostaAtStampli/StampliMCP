@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Serilog;
 using Serilog.Formatting.Compact;
+using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Prompts;
 using StampliMCP.McpServer.Acumatica.Services;
 
@@ -59,6 +60,18 @@ builder.Services.AddSingleton<IntelligenceService>();
 
 // Register MetricsService for observability
 builder.Services.AddSingleton<MetricsService>();
+
+// Register FuzzyMatchingService for optimal Fastenshtein usage (NO cache, generous thresholds)
+builder.Services.AddSingleton<FuzzyMatchingConfig>(sp => new FuzzyMatchingConfig
+{
+    DefaultThreshold = 0.60,
+    TypoToleranceThreshold = 0.70,
+    OperationMatchThreshold = 0.60,
+    ErrorMatchThreshold = 0.65,
+    FlowMatchThreshold = 0.60,
+    KeywordMatchThreshold = 0.60
+});
+builder.Services.AddSingleton<FuzzyMatchingService>();
 
 // Register simple JSON file logger (no dependencies, works with PublishSingleFile)
 builder.Services.AddSingleton<JsonFileLogger>();
