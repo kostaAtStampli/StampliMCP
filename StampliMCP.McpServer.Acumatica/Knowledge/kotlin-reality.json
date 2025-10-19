@@ -1,0 +1,51 @@
+{
+  "title": "Kotlin TDD Reality - Test/Implementation Split",
+  "kotlinStatus": {
+    "implementedOperations": [
+      {
+        "name": "exportVendor",
+        "status": "COMPLETE",
+        "handler": "CreateVendorHandler",
+        "mapper": "VendorPayloadMapper",
+        "location": "finsys-modern/kotlin-acumatica-driver/",
+        "test": "finsys-modern/kotlin-acumatica-driver/src/test/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriverCreateVendorITest.kt"
+      }
+    ],
+    "plannedMigrations": [],
+    "testOnlyOperations": [
+      "All other operations have Kotlin TESTS but Java IMPLEMENTATION"
+    ],
+    "architecture": {
+      "noBaseHandler": "Handlers are plain internal classes, not extending base",
+      "noSpring": "Direct instantiation, no dependency injection",
+      "staticAuth": "AcumaticaAuthenticator.authenticatedApiCall() called statically",
+      "jsonLibrary": "org.json for payloads, kotlinx-serialization for test records"
+    }
+  },
+  "tddWorkflow": {
+    "redPhase": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "greenPhase": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "refactorPhase": "Refactor if needed (optional)",
+    "runCommand": "mvn test -Pmodern-live -Dtest=YourTest"
+  },
+  "moduleStructure": {
+    "kotlinTests": {
+      "module": "finsys-modern/kotlin-acumatica-driver",
+      "package": "com.stampli.finsys.modern.acumatica",
+      "baseClass": "LiveErpTestBase",
+      "dsls": ["Dsl.vendor", "Dsl.purchaseOrder", "Dsl.vendorsFile"]
+    },
+    "javaImplementation": {
+      "module": "finsys-drivers/acumatica",
+      "package": "com.stampli.driver",
+      "baseClass": "AcumaticaDriver (parent class)",
+      "helpers": ["ApiCallerFactory", "AcumaticaAuthenticator", "AcumaticaImportHelper"]
+    }
+  },
+  "reality": {
+    "onlyKotlinOperation": "exportVendor",
+    "allOthersStatus": "Java implementation, Kotlin tests",
+    "futureWork": "Will migrate more operations to Kotlin after Java implementations are stable"
+  }
+}
+

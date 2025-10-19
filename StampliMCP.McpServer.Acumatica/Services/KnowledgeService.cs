@@ -338,6 +338,28 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
             }) ?? new { };
     }
 
+    public async Task<JsonDocument?> GetModernInfrastructureAsync(CancellationToken ct = default)
+    {
+        return await cache.GetOrCreateAsync(
+            "modern-infrastructure",
+            async entry =>
+            {
+                try
+                {
+                    entry.SetOptions(_cacheOptions);
+                    var json = await ReadEmbeddedResourceAsync("modern-infrastructure.json", ct);
+                    var document = JsonDocument.Parse(json);
+                    logger.LogInformation("Loaded modern infrastructure (LiveErpTestBase, DSLs, ENV1) from embedded resources");
+                    return document;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error loading modern infrastructure from embedded resources");
+                    return null;
+                }
+            });
+    }
+
     public async Task<ErrorCatalog> GetErrorCatalogAsync(CancellationToken ct = default)
     {
         return await cache.GetOrCreateAsync(

@@ -28,8 +28,14 @@ public static class HealthCheckTool
 
         var result = new CallToolResult();
         result.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = info });
-        var summary = $"status={info.Status} version={info.Version} build={info.BuildId} date={info.VersionDate} {BuildInfo.Marker}";
-        result.Content.Add(new TextContentBlock { Type = "text", Text = summary });
+        
+        // Serialize full health info as JSON for LLM consumption
+        var jsonOutput = System.Text.Json.JsonSerializer.Serialize(info, new System.Text.Json.JsonSerializerOptions 
+        { 
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+        result.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
         return result;
     }
 }

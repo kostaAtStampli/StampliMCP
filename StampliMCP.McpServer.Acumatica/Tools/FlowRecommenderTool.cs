@@ -178,7 +178,15 @@ Examples:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = recommendation });
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = recommendation.Summary });
+            
+            // Serialize full recommendation as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(recommendation, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             foreach (var link in recommendation.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
             return ret;
         }
@@ -205,7 +213,15 @@ Examples:
             };
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = fallback });
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = fallback.Summary });
+            
+            // Serialize fallback as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(fallback, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             foreach (var link in fallback.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
             return ret;
         }

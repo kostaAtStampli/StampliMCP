@@ -166,8 +166,15 @@ Categories:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = diagnostic });
-            var summary = diagnostic.Summary ?? $"Diagnostic {BuildInfo.Marker}";
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = summary });
+            
+            // Serialize full diagnostic details as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(diagnostic, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             foreach (var link in diagnostic.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
             return ret;
         }
@@ -185,7 +192,14 @@ Categories:
             };
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = fallback });
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = fallback.Summary });
+            
+            // Serialize error fallback as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(fallback, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
             return ret;
         }
     }

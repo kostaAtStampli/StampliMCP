@@ -7,7 +7,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "225-240, 679-714",
       "purpose": "Entry point for bill/quick check export - routes to exportInvoice() or exportPaymentReceipt()",
       "keyPatterns": [
@@ -19,7 +19,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
       "lines": "100-201",
       "purpose": "Core export method with 8-step validation/tax/posting flow and rollback on error",
       "keyPatterns": [
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaInvoiceSerializer.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaInvoiceSerializer.java",
       "lines": "62-96",
       "purpose": "Serializes bill to Acumatica JSON format",
       "keyPatterns": [
@@ -45,7 +45,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportValidator.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportValidator.java",
       "lines": "34-121",
       "purpose": "Pre-export validation - 8 validation checks before attempting export",
       "keyPatterns": [
@@ -87,6 +87,12 @@
     "eightStepFlow": "// AcumaticaExportHelper.java:100-201\n// STEP 1: Create entity\nResponseData response = apiCaller.call(client);\nExportResponse exportResponse = assembler.get();\n\n// STEP 2-6: Tax processing (if taxZone != null)\nif (taxZone != null) {\n    // STEP 2: Convert lines to applied taxes\n    convertLinesToAppliedTaxes(taxZone, request, exportResponse);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 3: Modify taxable items category\n    modifyTaxableItemsCategory(request, exportResponse, apiCallerFactory, entityUrl);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 4: Update tax map\n    AcumaticaJson taxResponse = updateTaxMap(...);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 5: Validate rounding differences\n    validateRoundingDiff(exportResponse, taxResponse, ...);\n    if (hasError) { deleteEntity(); return; }\n    \n    // STEP 6: Validate amounts match\n    isAmountMatching(request, exportResponse, totalAmount, netAmount, taxZone);\n    if (hasError) { deleteEntity(); return; }\n}\n\n// STEP 7: Release from hold (Quick Check only)\nif (AcumaticaEndpoint.QUICK_CHECK.equals(entityUrl)) {\n    releaseQuickCheckFromHold(request, exportResponse, apiCallerFactory, client);\n    if (hasError) { return; }\n}\n\n// STEP 8: Post/Release\npost(exportResponse, apiCallerFactory, entityUrl, request, client);\n\n// STEP 9: Add Stampli link\nboolean isLinkAdded = addStampliLink(apiCallerFactory, request, exportResponse, entityUrl, client);\nif (!isLinkAdded) {\n    deleteEntity();\n    throw new AcumaticaApiException(\"Failed to add Stampli link\");\n}",
     "validation": "// AcumaticaExportValidator.java:102-121\nprivate static void isSameTaxCodes(ExportResponse exportResponse, ExportRequest exportRequest) {\n    Set<String> taxZones = new HashSet<>();\n    \n    // Collect tax codes from GL account lines\n    if (!CollectionUtils.isNullOrEmpty(exportRequest.getApTransaction().getAccounts())) {\n        taxZones.addAll(exportRequest.getApTransaction()\n            .getAccounts()\n            .stream().map(Line::getTaxCode)\n            .filter(StringUtils::isNotEmpty)\n            .collect(Collectors.toSet()));\n    }\n    \n    // Collect tax codes from item lines\n    if (!CollectionUtils.isNullOrEmpty(exportRequest.getApTransaction().getItems())) {\n        taxZones.addAll(exportRequest.getApTransaction()\n            .getItems()\n            .stream().map(Line::getTaxCode)\n            .filter(StringUtils::isNotEmpty)\n            .collect(Collectors.toSet()));\n    }\n    \n    // MUST use same tax code across all lines\n    if (taxZones.size() > 1) {\n        assembleErrorResponse(exportResponse, \"Found multiple tax codes in invoice - all lines must use same tax code\");\n    }\n}"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "All lines must use the same tax code (isSameTaxCodes validation)",
     "Tax amount requires tax code (isValidTaxLines validation)",
@@ -98,5 +104,47 @@
     "Stampli link must be added successfully or entire operation fails",
     "Tax processing only if taxZone is provided",
     "Quick checks require releaseQuickCheckFromHold() before posting"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": true,
+    "operations": ["exportAPTransaction", "exportInvoice"],
+    "dacMapping": {
+      "header": "Document.Attribute*",
+      "lines": "Transactions.Attribute*"
+    },
+    "implementation": {
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaInvoiceSerializer.java",
+      "headerLines": "57-66",
+      "linesImplementation": "143-196",
+      "method": "AcumaticaSerializerUtils.writeCustomFieldsToJson()",
+      "sharedUtility": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaSerializerUtils.java"
+    },
+    "configuration": {
+      "screen": "SM207060",
+      "action": "Click 'Extend Entity' button for Bill entity",
+      "note": "Custom fields configured per Acumatica tenant"
+    },
+    "schemaDiscovery": {
+      "endpoint": "$adHocSchema",
+      "usage": "GET /entity/Default/22.200.001/Bill/$adHocSchema",
+      "purpose": "Discover all available custom attributes for Bill entity"
+    },
+    "putStructure": {
+      "url": "PUT /entity/Default/22.200.001/Bill",
+      "payload": "{ \"custom\": { \"Document\": { \"AttributeXYZ\": { \"value\": \"header-value\" } }, \"Transactions\": [ { \"AttributeABC\": { \"value\": \"line1-value\" } } ] } }"
+    },
+    "getStructure": {
+      "url": "GET /entity/Default/22.200.001/Bill/000123?$custom=Document.AttributeXYZ,Transactions.AttributeABC",
+      "parameter": "$custom",
+      "format": "$custom={DAC}.{AttributeID1},{DAC}.{AttributeID2}",
+      "note": "Header and line items use different DACs"
+    },
+    "commonIssues": [
+      "Case sensitivity: Attribute IDs are UPPERCASE",
+      "Wrong DAC: Bills use Document (header) and Transactions (lines)",
+      "Line items: Each line in Transactions array can have custom fields",
+      "404 Error: Custom field not configured in SM207060 screen",
+      "Tax processing may reset custom fields - apply AFTER tax calculations"
+    ]
+  }
 }

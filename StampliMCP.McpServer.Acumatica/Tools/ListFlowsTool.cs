@@ -60,8 +60,14 @@ public static class ListFlowsTool
 
         var ret = new CallToolResult();
         ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = summaries });
-        var summaryText = $"flows={summaries.Count} {BuildInfo.Marker}";
-        ret.Content.Add(new TextContentBlock { Type = "text", Text = summaryText });
+        
+        // Serialize full flows list as JSON for LLM consumption
+        var jsonOutput = System.Text.Json.JsonSerializer.Serialize(summaries, new System.Text.Json.JsonSerializerOptions 
+        { 
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+        ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
         return ret;
     }
 }

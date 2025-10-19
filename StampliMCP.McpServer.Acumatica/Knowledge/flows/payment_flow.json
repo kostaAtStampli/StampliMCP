@@ -6,7 +6,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "501-517",
       "purpose": "Entry point for payment export",
       "keyPatterns": [
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentSerializer.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentSerializer.java",
       "lines": "56-131",
       "purpose": "Serializes payment to Acumatica JSON with international currency support",
       "keyPatterns": [
@@ -27,7 +27,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentCalculator.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentCalculator.java",
       "lines": "1-100",
       "purpose": "Calculates cross-rates and amounts for international payments",
       "keyPatterns": [
@@ -52,11 +52,58 @@
     "internationalPayment": "// AcumaticaPaymentSerializer.java:138-148\nif (isInternationalPayment(payment)) {\n    // Use payment calculator for cross-rate\n    AcumaticaPaymentCalculator calculator = new AcumaticaPaymentCalculator(\n        payment.getCurrencyId(),\n        bill.getCurrencyId(),\n        exchangeRate\n    );\n    \n    BigDecimal appliedAmount = calculator.calculateAppliedAmount(payment.getAmount());\n    writeDoubleValue(\"AmountPaid\", appliedAmount, jgen);\n    writeDoubleValue(\"CrossRate\", calculator.calculateCrossRate(), jgen);\n}",
     "applicationDocuments": "// Link payment to bills\nJSONArray applicationDocuments = new JSONArray();\nfor (Bill bill : payment.getBills()) {\n    JSONObject doc = new JSONObject();\n    doc.put(\"DocType\", new JSONObject().put(\"value\", \"Invoice\"));\n    doc.put(\"ReferenceNbr\", new JSONObject().put(\"value\", bill.getReferenceNbr()));\n    doc.put(\"AmountPaid\", new JSONObject().put(\"value\", bill.getAmountPaid()));\n    applicationDocuments.put(doc);\n}\nroot.put(\"ApplicationDocuments\", applicationDocuments);"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "International payments require cross-rate calculation via AcumaticaPaymentCalculator",
     "ApplicationDocuments array must link payment to bills",
     "Amount validation: Sum of ApplicationDocuments.AmountPaid must equal payment amount",
     "Balance validation after creation",
     "Release and post after successful validation"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": true,
+    "operations": ["exportBillPayment", "exportPaymentReceipt"],
+    "dacMapping": {
+      "header": "Transactions.Attribute*",
+      "lines": "Document.Attribute*",
+      "note": "Quick Check INVERTS normal container mapping - header uses Transactions, lines use Document"
+    },
+    "implementation": {
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentSerializer.java",
+      "lines": "Multiple locations",
+      "method": "AcumaticaSerializerUtils.writeCustomFieldsToJson()",
+      "sharedUtility": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaSerializerUtils.java"
+    },
+    "configuration": {
+      "screen": "SM207060",
+      "action": "Click 'Extend Entity' button for Payment/Check entity",
+      "note": "Custom fields configured per Acumatica tenant"
+    },
+    "schemaDiscovery": {
+      "endpoint": "$adHocSchema",
+      "usage": "GET /entity/Default/22.200.001/Payment/$adHocSchema",
+      "purpose": "Discover all available custom attributes for Payment entity"
+    },
+    "putStructure": {
+      "url": "PUT /entity/Default/22.200.001/Payment",
+      "payload": "{ \"custom\": { \"Transactions\": { \"AttributeXYZ\": { \"value\": \"header-value\" } }, \"Document\": [ { \"AttributeABC\": { \"value\": \"line1-value\" } } ] } }",
+      "note": "INVERTED: Transactions for header, Document for lines"
+    },
+    "getStructure": {
+      "url": "GET /entity/Default/22.200.001/Payment/000456?$custom=Transactions.AttributeXYZ,Document.AttributeABC",
+      "parameter": "$custom",
+      "format": "$custom={DAC}.{AttributeID1},{DAC}.{AttributeID2}"
+    },
+    "commonIssues": [
+      "Case sensitivity: Attribute IDs are UPPERCASE",
+      "Container inversion: Quick Check uses Transactions for header, Document for lines (opposite of Bill)",
+      "404 Error: Custom field not configured in SM207060 screen",
+      "International payments: Custom fields must survive cross-rate calculations"
+    ]
+  }
 }

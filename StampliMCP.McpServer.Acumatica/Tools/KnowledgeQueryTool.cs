@@ -137,8 +137,15 @@ Returns:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = structured });
-            var summary = structured.Summary ?? $"results {BuildInfo.Marker}";
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = summary });
+            
+            // Serialize full structured content as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(structured, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             // Convert resource links into content
             foreach (var link in structured.NextActions)
             {
@@ -155,8 +162,23 @@ Returns:
             Serilog.Log.Error(ex, "Tool {Tool} failed: {Error}",
                 "query_acumatica_knowledge", ex.Message);
 
+            var errorResult = new
+            {
+                error = $"Query failed: {ex.Message}",
+                marker = BuildInfo.Marker,
+                suggestion = "Try calling health_check to verify server status"
+            };
+            
             var ret = new CallToolResult();
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = $"query error: {ex.Message} {BuildInfo.Marker}" });
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorResult });
+            
+            // Serialize error as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(errorResult, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
             ret.Content.Add(new ResourceLinkBlock { Uri = "mcp://stampli-acumatica/health_check", Name = "Check server health" });
             return ret;
         }
@@ -229,16 +251,26 @@ Returns:
                         foreach (var constant in constants.EnumerateObject())
                         {
                             var constNameLower = constant.Name.ToLower();
-                            if (queryTokens.Any(token => constNameLower.Contains(token)))
+                            var constObj = constant.Value;
+                            var valueLower = constObj.TryGetProperty("value", out var val) ? val.ToString().ToLower() : "";
+                            var purposeLower = constObj.TryGetProperty("purpose", out var purpose) ? (purpose.GetString() ?? "").ToLower() : "";
+                            
+                            // Match if wildcard OR any token appears in name, value, or purpose
+                            bool matches = queryTokens.Length == 0 || queryTokens.Any(token =>
+                                constNameLower.Contains(token) ||
+                                valueLower.Contains(token) ||
+                                purposeLower.Contains(token)
+                            );
+                            
+                            if (matches)
                             {
-                                var constObj = constant.Value;
                                 results.Constants[constant.Name] = new ConstantInfo
                                 {
                                     Name = constant.Name,
-                                    Value = constObj.TryGetProperty("value", out var val) ? val.ToString() : "",
+                                    Value = constObj.TryGetProperty("value", out var v) ? v.ToString() : "",
                                     File = constObj.TryGetProperty("file", out var file) ? file.GetString() : null,
                                     Line = constObj.TryGetProperty("line", out var line) ? line.GetInt32() : null,
-                                    Purpose = constObj.TryGetProperty("purpose", out var purpose) ? purpose.GetString() : null
+                                    Purpose = constObj.TryGetProperty("purpose", out var p) ? p.GetString() : null
                                 };
                             }
                         }

@@ -344,12 +344,15 @@ PROOF REQUIRED: Your response must show you read BOTH Kotlin golden reference AN
 ═══════════════════════════════════════"
             },
 
-            // PROJECT PATHS
+            // PROJECT PATHS (CORRECTED - finsys-modern structure)
             projectPaths = new
             {
-                moduleRoot = "/mnt/c/STAMPLI4/core/kotlin-erp-harness",
-                testFile = "src/test/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriverTest.kt",
-                implFile = "src/main/kotlin/com/stampli/kotlin/driver/KotlinAcumaticaDriver.kt"
+                kotlinTestModule = "finsys-modern/kotlin-acumatica-driver",
+                kotlinTestPath = "finsys-modern/kotlin-acumatica-driver/src/test/kotlin/com/stampli/finsys/modern/acumatica/",
+                kotlinImplPath = "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/",
+                javaImplPath = "finsys-drivers/acumatica/src/main/java/com/stampli/driver/",
+                commonHarness = "finsys-modern/kotlin-drivers-common/src/main/kotlin/com/stampli/finsys/modern/testing/",
+                reality = "Tests in Kotlin, Implementation in Java (only exportVendor is Kotlin)"
             }
         };
 

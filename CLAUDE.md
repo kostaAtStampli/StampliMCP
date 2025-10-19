@@ -1,8 +1,8 @@
 # Acumatica MCP Server Context
 
-**Version**: 4.0.0 | **Build**: BUILD_2025_10_18_PROMPT_FIX | **Protocol**: MCP 2025-06-18
+**Version**: 4.0.0 | **Build**: GOLDEN (2025-10-19) | **Protocol**: MCP 2025-06-18
 
-Key tools, 48 operations, 7 categories. Returns code pointers, not document dumps.
+Key tools, 39 operations, 9 flows. Returns code pointers, not document dumps.
 Self-contained Windows exe (≈108 MB) with embedded knowledge.
 
 ## Key MCP Tools
@@ -66,7 +66,7 @@ mcp__stampli-acumatica__query_acumatica_knowledge("vendor")
 // Should return 6 vendor operations
 
 mcp__stampli-acumatica__health_check()
-// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-VERIFICATION-A3#
+// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-GOLDEN#
 
 mcp__stampli-acumatica__list_flows()
 mcp__stampli-acumatica__get_flow_details("VENDOR_EXPORT_FLOW")

@@ -206,7 +206,15 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = structured });
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = structured.Summary ?? $"{flowName} {BuildInfo.Marker}" });
+            
+            // Serialize full flow details as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(structured, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             foreach (var link in structured.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
 
             Serilog.Log.Information("Tool {Tool} completed: flow={Flow}, constants={ConstCount}, rules={RuleCount}",
@@ -234,7 +242,15 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
                 }
             };
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = detail });
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = $"error: {ex.Message} {BuildInfo.Marker}" });
+            
+            // Serialize error details as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(detail, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             foreach (var link in detail.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
             return ret;
         }

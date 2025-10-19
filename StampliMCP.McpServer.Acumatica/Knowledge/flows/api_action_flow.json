@@ -8,7 +8,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
       "lines": "30-57",
       "purpose": "Helper for API action operations - voidPayment example",
       "keyPatterns": [
@@ -19,7 +19,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaEndpoint.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaEndpoint.java",
       "lines": "1-173",
       "purpose": "Endpoint definitions including action endpoints",
       "keyPatterns": [
@@ -51,11 +51,22 @@
   "codeSnippets": {
     "voidPayment": "// AcumaticaApiActionHelper.java:30-57\npublic static ExportResponse voidPayment(\n    ApiCallerFactory apiCallerFactory,\n    FinSysBridgeBaseRequest request,\n    String paymentReferenceNbr\n) {\n    ExportResponse response = new ExportResponse();\n    try {\n        // Build request body with payment reference\n        JSONObject body = new JSONObject();\n        body.put(\"ReferenceNbr\", new JSONObject().put(\"value\", paymentReferenceNbr));\n        \n        // Create POST caller for VOID_PAYMENT action endpoint\n        ApiCaller apiCaller = apiCallerFactory.createPostRestApiCaller(\n            request,\n            AcumaticaEndpoint.VOID_PAYMENT,\n            new AcumaticaUrlSuffixAssembler(),\n            body.toString()\n        );\n        \n        // Execute with authentication\n        ResponseData actionResponse = AcumaticaAuthenticator.authenticatedApiCall(\n            request,\n            apiCallerFactory,\n            apiCaller::call\n        );\n        \n        if (actionResponse.isSuccessful()) {\n            response.setResponseCode(200);\n        } else {\n            response.setError(\"Void payment failed: \" + actionResponse.getContent());\n        }\n    } catch (Exception e) {\n        response.setError(\"Exception during void: \" + e.getMessage());\n    }\n    return response;\n}"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "Action operations require document reference number (ReferenceNbr)",
     "Use POST request to action endpoint (not PUT like create operations)",
     "Minimal request body - usually just document identifier",
     "No complex validation or serialization needed",
     "Error handling is simpler than export operations"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": false,
+    "reason": "Action operations (void, release, hold) operate on existing documents only",
+    "note": "No custom field creation or modification in action operations"
+  }
 }

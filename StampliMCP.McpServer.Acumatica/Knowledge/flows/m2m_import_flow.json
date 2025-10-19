@@ -9,7 +9,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "310-349",
       "purpose": "Entry point with feature flag checks for M2M imports - delegates to specialized M2M helpers",
       "keyPatterns": [
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaM2MBranchImportHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaM2MBranchImportHelper.java",
       "lines": "10-28",
       "purpose": "M2M helper for Branch entity - adds Branch→Project relationship",
       "keyPatterns": [
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/IM2MImportHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/IM2MImportHelper.java",
       "lines": "10-49",
       "purpose": "Interface defining M2M constants and helper methods",
       "keyPatterns": [
@@ -82,6 +82,12 @@
     "relationshipDefinition": "// Branch → Project relationship\nrelationsList.put(FIELD_BRANCH, Set.of(FIELD_PROJECT));\n\n// Project → Task relationship  \nrelationsList.put(FIELD_PROJECT, Set.of(FIELD_TASK));\n\n// Task → CostCode relationship\nrelationsList.put(FIELD_TASK, Set.of(FIELD_COST_CODE));",
     "featureFlagCheck": "// AcumaticaDriver.java:302-307\nprivate boolean isNonDeltaImport(Map<String, String> state) {\n    if (state == null) {\n        return false;\n    }\n    // This is temporary solution - core doesn't support M2M for delta import\n    return Boolean.TRUE.toString().equals(\n        state.get(FeatureFlags.FF_SUPPORT_NON_DELTA_IMPORTS_FOR_PROJECT_TASK)\n    );\n}"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "M2M imports only work with non-delta imports (full data sync)",
     "Feature flag FF_SUPPORT_NON_DELTA_IMPORTS_FOR_PROJECT_TASK must be enabled",
@@ -89,5 +95,10 @@
     "Each M2M helper extends AcumaticaImportHelper and implements IM2MImportHelper",
     "Relationship chain: Branch → Project → Task → CostCode (4-level hierarchy)",
     "For CostCode: Pre-fetch PROJECT_BUDGET data before importing cost codes"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": false,
+    "reason": "M2M imports focus on relationship mapping only, not custom field data",
+    "note": "relationsList metadata does not include custom field values"
+  }
 }

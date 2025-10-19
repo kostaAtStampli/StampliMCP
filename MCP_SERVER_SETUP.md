@@ -47,7 +47,7 @@ cwd = "/mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica
 ```
 
 ## Sanity checks
-- `health_check` → text line includes `#STAMPLI-MCP-2025-10-VERIFICATION-A3#`
+- `health_check` → text line includes `#STAMPLI-MCP-2025-10-GOLDEN#`
 - `list_flows` → returns ~9 flows with descriptions and usedByOperations
 - `get_flow_details("VENDOR_EXPORT_FLOW")` → constants/rules + marker link
 - `query_acumatica_knowledge("", "flows")` → lists all flows (wildcard)

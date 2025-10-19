@@ -4,24 +4,30 @@
   "usedByOperations": [
     "exportVendor"
   ],
+  "kotlinImplementation": {
+    "status": "COMPLETE",
+    "handler": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+    "mapper": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+    "test": "finsys-modern/kotlin-acumatica-driver/src/test/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriverCreateVendorITest.kt"
+  },
   "kotlinGoldenReference": {
     "status": "IMPLEMENTED - Use as golden reference for Kotlin migration patterns",
-    "note": "exportVendor is the FIRST operation migrated to Kotlin - scan these files FIRST to learn Kotlin patterns",
+    "note": "exportVendor is the ONLY operation migrated to Kotlin - scan these files FIRST to learn Kotlin patterns",
     "files": [
       {
-        "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+        "file": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
         "lines": "1-27",
         "purpose": "Main driver - shows override pattern",
         "patterns": ["class KotlinAcumaticaDriver : AcumaticaDriver()", "override fun exportVendor", "Handler delegation", "try-catch return error"]
       },
       {
-        "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+        "file": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
         "lines": "1-132",
         "purpose": "Handler class - shows Kotlin null safety and business logic",
         "patterns": ["internal class", "companion object logger", "early returns", "null assertions (!!)", "safe chains (?.let)", "string interpolation"]
       },
       {
-        "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+        "file": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
         "lines": "1-71",
         "purpose": "Mapper object - shows object singleton and extension functions",
         "patterns": ["internal data object", "const val", "extension function JSONObject.withValue()", "apply builder"]
@@ -30,7 +36,7 @@
   },
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "557-561",
       "purpose": "Entry point - delegates to CreateVendorHandler",
       "keyPatterns": [
@@ -39,7 +45,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/CreateVendorHandler.java",
       "lines": "24-127",
       "purpose": "Complete vendor creation flow with validation, mapping, creation, and response building",
       "keyPatterns": [
@@ -50,7 +56,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
       "lines": "16-80",
       "purpose": "Maps raw vendor data to Acumatica JSON format with payment instructions",
       "keyPatterns": [
@@ -115,5 +121,54 @@
     "Payment instructions use BANKNAME, ACCOUNT, ROUTINGNO instruction IDs",
     "Idempotency: Acumatica returns 422 if VendorID already exists",
     "Response includes erpVendorId and UI link to vendor in Acumatica"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": true,
+    "operations": ["exportVendor"],
+    "dacMapping": "BAccount.Attribute*",
+    "implementation": {
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/vendor/VendorPayloadMapper.java",
+      "lines": "145-166",
+      "method": "AcumaticaSerializerUtils.writeCustomFieldsToJson()",
+      "sharedUtility": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaSerializerUtils.java"
+    },
+    "configuration": {
+      "screen": "SM207060",
+      "action": "Click 'Extend Entity' button (even if appears grayed out)",
+      "note": "Custom fields configured per Acumatica tenant"
+    },
+    "schemaDiscovery": {
+      "endpoint": "$adHocSchema",
+      "usage": "GET /entity/Default/22.200.001/Vendor/$adHocSchema",
+      "purpose": "Discover all available custom attributes for Vendor entity"
+    },
+    "putStructure": {
+      "url": "PUT /entity/Default/22.200.001/Vendor",
+      "note": "Use base endpoint /Vendor, NOT /Vendor/{ID}",
+      "payload": "{ \"custom\": { \"BAccount\": { \"AttributeAAA\": { \"value\": \"text\" }, \"AttributeBBB\": { \"value\": \"value\" } } } }"
+    },
+    "getStructure": {
+      "url": "GET /entity/Default/22.200.001/Vendor/VEND001?$custom=BAccount.AttributeAAA,BAccount.AttributeBBB",
+      "parameter": "$custom",
+      "format": "$custom={DAC}.{AttributeID1},{DAC}.{AttributeID2}",
+      "note": "Comma-separated list of custom fields to retrieve"
+    },
+    "commonIssues": [
+      "Case sensitivity: Attribute IDs are UPPERCASE (AttributeAAA not attributeaaa)",
+      "Wrong DAC: Vendors use BAccount, not Document",
+      "PUT URL: Use /Vendor, not /Vendor/{ID} even when updating",
+      "404 Error: Custom field not configured in SM207060 screen",
+      "Empty response: Custom fields exist but not set on this vendor"
+    ],
+    "testFile": {
+      "file": "finsys-drivers/acumatica/src/test/java/com/stampli/driver/AcumaticaDriverVendorCustomFieldsITest.java",
+      "lines": "1-224",
+      "purpose": "Integration test showing custom field round-trip (PUT and GET)",
+      "keyTests": [
+        "testCreateVendorWithCustomFields() - lines 35-72",
+        "testGetVendorWithCustomFields() - lines 77-122",
+        "testRoundTripWithHardAssertions() - lines 125-181"
+      ]
+    }
+  }
 }

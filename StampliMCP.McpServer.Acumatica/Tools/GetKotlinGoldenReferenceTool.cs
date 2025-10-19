@@ -43,6 +43,7 @@ Use exportVendor patterns to implement new Kotlin operations.
 
             // GUARANTEED FILE READING - C# does this, not Claude
             // NOTE: MCP server runs as Windows .exe, so use Windows paths (C:\) not WSL paths (/mnt/c/)
+            // CORRECTED PATH: finsys-modern module structure
             var basePath = @"C:\STAMPLI4\core\finsys-modern\kotlin-acumatica-driver\src\main\kotlin\com\stampli\kotlin\acumatica\driver";
 
             var driverPath = Path.Combine(basePath, "KotlinAcumaticaDriver.kt");
@@ -168,8 +169,15 @@ Use exportVendor patterns to implement new Kotlin operations.
 
             var ret = new ModelContextProtocol.Protocol.CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result });
-            var summary = $"kotlin_golden_reference loaded (3 files) {StampliMCP.McpServer.Acumatica.BuildInfo.Marker}";
-            ret.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = summary });
+            
+            // Serialize full golden reference (including full Kotlin source code) as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = jsonOutput });
+            
             ret.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
             {
                 Uri = "mcp://stampli-acumatica/marker",
@@ -194,8 +202,14 @@ Use exportVendor patterns to implement new Kotlin operations.
                 }
             };
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorObj });
-            var summary = $"kotlin_golden_reference error: {ex.Message} {StampliMCP.McpServer.Acumatica.BuildInfo.Marker}";
-            ret.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = summary });
+            
+            // Serialize error details as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(errorObj, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = jsonOutput });
             return ret;
         }
     }

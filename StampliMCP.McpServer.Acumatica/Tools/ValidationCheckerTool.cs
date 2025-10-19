@@ -91,7 +91,15 @@ Examples:
                 };
                 var retInvalid = new CallToolResult();
                 retInvalid.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = invalid });
-                retInvalid.Content.Add(new TextContentBlock { Type = "text", Text = invalid.Summary });
+                
+                // Serialize invalid operation result as JSON for LLM consumption
+                var invalidOpJson = System.Text.Json.JsonSerializer.Serialize(invalid, new System.Text.Json.JsonSerializerOptions 
+                { 
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                });
+                retInvalid.Content.Add(new TextContentBlock { Type = "text", Text = invalidOpJson });
+                
                 foreach (var link in invalid.NextActions) retInvalid.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
                 return retInvalid;
             }
@@ -136,7 +144,14 @@ Examples:
                 };
                 var retInvalidJson = new CallToolResult();
                 retInvalidJson.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = invalidJson });
-                retInvalidJson.Content.Add(new TextContentBlock { Type = "text", Text = invalidJson.Summary });
+                
+                // Serialize invalid JSON result for LLM consumption
+                var invalidJsonOutput = System.Text.Json.JsonSerializer.Serialize(invalidJson, new System.Text.Json.JsonSerializerOptions 
+                { 
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                });
+                retInvalidJson.Content.Add(new TextContentBlock { Type = "text", Text = invalidJsonOutput });
                 return retInvalidJson;
             }
 
@@ -240,7 +255,15 @@ Examples:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result });
-            ret.Content.Add(new TextContentBlock { Type = "text", Text = result.Summary });
+            
+            // Serialize full validation result as JSON for LLM consumption
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
+            
             foreach (var link in result.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
 
             Serilog.Log.Information("Tool {Tool} completed: isValid={IsValid}, errors={ErrorCount}",
@@ -271,7 +294,14 @@ Examples:
             };
             var retError = new CallToolResult();
             retError.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorResult });
-            retError.Content.Add(new TextContentBlock { Type = "text", Text = errorResult.Summary });
+            
+            // Serialize error validation result as JSON for LLM consumption
+            var errorJson = System.Text.Json.JsonSerializer.Serialize(errorResult, new System.Text.Json.JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+            });
+            retError.Content.Add(new TextContentBlock { Type = "text", Text = errorJson });
             return retError;
         }
     }
@@ -285,6 +315,8 @@ Examples:
             ["getPayments"] = "payment_flow",
             ["importData"] = "standard_import_flow",
             ["importVendors"] = "standard_import_flow",
+            ["getVendors"] = "standard_import_flow",
+            ["retrieveVendors"] = "standard_import_flow",
             ["matchPO"] = "po_matching_flow",
             ["exportInvoice"] = "export_invoice_flow",
             ["exportPO"] = "export_po_flow"
@@ -429,8 +461,9 @@ Examples:
             }
         }
 
-        // Pagination validation (applies to all import/search operations)
-        if (operationLower.Contains("import") || operationLower.Contains("search"))
+        // Pagination validation (applies to all import/search/get/retrieve operations)
+        if (operationLower.Contains("import") || operationLower.Contains("search") || 
+            operationLower.Contains("get") || operationLower.Contains("retrieve"))
         {
             if (request.TryGetProperty("pageSize", out var pageSize))
             {

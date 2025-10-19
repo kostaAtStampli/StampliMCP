@@ -6,7 +6,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "210-222",
       "purpose": "Entry point for PO export",
       "keyPatterns": [
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderSerializer.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderSerializer.java",
       "lines": "40-91",
       "purpose": "Serializes PO to Acumatica JSON",
       "keyPatterns": [
@@ -26,7 +26,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportPOValidator.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportPOValidator.java",
       "lines": "24-48",
       "purpose": "Validates PO before export",
       "keyPatterns": [
@@ -50,11 +50,59 @@
   "codeSnippets": {
     "validation": "// AcumaticaExportPOValidator.java:35-45\nfor (ItemLine item : exportRequest.getPurchaseOrder().getItems()) {\n    // Each line must have Item OR Account (not both, not neither)\n    boolean hasItem = StringUtils.isNotEmpty(item.getItem());\n    boolean hasAccount = StringUtils.isNotEmpty(item.getAccount());\n    \n    if (!hasItem && !hasAccount) {\n        return createErrorResponse(\"Line must have Item or Account\");\n    }\n    \n    // If Project specified, Task and CostCode are required\n    if (StringUtils.isNotEmpty(item.getProject())) {\n        if (StringUtils.isEmpty(item.getTask()) || StringUtils.isEmpty(item.getCostCode())) {\n            return createErrorResponse(\"Project requires Task and CostCode\");\n        }\n    }\n}"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "Each line must have Item OR Account (not both, not neither)",
     "If Project specified on line, Task and CostCode are required",
     "POs created without hold (Hold=false) - immediately active",
     "Post-validation: Created PO must match request data",
     "Simpler than bill export (no tax processing, no rollback)"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": true,
+    "operations": ["exportPurchaseOrder"],
+    "dacMapping": {
+      "header": "PurchaseOrder.Attribute*",
+      "lines": "Details.Attribute*"
+    },
+    "implementation": {
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderSerializer.java",
+      "method": "AcumaticaSerializerUtils.writeCustomFieldsToJson()",
+      "sharedUtility": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaSerializerUtils.java"
+    },
+    "configuration": {
+      "screen": "SM207060",
+      "action": "Click 'Extend Entity' button for PurchaseOrder entity",
+      "note": "Custom fields configured per Acumatica tenant"
+    },
+    "schemaDiscovery": {
+      "endpoint": "$adHocSchema",
+      "usage": "GET /entity/Default/22.200.001/PurchaseOrder/$adHocSchema",
+      "purpose": "Discover all available custom attributes for PO entity"
+    },
+    "putStructure": {
+      "url": "PUT /entity/Default/22.200.001/PurchaseOrder",
+      "payload": "{ \"custom\": { \"PurchaseOrder\": { \"AttributeXYZ\": { \"value\": \"header-value\" } }, \"Details\": [ { \"AttributeABC\": { \"value\": \"line1-value\" } } ] } }"
+    },
+    "getStructure": {
+      "url": "GET /entity/Default/22.200.001/PurchaseOrder/PO000123?$custom=PurchaseOrder.AttributeXYZ,Details.AttributeABC",
+      "parameter": "$custom",
+      "format": "$custom={DAC}.{AttributeID1},{DAC}.{AttributeID2}"
+    },
+    "commonIssues": [
+      "Case sensitivity: Attribute IDs are UPPERCASE",
+      "Wrong DAC: POs use PurchaseOrder (header) and Details (lines)",
+      "404 Error: Custom field not configured in SM207060 screen",
+      "PO created without hold - custom fields immediately visible"
+    ],
+    "testFile": {
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderImportHelper.java",
+      "purpose": "Import PO contents including custom fields - shows DAC usage pattern"
+    }
+  }
 }

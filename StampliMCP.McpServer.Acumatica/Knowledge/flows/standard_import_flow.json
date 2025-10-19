@@ -5,9 +5,9 @@
     "status": "LEARN FROM exportVendor - No import operations migrated yet",
     "note": "Scan exportVendor implementation FIRST to learn Kotlin patterns, then apply to import operations",
     "files": [
-      "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
-      "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
-      "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt"
+      "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+      "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+      "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt"
     ],
     "applyPatternsFrom": "exportVendor shows: override fun, Handler classes, object singletons, null safety, error handling"
   },
@@ -33,7 +33,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
+      "file": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
       "lines": "1-27",
       "purpose": "KOTLIN GOLDEN REFERENCE - Learn override pattern, Handler delegation, try-catch error handling",
       "keyPatterns": [
@@ -44,7 +44,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
+      "file": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/CreateVendorHandler.kt",
       "lines": "1-132",
       "purpose": "KOTLIN GOLDEN REFERENCE - Learn Handler pattern, null safety (!!, ?., let), early returns, Kotlin idioms",
       "keyPatterns": [
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
+      "file": "finsys-modern/kotlin-acumatica-driver/src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt",
       "lines": "1-71",
       "purpose": "KOTLIN GOLDEN REFERENCE - Learn object singleton, extension functions, apply/let usage",
       "keyPatterns": [
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "102-117",
       "purpose": "Java entry point pattern for OPERATION LOGIC REFERENCE (use Kotlin patterns from above)",
       "keyPatterns": [
@@ -79,7 +79,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
       "lines": "44-200",
       "purpose": "Base import template - handles pagination (2000 rows/page), authentication wrapper, connection refresh (every 10 mins), and delta import filtering",
       "keyPatterns": [
@@ -92,7 +92,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaConnectionManager.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaConnectionManager.java",
       "lines": "53-66",
       "purpose": "Connection refresh pattern - refreshes authentication every 10 minutes during long pagination",
       "keyPatterns": [
@@ -103,7 +103,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaAuthenticator.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaAuthenticator.java",
       "lines": "20-27",
       "purpose": "Authentication wrapper - login-wrapper-logout pattern for all API operations",
       "keyPatterns": [
@@ -113,7 +113,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaUtil.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaUtil.java",
       "lines": "50-60",
       "purpose": "Constants and utilities",
       "keyPatterns": [
@@ -162,6 +162,12 @@
     "paginationLogic": "// AcumaticaImportHelper.java:116-128\nwhile (apiCaller.hasNextPage(jsonArray.length())) {\n    if (checkResponseLimitReached(responseList)) {\n        return;\n    }\n    connectionManager.refreshConnectionWhenLimitReached();\n    apiCaller.getNextPage();\n    apiResponse = apiCaller.call(client);\n    jsonArray = extractFirstArray(apiResponse.getContent());\n    if (jsonArray.length() > 0) {\n        responseList.add(apiResponse);\n    }\n}",
     "authWrapper": "// AcumaticaAuthenticator.java:20-27\npublic static <T> T authenticatedApiCall(\n    AcumaticaConnectionManager connectionManager,\n    Function<CloseableHttpClient, T> function\n) throws IOException {\n    try {\n        connectionManager.login();\n        return function.apply(connectionManager.getClient());\n    } finally {\n        connectionManager.logout(false);\n    }\n}"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "All import operations use same pagination pattern (2000 rows per page)",
     "Session refresh every 10 minutes during long imports to prevent timeout",
@@ -171,5 +177,11 @@
     "Always use AcumaticaAuthenticator.authenticatedApiCall() wrapper - never call API directly",
     "Max 50,000 records per operation (checkResponseLimitReached)",
     "URL suffix pattern: $expand for nested objects, $filter for conditions, $top for page size, $skip for pagination"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": false,
+    "reason": "Import operations read standard fields only from Acumatica",
+    "workaround": "Vendor import reads Usr* fields but not $custom parameter - custom fields not exposed in import responses",
+    "note": "To retrieve custom fields, use entity-specific export operations (e.g., exportVendor) with $custom parameter"
+  }
 }

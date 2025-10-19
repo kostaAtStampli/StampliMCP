@@ -43,11 +43,16 @@ public static class ListOperationsTool
                 });
             }
         }
-        // Tiny marker echo via a synthetic entry to aid verification (first list element)
         var ret = new CallToolResult();
         ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = results });
-        var summary = $"operations={results.Count} {BuildInfo.Marker}";
-        ret.Content.Add(new TextContentBlock { Type = "text", Text = summary });
+        
+        // Serialize full operations list as JSON for LLM consumption
+        var jsonOutput = System.Text.Json.JsonSerializer.Serialize(results, new System.Text.Json.JsonSerializerOptions 
+        { 
+            WriteIndented = true,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+        ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
         return ret;
     }
 }

@@ -1,6 +1,6 @@
 # Acumatica MCP Server
 
-MCP (Model Context Protocol) server for Acumatica ERP integration - provides AI with surgical access to 48 operations across 7 categories via code pointers instead of document dumps.
+MCP (Model Context Protocol) server for Acumatica ERP integration - provides AI with surgical access to 39 operations across 9 flows via code pointers instead of document dumps.
 
 ## Installation
 
@@ -99,7 +99,7 @@ After starting the server:
 ```javascript
 // Health check (expects A3 marker in text content)
 mcp__stampli-acumatica__health_check()
-// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-VERIFICATION-A3#
+// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-GOLDEN#
 
 // List flows (expects 9 flows and marker)
 mcp__stampli-acumatica__list_flows()

@@ -6,7 +6,7 @@
   ],
   "criticalFiles": [
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
       "lines": "86-91",
       "purpose": "Entry point for single PO matching - retrieves tax zone map first, then delegates to AcumaticaPoMatchingHelper",
       "keyPatterns": [
@@ -17,7 +17,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPoMatchingHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPoMatchingHelper.java",
       "lines": "28-148",
       "purpose": "Specialized helper for PO matching - handles filtering, creates 3 separate API calls (PO headers, PR headers, PR line items)",
       "keyPatterns": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderImportHelper.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPurchaseOrderImportHelper.java",
       "lines": "1-225",
       "purpose": "Base helper that AcumaticaPoMatchingHelper extends - handles PO-specific logic",
       "keyPatterns": [
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "file": "/mnt/c/STAMPLI4/core/finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaImportUtil.java",
+      "file": "finsys-drivers/acumatica/src/main/java/com/stampli/util/AcumaticaImportUtil.java",
       "lines": "1-100",
       "purpose": "Utility methods including splitPurchaseOrderKey() for parsing PO key format",
       "keyPatterns": [
@@ -79,6 +79,12 @@
     "keyParsing": "// AcumaticaImportUtil.splitPurchaseOrderKey()\npublic static Pair<String, String> splitPurchaseOrderKey(String poKey) {\n    if (StringUtils.isEmpty(poKey)) {\n        throw new AcumaticaApiException(\"Purchase order key is empty\");\n    }\n    String[] parts = poKey.split(\" PR - \");\n    String poNumber = parts[0].replace(\"PO - \", \"\").trim();\n    String prNumber = parts.length > 1 ? parts[1].trim() : null;\n    return Pair.of(poNumber, prNumber);\n}",
     "threeApiCalls": "// AcumaticaPoMatchingHelper.java:101-148 - createPurchaseOrderApiCallerList()\n// Call 1: PO orders with OrderNbr and VendorID filters\naddPurchaseOrdersToApiCallerList(apiCallers, orderNbr, receiptNbr, vendorId);\n\n// Call 2: PR headers\nvar receiptApiCaller = createPurchaseReceiptRestApiCaller(request, orderNbr, receiptNbr, vendorId);\nif (receiptApiCaller != null) {\n    apiCallers.add(receiptApiCaller);\n}\n\n// Call 3: PR line items (if FetchMode.PO_LINES)\nif (fetchMode.equals(FetchMode.PO_LINES)) {\n    var receiptContentsApiCaller = getPurchaseReceiptContentsApiCaller(...);\n    if (receiptContentsApiCaller != null) {\n        apiCallers.add(receiptContentsApiCaller);\n        if (StringUtils.isNotEmpty(receiptNbr)) {\n            assembler.setParsePrItemsOnly(true);\n        }\n    }\n}"
   },
+  "kotlinImplementation": {
+    "status": "JAVA_ONLY",
+    "testLocation": "Write Kotlin test in finsys-modern/kotlin-acumatica-driver/src/test/kotlin/",
+    "implLocation": "Implement in Java at finsys-drivers/acumatica/src/main/java/",
+    "futureWork": "Will migrate to Kotlin after Java implementation stable"
+  },
   "validationRules": [
     "Always retrieve tax zone map before calling PO matching helper",
     "PO key format must be parsed: 'PO - PO123456' or 'PO - PO123456 PR - PR789012'",
@@ -87,5 +93,10 @@
     "Filtering uses OrderNbr and/or VendorID in filteringFieldsData map",
     "Tax zone map must be passed to helper for tax calculations",
     "Acumatica doesn't allow multiple 'and' operators on same key - hence 3 separate calls"
-  ]
+  ],
+  "customFieldSupport": {
+    "supported": false,
+    "reason": "Matching logic operates on standard PO and receipt fields only",
+    "note": "Custom fields not needed for 3-way matching validation"
+  }
 }

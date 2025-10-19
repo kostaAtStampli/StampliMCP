@@ -1,0 +1,89 @@
+{
+  "title": "Modern Kotlin Test Infrastructure",
+  "modules": {
+    "structure": {
+      "kotlin-acumatica-driver": "Driver + tests for Acumatica",
+      "kotlin-drivers-common": "Harness, DSLs, recording",
+      "kotlin-file-integration": "File-based integration tests",
+      "kotlin-cross-erp-payments": "Cross-ERP smoke tests"
+    },
+    "packages": {
+      "main": "com.stampli.kotlin.acumatica.driver",
+      "tests": "com.stampli.finsys.modern.acumatica"
+    }
+  },
+  "harness": {
+    "baseClass": "LiveErpTestBase",
+    "location": "kotlin-drivers-common/src/main/kotlin/com/stampli/finsys/modern/testing/",
+    "provides": ["lifecycle", "cleanup", "recording", "assertions"],
+    "helpers": [
+      "AgentTestEnvironment - ERP targeting",
+      "LegacyIntegrationHelpers - S3, config",
+      "ResultsReporterExtension - JSON reports",
+      "ModernRecords - NDJSON event logging"
+    ],
+    "features": [
+      "Automatic cleanup on test failure",
+      "Connection management with ENV1",
+      "Result recording to target/modern-live/<timestamp>/",
+      "Assertion helpers for ERP responses"
+    ]
+  },
+  "dsls": {
+    "vendor": {
+      "name": "Dsl.vendor",
+      "purpose": "Build vendor test data",
+      "example": "val v = Dsl.vendor(\"C1\") { vendorId(\"V-123\"); name(\"Acme\"); bank { accountId(\"CHK-001\") } }",
+      "toMap": "val map = v.toMap() // For legacy Java APIs"
+    },
+    "purchaseOrder": {
+      "name": "Dsl.purchaseOrder",
+      "purpose": "Build PO test data",
+      "example": "val po = Dsl.purchaseOrder(\"C1\") { poNumber(\"PO-001\"); line { quantity(BigDecimal(\"10\")) } }"
+    },
+    "file": {
+      "name": "Dsl.vendorsFile",
+      "purpose": "CSV/TSV file generation for file-based tests"
+    }
+  },
+  "recording": {
+    "manifest": "target/modern-live/<timestamp>/run.json",
+    "events": "target/modern-live/<timestamp>/events.ndjson",
+    "report": "target/modern-live-report.json",
+    "library": "ModernRecords using kotlinx-serialization",
+    "override": "-Dlive.outDir=/custom/path"
+  },
+  "mavenProfiles": {
+    "modern-it": {
+      "command": "mvn test -Pmodern-it",
+      "scope": "Integration tests (no live ERP)"
+    },
+    "modern-live": {
+      "command": "mvn test -Pmodern-live",
+      "scope": "Live ERP tests with @Tag(\"live-*\")"
+    },
+    "modern-live-env1": {
+      "command": "mvn test -Pmodern-live-env1",
+      "scope": "Vendor probe only (always green, @Tag(\"vendor-probe\"))"
+    }
+  },
+  "env1": {
+    "host": "http://63.32.187.185/StampliAcumaticaDB",
+    "user": "admin",
+    "password": "Password1",
+    "subsidiary": "StampliCompany",
+    "note": "Test environment - data may change"
+  },
+  "dependencies": {
+    "json": {
+      "erpPayloads": "org.json (Java library for ERP JSON manipulation)",
+      "testRecords": "kotlinx-serialization-json (Kotlin serialization for run artifacts)"
+    },
+    "testing": {
+      "framework": "JUnit 5",
+      "assertions": "AssertJ + custom ERP assertions",
+      "mocking": "MockK available but not used in live ITs"
+    }
+  }
+}
+
