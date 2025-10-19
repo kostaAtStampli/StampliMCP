@@ -56,6 +56,7 @@ Examples:
 
         ModelContextProtocol.Server.McpServer server,
         FlowService flowService,
+        SmartFlowMatcher smartFlowMatcher,
         CancellationToken ct
     )
     {
@@ -65,7 +66,7 @@ Examples:
         try
         {
             // Step 1: Get recommendation using keyword matching
-            var recommendation = await RecommendFlowByKeywords(useCase, ct);
+            var recommendation = await RecommendFlowByKeywords(useCase, smartFlowMatcher, ct);
 
             // Step 2: Try elicitation if confidence is low (Protocol 2025-06-18)
             // If elicitation is not supported, continue with best guess
@@ -126,7 +127,7 @@ Examples:
                         else
                         {
                             // Re-recommend with additional context
-                            recommendation = await RecommendFlowByKeywords(refinedUseCase, ct);
+                            recommendation = await RecommendFlowByKeywords(refinedUseCase, smartFlowMatcher, ct);
                         }
                     }
                 }
@@ -227,10 +228,10 @@ Examples:
         }
     }
 
-    private static Task<FlowRecommendation> RecommendFlowByKeywords(string useCase, CancellationToken ct)
+    private static Task<FlowRecommendation> RecommendFlowByKeywords(string useCase, SmartFlowMatcher smartFlowMatcher, CancellationToken ct)
     {
         // Use smart matcher with SearchValues (7x faster than Contains)
-        var analysis = Services.SmartFlowMatcher.AnalyzeQuery(useCase);
+        var analysis = smartFlowMatcher.AnalyzeQuery(useCase);
         var matches = new List<(string flow, double confidence, string reason)>();
 
         // Extract flags from analysis
@@ -312,7 +313,7 @@ Examples:
         // Typo tolerance - check common queries with Levenshtein distance
         if (!matches.Any() || matches.Max(m => m.confidence) < 0.7)
         {
-            var typoMatches = CheckTypoTolerance(useCase);
+            var typoMatches = CheckTypoTolerance(useCase, smartFlowMatcher);
             matches.AddRange(typoMatches);
         }
 
@@ -359,12 +360,12 @@ Examples:
         });
     }
 
-    private static List<(string flow, double confidence, string reason)> CheckTypoTolerance(string query)
+    private static List<(string flow, double confidence, string reason)> CheckTypoTolerance(string query, SmartFlowMatcher smartFlowMatcher)
     {
         var matches = new List<(string flow, double confidence, string reason)>();
 
-        // Common query patterns to check against
-        var commonQueries = new (string expected, string flow, string reason)[]
+        // Common query patterns to check against (pattern, flow, reason)
+        var commonPatterns = new List<(string pattern, string flow, string reason)>
         {
             ("import items", "standard_import_flow", "Import items from Acumatica (typo corrected)"),
             ("import vendors", "standard_import_flow", "Import vendors from Acumatica (typo corrected)"),
@@ -375,10 +376,13 @@ Examples:
             ("export payment", "payment_flow", "Export bill payments (typo corrected)")
         };
 
-        foreach (var (expected, flow, reason) in commonQueries)
+        // OPTIMAL FASTENSHTEIN: Create ONE instance with query, compare against ALL patterns
+        var confidence = smartFlowMatcher.CalculateTypoDistance(query, commonPatterns.Select(p => p.pattern));
+
+        // Find best matching pattern
+        foreach (var (pattern, flow, reason) in commonPatterns)
         {
-            var confidence = Services.SmartFlowMatcher.CalculateTypoDistance(query, expected);
-            if (confidence >= 0.8) // Only accept if similarity is 80%+ (max 2 char difference)
+            if (pattern.Equals(query, StringComparison.OrdinalIgnoreCase) || confidence >= 0.70) // 70% threshold (generous)
             {
                 matches.Add((flow, confidence, reason));
             }

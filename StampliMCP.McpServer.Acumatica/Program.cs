@@ -73,6 +73,9 @@ builder.Services.AddSingleton<FuzzyMatchingConfig>(sp => new FuzzyMatchingConfig
 });
 builder.Services.AddSingleton<FuzzyMatchingService>();
 
+// Register SmartFlowMatcher (now non-static, uses FuzzyMatchingService)
+builder.Services.AddSingleton<SmartFlowMatcher>();
+
 // Register simple JSON file logger (no dependencies, works with PublishSingleFile)
 builder.Services.AddSingleton<JsonFileLogger>();
 

@@ -1,13 +1,23 @@
 using System.Buffers;
-using Fastenshtein;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using StampliMCP.McpServer.Acumatica.Models;
 
 namespace StampliMCP.McpServer.Acumatica.Services;
 
 /// <summary>
-/// Smart flow matcher using .NET 10 SearchValues for ultra-fast string matching
+/// Smart flow matcher using .NET 10 SearchValues for ultra-fast string matching + Fastenshtein for typo tolerance
 /// </summary>
-public static class SmartFlowMatcher
+public sealed class SmartFlowMatcher
 {
+    private readonly FuzzyMatchingService _fuzzyMatcher;
+    private readonly ILogger<SmartFlowMatcher> _logger;
+
+    public SmartFlowMatcher(FuzzyMatchingService fuzzyMatcher, ILogger<SmartFlowMatcher> logger)
+    {
+        _fuzzyMatcher = fuzzyMatcher;
+        _logger = logger;
+    }
     // Pre-compiled SearchValues for ultra-fast matching (7x faster than Contains)
     private static readonly SearchValues<string> ActionWords = SearchValues.Create(
         ["import", "export", "sync", "send", "get", "fetch", "create", "retrieve", "pull", "push", "submit", "release"],
@@ -49,7 +59,7 @@ public static class SmartFlowMatcher
         ["transactions"] = "transaction"
     };
 
-    public static FlowMatch AnalyzeQuery(string query)
+    public FlowMatch AnalyzeQuery(string query)
     {
         // 1. Normalize and tokenize
         var normalized = query.ToLowerInvariant();
@@ -74,23 +84,23 @@ public static class SmartFlowMatcher
         };
     }
 
-    public static double CalculateTypoDistance(string query, string expected)
+    /// <summary>
+    /// Calculate typo distance using optimal Fastenshtein pattern
+    /// FIXED: Now uses FuzzyMatchingService with correct pattern (query instance, compare against patterns)
+    /// </summary>
+    public double CalculateTypoDistance(string query, IEnumerable<string> commonPatterns)
     {
-        var lev = new Levenshtein(query.ToLower());
-        var distance = lev.DistanceFrom(expected.ToLower());
+        var sw = Stopwatch.StartNew();
 
-        // Convert edit distance to confidence score (0.0 to 1.0)
-        // distance 0 = 1.0 (perfect match)
-        // distance 1 = 0.9
-        // distance 2 = 0.8
-        // distance 3+ = 0.0 (too different)
-        return distance switch
-        {
-            0 => 1.0,
-            1 => 0.9,
-            2 => 0.8,
-            _ => 0.0
-        };
+        // OPTIMAL: Use FuzzyMatchingService (creates ONE instance with query, compares against many patterns)
+        var bestMatch = _fuzzyMatcher.FindBestMatch(query, commonPatterns, _fuzzyMatcher.GetThreshold("typo"));
+
+        sw.Stop();
+        _logger.LogInformation(
+            "TypoDistance: query=\"{Query}\", patterns={PatternCount}, bestMatch={BestMatch}, confidence={Confidence:P0}, time={ElapsedMs}ms",
+            query, commonPatterns.Count(), bestMatch?.Pattern ?? "NONE", bestMatch?.Confidence ?? 0.0, sw.ElapsedMilliseconds);
+
+        return bestMatch?.Confidence ?? 0.0;
     }
 }
 
