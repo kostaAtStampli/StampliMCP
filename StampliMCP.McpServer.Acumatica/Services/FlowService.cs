@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
@@ -6,9 +7,13 @@ using Microsoft.Extensions.Logging;
 
 namespace StampliMCP.McpServer.Acumatica.Services;
 
-public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
+public sealed class FlowService
 {
+    private readonly ILogger<FlowService> _logger;
+    private readonly IMemoryCache _cache;
+    private readonly FuzzyMatchingService _fuzzyMatcher;
     private readonly Assembly _assembly = typeof(FlowService).Assembly;
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
@@ -19,13 +24,20 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
         Size = 1
     };
 
+    public FlowService(ILogger<FlowService> logger, IMemoryCache cache, FuzzyMatchingService fuzzyMatcher)
+    {
+        _logger = logger;
+        _cache = cache;
+        _fuzzyMatcher = fuzzyMatcher;
+    }
+
     private async Task<string> ReadEmbeddedResourceAsync(string resourcePath, CancellationToken ct = default)
     {
         var resourceName = $"StampliMCP.McpServer.Acumatica.Knowledge.flows.{resourcePath}";
         using var stream = _assembly.GetManifestResourceStream(resourceName);
         if (stream == null)
         {
-            logger.LogWarning("Flow resource not found: {ResourceName}", resourceName);
+            _logger.LogWarning("Flow resource not found: {ResourceName}", resourceName);
             throw new FileNotFoundException($"Flow resource {resourceName} not found");
         }
         using var reader = new StreamReader(stream);
@@ -46,7 +58,7 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
 
         var cacheKey = $"flow_{normalized ?? flowName}";
 
-        return await cache.GetOrCreateAsync(
+        return await _cache.GetOrCreateAsync(
             cacheKey,
             async entry =>
             {
@@ -56,12 +68,12 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
                     var resourceFile = $"{(normalized ?? flowName)}.json";
                     var json = await ReadEmbeddedResourceAsync(resourceFile, ct);
                     var doc = JsonDocument.Parse(json);
-                    logger.LogInformation("Loaded flow {FlowName}", normalized ?? flowName);
+                    _logger.LogInformation("Loaded flow {FlowName}", normalized ?? flowName);
                     return doc;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error loading flow {FlowName}", flowName);
+                    _logger.LogError(ex, "Error loading flow {FlowName}", flowName);
                     return null;
                 }
             });
@@ -69,7 +81,7 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
 
     public async Task<List<string>> GetAllFlowNamesAsync(CancellationToken ct = default)
     {
-        return await cache.GetOrCreateAsync(
+        return await _cache.GetOrCreateAsync(
             "all_flow_names",
             entry =>
             {
@@ -81,12 +93,12 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
                         .Select(r => r.Replace("StampliMCP.McpServer.Acumatica.Knowledge.flows.", "")
                                       .Replace(".json", ""))
                         .ToList();
-                    logger.LogInformation("Found {Count} flows", flowNames.Count);
+                    _logger.LogInformation("Found {Count} flows", flowNames.Count);
                     return Task.FromResult(flowNames);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error listing flows");
+                    _logger.LogError(ex, "Error listing flows");
                     return Task.FromResult(new List<string>());
                 }
             }) ?? new List<string>();
@@ -96,49 +108,100 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
         string description,
         CancellationToken ct = default)
     {
+        var sw = Stopwatch.StartNew();
         var lower = description.ToLower();
 
-        // Flow detection logic (keyword-based)
+        // Flow detection logic with fuzzy matching for typos (threshold 0.60)
         // Export flows (check first - more specific)
-        if (lower.Contains("vendor") && (lower.Contains("export") || lower.Contains("create")))
+        if (ContainsOrFuzzy(lower, "vendor", 0.60) && (ContainsOrFuzzy(lower, "export", 0.60) || ContainsOrFuzzy(lower, "create", 0.60)))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: vendor_export_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("vendor_export_flow", "HIGH", "User wants to export/create vendor");
+        }
 
-        if ((lower.Contains("bill") || lower.Contains("invoice")) &&
-            (lower.Contains("export") || lower.Contains("create")))
+        if ((ContainsOrFuzzy(lower, "bill", 0.60) || ContainsOrFuzzy(lower, "invoice", 0.60)) &&
+            (ContainsOrFuzzy(lower, "export", 0.60) || ContainsOrFuzzy(lower, "create", 0.60)))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: export_invoice_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("export_invoice_flow", "HIGH", "User wants to export bill/invoice");
+        }
 
-        if (lower.Contains("payment") && (lower.Contains("export") || lower.Contains("create")))
+        if (ContainsOrFuzzy(lower, "payment", 0.60) && (ContainsOrFuzzy(lower, "export", 0.60) || ContainsOrFuzzy(lower, "create", 0.60)))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: payment_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("payment_flow", "HIGH", "User wants to export payment");
+        }
 
-        if (lower.Contains("purchase order") && (lower.Contains("export") || lower.Contains("create")))
+        if (ContainsOrFuzzy(lower, "purchase order", 0.60) && (ContainsOrFuzzy(lower, "export", 0.60) || ContainsOrFuzzy(lower, "create", 0.60)))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: export_po_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("export_po_flow", "HIGH", "User wants to export purchase order");
+        }
 
         // PO matching flows
-        if (lower.Contains("po matching") && (lower.Contains("all") || lower.Contains("closed")))
+        if (ContainsOrFuzzy(lower, "po matching", 0.60) && (lower.Contains("all") || lower.Contains("closed")))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: po_matching_full_import_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("po_matching_full_import_flow", "HIGH", "User wants full PO matching with closed data");
+        }
 
-        if (lower.Contains("po matching") || (lower.Contains("purchase order") && lower.Contains("match")))
+        if (ContainsOrFuzzy(lower, "po matching", 0.60) || (ContainsOrFuzzy(lower, "purchase order", 0.60) && lower.Contains("match")))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: po_matching_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("po_matching_flow", "MEDIUM", "User wants single PO matching");
+        }
 
         // M2M flow
         if (lower.Contains("m2m") || lower.Contains("many to many") || lower.Contains("relationship") ||
             (lower.Contains("branch") && lower.Contains("project")) ||
             (lower.Contains("project") && lower.Contains("task")) ||
             (lower.Contains("task") && lower.Contains("cost code")))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: m2m_import_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("m2m_import_flow", "HIGH", "User wants M2M relationship import");
+        }
 
         // API actions
         if (lower.Contains("void") || lower.Contains("release") || lower.Contains("action"))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: api_action_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("api_action_flow", "MEDIUM", "User wants to perform API action (void/release)");
+        }
 
         // Default: Standard import (most common)
-        if (lower.Contains("import") || lower.Contains("get") || lower.Contains("retrieve") ||
-            lower.Contains("fetch") || lower.Contains("custom field") || lower.Contains("vendor") ||
-            lower.Contains("account") || lower.Contains("item") || lower.Contains("tax"))
+        if (ContainsOrFuzzy(lower, "import", 0.60) || lower.Contains("get") || lower.Contains("retrieve") ||
+            lower.Contains("fetch") || lower.Contains("custom field") || ContainsOrFuzzy(lower, "vendor", 0.60) ||
+            lower.Contains("account") || ContainsOrFuzzy(lower, "item", 0.60) || lower.Contains("tax"))
+        {
+            sw.Stop();
+            _logger.LogInformation("FlowMatch: standard_import_flow, time={Ms}ms", sw.ElapsedMilliseconds);
             return ("standard_import_flow", "HIGH", "User wants to import data using standard pagination pattern");
+        }
 
         // Fallback
+        sw.Stop();
+        _logger.LogInformation("FlowMatch: standard_import_flow (fallback), time={Ms}ms", sw.ElapsedMilliseconds);
         return ("standard_import_flow", "LOW", "No specific flow detected, defaulting to standard import");
+    }
+
+    private bool ContainsOrFuzzy(string text, string keyword, double threshold)
+    {
+        // Fast path: exact match
+        if (text.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Fuzzy path: Check if any word in text fuzzy-matches keyword
+        var words = text.Split([' ', ',', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
+        var matches = _fuzzyMatcher.FindAllMatches(keyword, words, threshold);
+        return matches.Any();
     }
 
     public async Task<string?> GetFlowForOperationAsync(string operationName, CancellationToken ct = default)
