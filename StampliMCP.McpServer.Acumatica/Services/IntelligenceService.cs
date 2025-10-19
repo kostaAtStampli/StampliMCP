@@ -1,5 +1,7 @@
 using StampliMCP.McpServer.Acumatica.Models;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace StampliMCP.McpServer.Acumatica.Services;
 
@@ -9,10 +11,14 @@ namespace StampliMCP.McpServer.Acumatica.Services;
 public class IntelligenceService
 {
     private readonly KnowledgeService _knowledge;
+    private readonly FuzzyMatchingService _fuzzyMatcher;
+    private readonly ILogger<IntelligenceService> _logger;
 
-    public IntelligenceService(KnowledgeService knowledge)
+    public IntelligenceService(KnowledgeService knowledge, FuzzyMatchingService fuzzyMatcher, ILogger<IntelligenceService> logger)
     {
         _knowledge = knowledge;
+        _fuzzyMatcher = fuzzyMatcher;
+        _logger = logger;
     }
 
     public async Task<object> AnalyzeIntegrationComplexity(string featureDescription, CancellationToken ct = default)
@@ -173,6 +179,7 @@ public class IntelligenceService
     // Helper methods
     private List<Operation> IdentifyRelevantOperations(string description, List<Operation> allOps)
     {
+        var sw = Stopwatch.StartNew();
         var keywords = ExtractKeywords(description.ToLower());
         var relevant = new List<(Operation op, int score)>();
 
@@ -183,13 +190,31 @@ public class IntelligenceService
 
             foreach (var keyword in keywords)
             {
+                // Fast path: exact match
                 if (searchText.Contains(keyword))
+                {
                     score += keyword.Length; // Longer keywords = more specific = higher score
+                }
+                else
+                {
+                    // Fuzzy path: check if keyword fuzzy-matches any word in searchText
+                    var words = searchText.Split([' ', ',', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
+                    var matches = _fuzzyMatcher.FindAllMatches(keyword, words, _fuzzyMatcher.GetThreshold("keyword"));
+                    if (matches.Any())
+                    {
+                        // Fuzzy match gets partial score (confidence * keyword length)
+                        score += (int)(matches.First().Confidence * keyword.Length);
+                    }
+                }
             }
 
             if (score > 0)
                 relevant.Add((op, score));
         }
+
+        sw.Stop();
+        _logger.LogInformation("IdentifyRelevantOperations: keywords={Count}, relevantOps={OpCount}, time={Ms}ms",
+            keywords.Length, relevant.Count, sw.ElapsedMilliseconds);
 
         return relevant.OrderByDescending(r => r.score).Take(5).Select(r => r.op).ToList();
     }
@@ -539,6 +564,7 @@ public class IntelligenceService
 
     private List<(Operation Operation, double Score, string Reason)> ScoreOperations(string requirement, List<Operation> ops)
     {
+        var sw = Stopwatch.StartNew();
         var keywords = ExtractKeywords(requirement.ToLower());
         var scored = new List<(Operation, double, string)>();
 
@@ -550,10 +576,22 @@ public class IntelligenceService
 
             foreach (var keyword in keywords)
             {
+                // Fast path: exact match
                 if (searchText.Contains(keyword))
                 {
                     score += 0.2;
                     reasons.Add($"Matches '{keyword}'");
+                }
+                else
+                {
+                    // Fuzzy path: check fuzzy matches
+                    var words = searchText.Split([' ', ',', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
+                    var matches = _fuzzyMatcher.FindAllMatches(keyword, words, _fuzzyMatcher.GetThreshold("keyword"));
+                    if (matches.Any())
+                    {
+                        score += 0.2 * matches.First().Confidence; // Partial score for fuzzy
+                        reasons.Add($"Fuzzy matches '{keyword}' ({matches.First().Confidence:P0})");
+                    }
                 }
             }
 
@@ -570,6 +608,10 @@ public class IntelligenceService
                 scored.Add((op, Math.Min(score, 1.0), reason));
             }
         }
+
+        sw.Stop();
+        _logger.LogInformation("ScoreOperations: keywords={Count}, scored={OpCount}, time={Ms}ms",
+            keywords.Length, scored.Count, sw.ElapsedMilliseconds);
 
         return scored.OrderByDescending(s => s.Item2).Take(3).ToList();
     }
