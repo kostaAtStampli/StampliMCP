@@ -262,7 +262,7 @@ Categories:
             Serilog.Log.Information("Exact phrase match: category=RateLimit");
             return "RateLimit";
         }
-        if (lower.Contains("maximum length") || lower.Contains("must be") || lower.Contains("should be"))
+        if (lower.Contains("maximum length") || lower.Contains("must be") || lower.Contains("should be") || lower.Contains("found multiple"))
         {
             Serilog.Log.Information("Exact phrase match: category=Validation");
             return "Validation";
@@ -289,7 +289,7 @@ Categories:
         var allCategories = new List<(string category, string[] keywords)>
         {
             ("Validation", ["required", "missing", "invalid", "exceeds", "limit", "field"]),
-            ("NotFound", ["found", "exist", "find"]),  // Single words from phrases
+            ("NotFound", ["exist", "find"]),  // Removed "found" - too generic, causes false positives like "Found multiple tax codes"
             ("BusinessLogic", ["duplicate", "exists", "conflict", "allowed"]),
             ("Authentication", ["auth", "session", "unauthorized", "permission", "denied"]),
             ("RateLimit", ["rate", "limit", "many", "throttle"]),

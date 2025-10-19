@@ -109,6 +109,14 @@ public sealed class SmartFlowMatcher
 
         return bestMatch?.Confidence ?? 0.0;
     }
+
+    /// <summary>
+    /// Get all fuzzy matches for query against patterns with per-pattern confidence
+    /// </summary>
+    public List<FuzzyMatch> GetAllFuzzyMatches(string query, IEnumerable<string> patterns, double threshold)
+    {
+        return _fuzzyMatcher.FindAllMatches(query, patterns, threshold);
+    }
 }
 
 public class FlowMatch

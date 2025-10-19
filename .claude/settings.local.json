@@ -5,7 +5,8 @@
       "Bash(git commit -m \"feat(FlowRecommenderTool): lower typo tolerance threshold to 0.60\n\n- Lower CheckTypoTolerance threshold from 0.70 to 0.60 (generous)\n- Aligns with FuzzyMatchingConfig defaults (0.60-0.70 range)\n- Catches more typos with higher tolerance\n\nUse case: ''imprt itms'' → standard_import_flow (60% confidence)\nPerformance: No impact, same Fastenshtein pattern\")",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" test StampliMCP.McpServer.Acumatica.Tests/StampliMCP.McpServer.Acumatica.Tests.csproj -c Release --nologo)",
       "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" test StampliMCP.McpServer.Acumatica.Tests/StampliMCP.McpServer.Acumatica.Tests.csproj -c Release --nologo --verbosity normal)",
-      "Bash(git commit -m \"test(FuzzyMatchingService): add comprehensive unit tests for fuzzy matching\n\n- Add FuzzyMatchingServiceTests.cs with 11 tests\n- Fix FlowServiceTests + ValidationCheckerToolTests to inject FuzzyMatchingService\n- Test exact matches, typo tolerance, case insensitivity, threshold checks\n- Tests cover common typos: vendro→vendor, exprt→export, imprt→import\n\nNote: 2 tests failing (threshold tuning needed), but fuzzy matching works in production\nReady for live MCP testing with typos\")"
+      "Bash(git commit -m \"test(FuzzyMatchingService): add comprehensive unit tests for fuzzy matching\n\n- Add FuzzyMatchingServiceTests.cs with 11 tests\n- Fix FlowServiceTests + ValidationCheckerToolTests to inject FuzzyMatchingService\n- Test exact matches, typo tolerance, case insensitivity, threshold checks\n- Tests cover common typos: vendro→vendor, exprt→export, imprt→import\n\nNote: 2 tests failing (threshold tuning needed), but fuzzy matching works in production\nReady for live MCP testing with typos\")",
+      "mcp__stampli-acumatica__list_prompts"
     ],
     "deny": [],
     "ask": []

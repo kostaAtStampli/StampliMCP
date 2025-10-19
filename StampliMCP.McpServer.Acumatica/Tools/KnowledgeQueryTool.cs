@@ -241,18 +241,13 @@ Returns:
 
         // Tokenize query for better matching (e.g., "vendor export" → ["vendor", "export"]). Treat empty or "*" as wildcard.
         // Filter out short words (< 3 chars) to reduce noise from generic terms like "po", "id", "or", etc.
-        // Apply semantic aliases (invoice→bill, etc.) to match Acumatica terminology
+        // EXPAND semantic aliases (invoice → [invoice, bill]) to find ALL related operations
         var queryTokens = isWildcard
             ? Array.Empty<string>()
             : lowerQuery.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries)
                 .Where(token => token.Length >= 3)
-                .Select(token => token switch
-                {
-                    "invoice" or "invoices" => "bill",
-                    "supplier" or "suppliers" or "payee" or "payees" => "vendor",
-                    "product" or "products" or "sku" or "skus" => "item",
-                    _ => token
-                })
+                .SelectMany(token => ExpandSemanticAliases(token))
+                .Distinct()
                 .ToArray();
 
         // Search operations
@@ -462,6 +457,34 @@ Returns:
             query, scope ?? "all", results.TotalMatches, sw.ElapsedMilliseconds);
 
         return results;
+    }
+
+    /// <summary>
+    /// Expand semantic aliases to search for ALL related terms (not just mapped ones).
+    /// Example: "invoice" → ["invoice", "invoices", "bill", "bills"]
+    /// This finds BOTH invoice operations AND bill operations.
+    /// </summary>
+    private static string[] ExpandSemanticAliases(string token)
+    {
+        return token switch
+        {
+            // Invoice/Bill expansion - search for both terms
+            "invoice" or "invoices" => new[] { "invoice", "invoices", "bill", "bills" },
+            "bill" or "bills" => new[] { "bill", "bills", "invoice", "invoices" },
+
+            // Vendor expansion - search for all synonyms
+            "supplier" or "suppliers" => new[] { "supplier", "suppliers", "vendor", "vendors" },
+            "payee" or "payees" => new[] { "payee", "payees", "vendor", "vendors" },
+            "vendor" or "vendors" => new[] { "vendor", "vendors", "supplier", "suppliers" },
+
+            // Item/Product expansion
+            "product" or "products" => new[] { "product", "products", "item", "items" },
+            "sku" or "skus" => new[] { "sku", "skus", "item", "items" },
+            "item" or "items" => new[] { "item", "items", "product", "products" },
+
+            // No expansion for other terms
+            _ => new[] { token }
+        };
     }
 
     private static List<ResourceLinkBlock> BuildResourceLinks(SearchResults results)

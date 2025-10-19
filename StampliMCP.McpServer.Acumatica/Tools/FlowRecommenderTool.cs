@@ -250,6 +250,7 @@ Examples:
         var hasMatch = analysis.Words.Any(w => w.Contains("match"));
         var hasReceipt = analysis.Words.Any(w => w.Contains("receipt"));
         var hasFull = analysis.Words.Any(w => w is "full" or "complete" or "all");
+        var hasLineItems = analysis.Words.Any(w => w.Contains("line")) || useCase.Contains("line items");
         var hasInternational = analysis.Words.Any(w => w is "international" or "currency" or "multicurrency");
         var hasM2M = analysis.Words.Any(w => w is "many" or "m2m" or "relationship");
 
@@ -287,8 +288,8 @@ Examples:
         {
             if (hasMatch || hasReceipt)
                 matches.Add(("po_matching_flow", 0.95, "PO matching with receipt lookup for 3-way matching"));
-            else if (hasImport && hasFull)
-                matches.Add(("po_matching_full_import_flow", 0.90, "Full PO import with line items"));
+            else if ((hasImport || hasPO) && (hasFull || hasLineItems))
+                matches.Add(("po_matching_full_import_flow", 0.95, "Full PO import with line items"));
             else if (hasExport)
                 matches.Add(("export_po_flow", 0.90, "Export purchase orders to Acumatica"));
             else if (hasImport)
@@ -376,15 +377,24 @@ Examples:
             ("export payment", "payment_flow", "Export bill payments (typo corrected)")
         };
 
-        // OPTIMAL FASTENSHTEIN: Create ONE instance with query, compare against ALL patterns
-        var confidence = smartFlowMatcher.CalculateTypoDistance(query, commonPatterns.Select(p => p.pattern));
+        // FIXED: Adaptive threshold based on query length (long queries = more permissive)
+        // Short queries (<20 chars): 60% threshold (strict), Long queries (>=20): 40% threshold (permissive)
+        double adaptiveThreshold = query.Length >= 20 ? 0.40 : 0.60;
 
-        // Find best matching pattern
-        foreach (var (pattern, flow, reason) in commonPatterns)
+        var fuzzyMatches = smartFlowMatcher.GetAllFuzzyMatches(
+            query,
+            commonPatterns.Select(p => p.pattern),
+            adaptiveThreshold); // Adaptive threshold
+
+        // Convert FuzzyMatch results to flow matches with correct per-pattern confidence
+        foreach (var fuzzyMatch in fuzzyMatches)
         {
-            if (pattern.Equals(query, StringComparison.OrdinalIgnoreCase) || confidence >= 0.60) // 60% threshold (generous)
+            var matchingPattern = commonPatterns.FirstOrDefault(p =>
+                p.pattern.Equals(fuzzyMatch.Pattern, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingPattern != default)
             {
-                matches.Add((flow, confidence, reason));
+                matches.Add((matchingPattern.flow, fuzzyMatch.Confidence, matchingPattern.reason));
             }
         }
 
