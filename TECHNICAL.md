@@ -35,7 +35,7 @@ After killing process:
 ## Architecture Decisions
 
 ### Why Embedded Resources?
-- Single-file deployment (~31 MB)
+- Single-file deployment (≈108 MB)
 - No file path issues at runtime
 - Knowledge travels with exe
 - Trade-off: Must rebuild for knowledge changes
@@ -116,9 +116,9 @@ After changes:
 ## Performance Notes
 
 - Query returns ~500 bytes metadata
-- Full operation details ~2-5 KB
+- Full operation details ~2–5 KB
 - Embedded resources load once, cached in memory
-- Single-file exe ~31 MB (includes .NET runtime)
+- Single-file exe ≈108 MB (includes .NET runtime)
 
 ## Debug Commands
 

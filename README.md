@@ -32,31 +32,36 @@ mcp__stampli-acumatica__query_acumatica_knowledge("payment")
 // Returns: Operations related to payments
 ```
 
-### MCP Tools (10)
+### Key Tools
 
 | Tool | Purpose |
 |------|---------|
-| `query_acumatica_knowledge` | Search operations/flows |
-| `kotlin_tdd_workflow` | TDD implementation workflow |
-| `recommend_flow` | AI flow recommendation |
-| `validate_request` | Pre-flight validation |
-| `diagnose_error` | Error root cause analysis |
-| `get_kotlin_golden_reference` | Kotlin patterns (exportVendor) |
-| `get_flow_details` | Flow anatomy/constants |
-| `health_check` | Server status |
-| `check_knowledge_files` | List 48 embedded files |
-| `challenge_scan_findings` | Verify scan accuracy |
+| `list_flows` | List integration flows with descriptions and usedByOperations |
+| `get_flow_details` | Flow anatomy, constants, rules, code snippets |
+| `query_acumatica_knowledge` | Natural language search across operations/flows/constants |
+| `list_operations` | Enumerate operations by category with flow mapping |
+| `recommend_flow` | AI flow recommendation with alternatives/elicitation |
+| `validate_request` | Pre‑flight JSON validation using flow rules |
+| `diagnose_error` | Error diagnostics with related flow rules |
+| `list_prompts` | List registered MCP prompts |
+| `get_kotlin_golden_reference` | Kotlin golden reference (exportVendor) |
+| `health_check` | Server status/version + verification marker |
+| `check_knowledge_files` | List embedded knowledge resources |
 
-## Build & Deploy
+## Build & Deploy (Windows exe)
 
 ```bash
-# Build Release
-dotnet build -c Release --nologo
+# Kill running process before publish (prevents file lock)
+"/mnt/c/Windows/System32/taskkill.exe" /F /IM stampli-mcp-acumatica.exe || true
 
-# Publish self-contained exe (~31 MB)
-dotnet publish StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
+# Build Release (optional)
+"/mnt/c/Program Files/dotnet/dotnet.exe" build -c Release --nologo
+
+# Publish self-contained, single-file exe (≈108 MB)
+"/mnt/c/Program Files/dotnet/dotnet.exe" publish \
+  StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
   -c Release -r win-x64 --self-contained \
-  /p:PublishSingleFile=true /p:PublishAot=false
+  /p:PublishSingleFile=true /p:PublishTrimmed=false /p:PublishAot=false --nologo
 ```
 
 Output: `bin\Release\net10.0\win-x64\publish\stampli-mcp-acumatica.exe`
@@ -92,13 +97,21 @@ StampliMCP/
 
 After starting the server:
 ```javascript
-// Test health
+// Health check (expects A3 marker in text content)
 mcp__stampli-acumatica__health_check()
-// Expected: { version: "4.0.0", status: "ok" }
+// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-VERIFICATION-A3#
 
-// Test query
-mcp__stampli-acumatica__query_acumatica_knowledge("vendor")
-// Expected: 6 vendor operations
+// List flows (expects 9 flows and marker)
+mcp__stampli-acumatica__list_flows()
+
+// Flow details (case-insensitive name)
+mcp__stampli-acumatica__get_flow_details("VENDOR_EXPORT_FLOW")
+
+// Knowledge query (empty flows scope lists all flows)
+mcp__stampli-acumatica__query_acumatica_knowledge("", "flows")
+
+// Validation (should flag VendorID > 15)
+mcp__stampli-acumatica__validate_request("exportVendor", "{\"vendorName\":\"A\",\"VendorID\":\"1234567890123456789\"}")
 ```
 
 ## Support

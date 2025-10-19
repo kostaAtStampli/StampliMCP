@@ -1,125 +1,50 @@
 # Acumatica MCP Server - Quick Start Guide
 
-## 5-Minute Setup
+## 5‑Minute Setup (Current)
 
-### Step 1: Build & Publish (2 min)
+### Step 1: Publish the exe
 ```bash
-cd C:\Users\Kosta\source\repos\StampliMCP\StampliMCP.McpServer.Acumatica
-dotnet publish -c Release -o publish
+"/mnt/c/Windows/System32/taskkill.exe" /F /IM stampli-mcp-acumatica.exe || true
+"/mnt/c/Program Files/dotnet/dotnet.exe" publish \
+  StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
+  -c Release -r win-x64 --self-contained \
+  /p:PublishSingleFile=true /p:PublishTrimmed=false /p:PublishAot=false --nologo
 ```
 
-### Step 2: Configure Claude Desktop (1 min)
-Open `%APPDATA%\Claude\claude_desktop_config.json` and add:
-```json
-{
-  "mcpServers": {
-    "acumatica": {
-      "command": "C:\\Users\\Kosta\\source\\repos\\StampliMCP\\StampliMCP.McpServer.Acumatica\\publish\\StampliMCP.McpServer.Acumatica.exe",
-      "args": []
-    }
-  }
-}
-```
+### Step 2: Point your client to the exe
+Add the exe path to your MCP client (Claude Desktop, Cursor, Codex CLI). See `MCP_SERVER_SETUP.md`.
 
-### Step 3: Restart Claude Desktop (30 sec)
-
-### Step 4: Test (1 min)
-Open Claude and ask:
+### Step 3: Test
 ```
-Do you have access to Acumatica tools? List them.
+mcp__stampli-acumatica__health_check()
+mcp__stampli-acumatica__list_flows()
+mcp__stampli-acumatica__get_flow_details("VENDOR_EXPORT_FLOW")
+mcp__stampli-acumatica__query_acumatica_knowledge("", "flows")
 ```
-
-Claude should show 9 tools available.
-
-### Step 5: Real Usage
-```
-Write a test for Acumatica vendor export with duplicate handling
-```
-
-Claude will:
-1. Call `get_operation("exportVendor")`
-2. Get rich metadata with code pointers
-3. Call `get_errors("exportVendor")`
-4. Scan pointed files from C:\STAMPLI4\core\
-5. Write complete test naturally
 
 ---
 
-## Verify It Works
-
-### Test 1: List Categories
-```
-Claude: "What Acumatica operation categories exist?"
-```
-Should return: vendors, items, purchaseOrders, payments, accounts, fields, admin, retrieval, utility, other
-
-### Test 2: Get Operation Details
-```
-Claude: "Tell me about the exportVendor operation"
-```
-
-Should return:
-- Summary
-- Required fields (vendorName max 60, stampliurl required)
-- Optional fields (vendorId, vendorClass, etc.)
-- 7-layer flow trace
-- 3 helper classes
-- Golden test locations
-- Error catalog reference
-
-### Test 3: Write Test
-```
-Claude: "Write a test for vendor export that handles the duplicate vendor case"
-```
-
-Claude should:
-- Query MCP for operation details
-- Query MCP for errors
-- Scan AcumaticaDriver.java lines 412-470 (duplicate logic)
-- Scan golden test lines 140-165 (idempotency test)
-- Write complete test with correct assertions
+## What You Get (Highlights)
+- list_flows / get_flow_details → flow‑first discovery
+- query_acumatica_knowledge → natural‑language search (wildcard for flows)
+- validate_request / diagnose_error → flow‑aware guardrails
 
 ---
 
-## Alternative: Cursor Setup
-
-**Settings → Features → Model Context Protocol → Add Server:**
-- Name: `Acumatica`
-- Command: `C:\Users\Kosta\source\repos\StampliMCP\StampliMCP.McpServer.Acumatica\publish\StampliMCP.McpServer.Acumatica.exe`
-
-Restart Cursor, tools available in chat.
+## Alternative: Cursor/VS Code
+Add the exe path in your editor’s MCP configuration. Restart the editor, then call `health_check`.
 
 ---
 
 ## What You Get
 
-**9 MCP Tools:**
-1. list_categories
-2. list_operations
-3. get_operation (THE MAIN ONE)
-4. get_operation_flow
-5. search_operations
-6. get_enums
-7. get_test_config
-8. get_errors
-9. get_base_classes
-
-**51 Operations:**
-- 12 with full rich metadata (flow traces, helpers, errors, API details)
-- 39 with code pointers + pattern references
-
-**Complete Intelligence:**
-- 6 enum type mappings
-- Error catalog (validation, business, API)
-- Test customer config with credentials pattern
-- Golden test examples with specific methods
-- Base class inheritance documentation
+**Key tools:** list_flows, get_flow_details, query_acumatica_knowledge, list_operations, recommend_flow, validate_request, diagnose_error, list_prompts, get_kotlin_golden_reference, health_check, check_knowledge_files
 
 ---
 
 ## Troubleshooting
 
-**Tools don't appear:**
+**Tools don’t appear:**
 - Check config file syntax (valid JSON?)
 - Check exe path is absolute and correct
 - Restart Claude/Cursor completely
@@ -130,8 +55,7 @@ Restart Cursor, tools available in chat.
 - Check logs in stderr
 
 **Knowledge files not found:**
-- Make sure you ran `dotnet publish`, not just `dotnet build`
-- Verify `publish/Knowledge/` folder has all 13 JSON files
+- Knowledge is embedded; republish if you changed JSON
 
 ---
 
@@ -143,5 +67,5 @@ Restart Cursor, tools available in chat.
 4. ✅ Check generated test quality
 5. ⭐ Give feedback for iteration
 
-See `FINAL_STATUS.md` for complete implementation details.
+See `README.md` for current tool list and examples.
 

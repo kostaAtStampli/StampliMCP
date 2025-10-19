@@ -2,27 +2,29 @@
 
 **Version**: 4.0.0 | **Build**: BUILD_2025_10_18_PROMPT_FIX | **Protocol**: MCP 2025-06-18
 
-10 tools, 48 operations, 7 categories. Returns code pointers not document dumps.
-Self-contained Windows exe (~31 MB) with embedded knowledge.
+Key tools, 48 operations, 7 categories. Returns code pointers, not document dumps.
+Self-contained Windows exe (≈108 MB) with embedded knowledge.
 
 ## Key MCP Tools
-1. `query_acumatica_knowledge` - Natural language search for operations
-2. `health_check` - Server version and status
-3. `kotlin_tdd_workflow` - TDD implementation workflow
-4. `recommend_flow` - AI-powered flow recommendation
-5. `get_flow_details` - Flow anatomy and constants
-6. `validate_request` - Validate JSON payloads
-7. `diagnose_error` - Root cause analysis
-8. `get_kotlin_golden_reference` - Kotlin patterns (exportVendor only)
-9. `check_knowledge_files` - List 48 embedded files
-10. `challenge_scan_findings` - Verify scan accuracy
+1. `list_flows` — Flow discovery (name, description, usedByOperations)
+2. `get_flow_details` — Anatomy, constants, validation rules, code snippets
+3. `query_acumatica_knowledge` — Search operations/flows/constants (elicitation-aware)
+4. `list_operations` — Enumerate operations by category with flow mapping
+5. `recommend_flow` — AI recommendation with alternatives
+6. `validate_request` — Flow-driven preflight validation
+7. `diagnose_error` — Category + related flow rules
+8. `list_prompts` — Enumerate MCP prompts
+9. `get_kotlin_golden_reference` — Kotlin reference (exportVendor)
+10. `health_check` — Version/status + verification marker
+11. `check_knowledge_files` — Embedded resource inventory
 
 ## Development Commands
 ```bash
 # Build
 "/mnt/c/Program Files/dotnet/dotnet.exe" build -c Release --nologo
 
-# Publish (use C:\ paths!)
+# Publish (use Windows paths; kill before publish)
+"/mnt/c/Windows/System32/taskkill.exe" /F /IM stampli-mcp-acumatica.exe || true
 "/mnt/c/Program Files/dotnet/dotnet.exe" publish \
   StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
   -c Release -r win-x64 --self-contained /p:PublishSingleFile=true \
@@ -57,14 +59,17 @@ Self-contained Windows exe (~31 MB) with embedded knowledge.
 - Added Titles to all MCP tools (2025 requirement)
 - Consolidated 6 conflicting docs into 3 clear files
 
-## Testing Examples
+## Testing Examples (A3 marker expected in text content)
 ```csharp
 // After rebuild and /mcp reconnect:
 mcp__stampli-acumatica__query_acumatica_knowledge("vendor")
 // Should return 6 vendor operations
 
 mcp__stampli-acumatica__health_check()
-// Should show version 4.0.0
+// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-VERIFICATION-A3#
+
+mcp__stampli-acumatica__list_flows()
+mcp__stampli-acumatica__get_flow_details("VENDOR_EXPORT_FLOW")
 ```
 
 ## Links
