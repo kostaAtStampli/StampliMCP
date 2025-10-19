@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -56,6 +57,7 @@ Returns:
         ModelContextProtocol.Server.McpServer server, // Schema-based elicitation via McpServer (current SDK)
         KnowledgeService knowledge,
         FlowService flowService,
+        FuzzyMatchingService fuzzyMatcher,
         CancellationToken ct
     )
     {
@@ -64,8 +66,8 @@ Returns:
 
         try
         {
-            // Step 1: Search knowledge base
-            var searchResults = await SearchKnowledge(query, scope, knowledge, flowService, ct);
+            // Step 1: Search knowledge base (with fuzzy token matching)
+            var searchResults = await SearchKnowledge(query, scope, knowledge, flowService, fuzzyMatcher, ct);
 
             // Step 2: Try elicitation if ambiguous (Protocol 2025-06-18 - schema-based API)
             // If elicitation not supported, continue with results
@@ -113,7 +115,7 @@ Returns:
                         var refinedScope = !string.IsNullOrEmpty(type) && type != "all" ? type : scope;
                         var refinedQuery = !string.IsNullOrWhiteSpace(refinement) ? $"{query} {refinement}" : query;
 
-                        searchResults = await SearchKnowledge(refinedQuery, refinedScope, knowledge, flowService, ct);
+                        searchResults = await SearchKnowledge(refinedQuery, refinedScope, knowledge, flowService, fuzzyMatcher, ct);
                     }
                 }
                 catch (Exception ex)
@@ -137,15 +139,15 @@ Returns:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = structured });
-            
+
             // Serialize full structured content as JSON for LLM consumption
-            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(structured, new System.Text.Json.JsonSerializerOptions 
-            { 
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(structured, new System.Text.Json.JsonSerializerOptions
+            {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
             ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
-            
+
             // Convert resource links into content
             foreach (var link in structured.NextActions)
             {
@@ -168,13 +170,13 @@ Returns:
                 marker = BuildInfo.Marker,
                 suggestion = "Try calling health_check to verify server status"
             };
-            
+
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorResult });
-            
+
             // Serialize error as JSON for LLM consumption
-            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(errorResult, new System.Text.Json.JsonSerializerOptions 
-            { 
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(errorResult, new System.Text.Json.JsonSerializerOptions
+            {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
@@ -189,8 +191,10 @@ Returns:
         string? scope,
         KnowledgeService knowledge,
         FlowService flowService,
+        FuzzyMatchingService fuzzyMatcher,
         CancellationToken ct)
     {
+        var sw = Stopwatch.StartNew();
         var results = new SearchResults();
         var lowerQuery = (query ?? string.Empty).ToLower();
         var isWildcard = string.IsNullOrWhiteSpace(lowerQuery) || lowerQuery == "*";
@@ -213,12 +217,25 @@ Returns:
                     var opSummaryLower = op.Summary?.ToLower() ?? "";
                     var categoryLower = category.Name.ToLower();
 
-                    // Match if ANY token appears in method, summary, or category
-                    return queryTokens.Any(token =>
+                    // Fast path: Match if ANY token appears in method, summary, or category
+                    bool exactMatch = queryTokens.Any(token =>
                         opMethodLower.Contains(token) ||
                         opSummaryLower.Contains(token) ||
                         categoryLower.Contains(token)
                     );
+
+                    if (exactMatch) return true;
+
+                    // Fuzzy path: Check if any token fuzzy-matches
+                    foreach (var token in queryTokens)
+                    {
+                        var searchWords = $"{opMethodLower} {opSummaryLower} {categoryLower}".Split([' ', ',', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
+                        var fuzzyMatches = fuzzyMatcher.FindAllMatches(token, searchWords, fuzzyMatcher.GetThreshold("keyword"));
+                        if (fuzzyMatches.Any())
+                            return true;
+                    }
+
+                    return false;
                 }).ToList();
 
                 results.Operations.AddRange(matchedOps.Select(op => new OperationSummary
@@ -254,14 +271,14 @@ Returns:
                             var constObj = constant.Value;
                             var valueLower = constObj.TryGetProperty("value", out var val) ? val.ToString().ToLower() : "";
                             var purposeLower = constObj.TryGetProperty("purpose", out var purpose) ? (purpose.GetString() ?? "").ToLower() : "";
-                            
+
                             // Match if wildcard OR any token appears in name, value, or purpose
                             bool matches = queryTokens.Length == 0 || queryTokens.Any(token =>
                                 constNameLower.Contains(token) ||
                                 valueLower.Contains(token) ||
                                 purposeLower.Contains(token)
                             );
-                            
+
                             if (matches)
                             {
                                 results.Constants[constant.Name] = new ConstantInfo
@@ -388,6 +405,10 @@ Returns:
         // Determine if ambiguous
         results.IsAmbiguous = results.Operations.Count > 10 || results.Flows.Count > 3;
         results.TotalMatches = results.Operations.Count + results.Flows.Count;
+
+        sw.Stop();
+        Serilog.Log.Information("SearchKnowledge: query=\"{Query}\", scope={Scope}, matches={Total}, time={Ms}ms",
+            query, scope ?? "all", results.TotalMatches, sw.ElapsedMilliseconds);
 
         return results;
     }

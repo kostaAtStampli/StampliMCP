@@ -1,37 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(while read file)",
-      "Bash(do if ! grep -q \"ResourceLinkBlock\" \"$file\")",
-      "Bash(then echo \"$file - NO resource links\")",
-      "mcp__stampli-acumatica__get_kotlin_golden_reference",
-      "mcp__stampli-acumatica__recommend_flow",
-      "mcp__stampli-acumatica__validate_request",
-      "mcp__stampli-acumatica__diagnose_error",
-      "mcp__stampli-acumatica__challenge_scan_findings",
-      "Bash(/mnt/c/Windows/System32/taskkill.exe /F /PID 11124)",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" clean StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo)",
-      "Bash(git restore StampliMCP.McpServer.Acumatica.Tests/KnowledgeExtractionTests/KnowledgeExtractionTestBase.cs)",
-      "mcp__stampli-acumatica__mcp_overview",
-      "mcp__stampli-acumatica__health_check",
-      "mcp__stampli-acumatica__list_flows",
-      "mcp__stampli-acumatica__list_operations",
-      "mcp__stampli-acumatica__check_knowledge_files",
-      "mcp__stampli-acumatica__query_acumatica_knowledge",
-      "mcp__stampli-acumatica__get_flow_details",
-      "mcp__stampli-acumatica__modern_harness_guide",
-      "mcp__stampli-acumatica__kotlin_tdd_workflow",
-      "WebSearch",
-      "Bash(/mnt/c/Windows/System32/taskkill.exe /F /IM stampli-mcp-acumatica.exe)",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" build StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo)",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" publish StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release -r win-x64 --self-contained /p:PublishSingleFile=true /p:PublishAot=false --nologo --no-build)",
-      "Bash(git add -A)",
-      "Bash(git commit -m \"feat: add FuzzyMatchingService with optimal Fastenshtein pattern (no cache)\n\n- Add FuzzyMatchingService: Optimal pattern (create Levenshtein(query), compare against patterns)\n- Add FuzzyMatch model: Pattern, Distance, Confidence\n- Add FuzzyMatchingConfig: Generous thresholds (0.60-0.70)\n- NO CACHING: Simple direct usage\n- Benchmarks logged via Serilog\n- Register services in DI (Program.cs)\n\nPerformance: 7x faster than backwards pattern (create instance per pattern)\")",
-      "Bash(git commit -m \"fix(SmartFlowMatcher): reverse Fastenshtein usage + use FuzzyMatchingService\n\nCRITICAL FIX: Backwards Fastenshtein pattern corrected\n- BEFORE: new Levenshtein(query).DistanceFrom(pattern) - created instance per pattern (WRONG)\n- AFTER: FuzzyMatchingService creates ONE instance, compares against many patterns (OPTIMAL)\n\nChanges:\n- SmartFlowMatcher now non-static, injects FuzzyMatchingService\n- CalculateTypoDistance updated to use correct pattern\n- FlowRecommenderTool updated to inject SmartFlowMatcher\n- CheckTypoTolerance uses optimal pattern (one query, many patterns)\n- Added benchmark logging for typo distance calculations\n\nPerformance: 7x memory reduction + faster execution\")",
-      "Bash(git commit -m \"feat(SearchService): add fuzzy matching for operation search\n\n- Add SearchFuzzyAsync method with typo tolerance\n- Fast path: Exact match first (StringComparison)\n- Fuzzy path: Fastenshtein matching if no exact matches (threshold 0.60)\n- Inject FuzzyMatchingService\n- Benchmark logging for both exact and fuzzy search\n- Returns confidence scores with fuzzy results\n\nUse case: ''exprot'' → finds ''export'' operations\nPerformance: Fast path for exact, ~8ms for fuzzy on 48 operations\")",
-      "Bash(git commit -m \"feat(ErrorDiagnosticTool): add fuzzy error categorization with SearchValues\n\n- FAST PATH: SearchValues for exact keyword matching (7x faster than Contains)\n- FUZZY PATH: Fastenshtein for typo tolerance (threshold 0.65)\n- Pre-compiled SearchValues for 6 error categories (Validation, NotFound, BusinessLogic, Auth, RateLimit, Network)\n- Two-phase matching: exact first, fuzzy fallback\n- Benchmark logging for categorization time\n- Inject FuzzyMatchingService\n\nUse case: ''requird field'' → Validation (typo corrected)\nPerformance: <1ms exact (SearchValues), ~1.2ms fuzzy\")",
-      "Bash(git commit -m \"feat(FlowService): add fuzzy flow detection in MatchFeatureToFlowAsync\n\n- Inject FuzzyMatchingService in constructor\n- Add ContainsOrFuzzy helper (fast path: Contains, fuzzy fallback: Fastenshtein)\n- Apply fuzzy matching to key flow detection keywords (threshold 0.60)\n- Benchmark logging for all flow matches\n- Handles typos: ''exprot vendrs'' → vendor_export_flow\n\nUse case: ''exprt vendrs'' → vendor_export_flow (typo corrected)\nPerformance: ~1-2ms per flow match\")",
-      "Bash(git commit -m \"feat(IntelligenceService): add fuzzy keyword extraction and operation scoring\n\n- Inject FuzzyMatchingService + ILogger\n- Add fuzzy matching in IdentifyRelevantOperations (line 180)\n- Add fuzzy matching in ScoreOperations (line 565)\n- Fast path: exact .Contains(), fuzzy fallback: Fastenshtein\n- Partial scoring for fuzzy matches (confidence * score)\n- Benchmark logging for both methods (threshold 0.60)\n\nUse case: ''exprot invoices with validaton'' → matches operations with typos\nPerformance: ~2-5ms for keyword extraction + scoring\")"
+      "Bash(git commit -m \"feat(KnowledgeQueryTool): add fuzzy token matching for natural language queries\n\n- Inject FuzzyMatchingService\n- Add two-phase token matching (exact + fuzzy)\n- Fast path: exact .Contains() on tokens\n- Fuzzy path: Fastenshtein fuzzy-match tokens against words (threshold 0.60)\n- Benchmark logging for search time\n\nUse case: ''vendro operatons'' → finds vendor operations (typo corrected)\nPerformance: ~5-10ms with fuzzy matching on 48 operations\")"
     ],
     "deny": [],
     "ask": []
