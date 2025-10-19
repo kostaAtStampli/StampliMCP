@@ -1,7 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit -m \"feat(KnowledgeQueryTool): add fuzzy token matching for natural language queries\n\n- Inject FuzzyMatchingService\n- Add two-phase token matching (exact + fuzzy)\n- Fast path: exact .Contains() on tokens\n- Fuzzy path: Fastenshtein fuzzy-match tokens against words (threshold 0.60)\n- Benchmark logging for search time\n\nUse case: ''vendro operatons'' → finds vendor operations (typo corrected)\nPerformance: ~5-10ms with fuzzy matching on 48 operations\")"
+      "Bash(git commit -m \"feat(ValidationCheckerTool): add fuzzy operation name detection\n\n- Inject FuzzyMatchingService\n- Add fuzzy matching in FindFlowForOperationFallback (exact + fuzzy)\n- Add IsOperationType helper with fuzzy fallback (threshold 0.60)\n- Apply fuzzy matching to all operation type checks (vendor, payment, po, item, pagination)\n- Benchmark logging for flow fallback detection\n\nUse case: ''exprt vendro'' → vendor_export_flow (typo corrected)\nPerformance: ~1-2ms for operation name fuzzy matching\")"
     ],
     "deny": [],
     "ask": []

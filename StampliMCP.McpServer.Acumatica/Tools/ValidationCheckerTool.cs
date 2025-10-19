@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -49,6 +50,7 @@ Examples:
 
         FlowService flowService,
         KnowledgeService knowledge,
+        FuzzyMatchingService fuzzyMatcher,
         CancellationToken ct
     )
     {
@@ -58,8 +60,8 @@ Examples:
         try
         {
             // Step 1: Find operation's flow
-            var flowName = await flowService.GetFlowForOperationAsync(operation, ct) 
-                           ?? FindFlowForOperationFallback(operation);
+            var flowName = await flowService.GetFlowForOperationAsync(operation, ct)
+                           ?? FindFlowForOperationFallback(operation, fuzzyMatcher);
 
             if (string.IsNullOrEmpty(flowName))
             {
@@ -91,15 +93,15 @@ Examples:
                 };
                 var retInvalid = new CallToolResult();
                 retInvalid.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = invalid });
-                
+
                 // Serialize invalid operation result as JSON for LLM consumption
-                var invalidOpJson = System.Text.Json.JsonSerializer.Serialize(invalid, new System.Text.Json.JsonSerializerOptions 
-                { 
+                var invalidOpJson = System.Text.Json.JsonSerializer.Serialize(invalid, new System.Text.Json.JsonSerializerOptions
+                {
                     WriteIndented = true,
                     DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
                 });
                 retInvalid.Content.Add(new TextContentBlock { Type = "text", Text = invalidOpJson });
-                
+
                 foreach (var link in invalid.NextActions) retInvalid.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
                 return retInvalid;
             }
@@ -144,10 +146,10 @@ Examples:
                 };
                 var retInvalidJson = new CallToolResult();
                 retInvalidJson.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = invalidJson });
-                
+
                 // Serialize invalid JSON result for LLM consumption
-                var invalidJsonOutput = System.Text.Json.JsonSerializer.Serialize(invalidJson, new System.Text.Json.JsonSerializerOptions 
-                { 
+                var invalidJsonOutput = System.Text.Json.JsonSerializer.Serialize(invalidJson, new System.Text.Json.JsonSerializerOptions
+                {
                     WriteIndented = true,
                     DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
                 });
@@ -172,7 +174,7 @@ Examples:
 
             foreach (var rule in builtInRules)
             {
-                var (isValid, error, warning) = ApplyValidationRule(rule, requestDoc.RootElement, operation);
+                var (isValid, error, warning) = ApplyValidationRule(rule, requestDoc.RootElement, operation, fuzzyMatcher);
                 appliedRules.Add(rule);
 
                 if (!isValid && error != null)
@@ -185,7 +187,7 @@ Examples:
             // Also apply any flow-specific validation rules if they exist
             foreach (var rule in validationRules)
             {
-                var (isValid, error, warning) = ApplyValidationRule(rule, requestDoc.RootElement, operation);
+                var (isValid, error, warning) = ApplyValidationRule(rule, requestDoc.RootElement, operation, fuzzyMatcher);
                 appliedRules.Add(rule);
 
                 if (!isValid && error != null)
@@ -255,15 +257,15 @@ Examples:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result });
-            
+
             // Serialize full validation result as JSON for LLM consumption
-            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions 
-            { 
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(result, new System.Text.Json.JsonSerializerOptions
+            {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
             ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
-            
+
             foreach (var link in result.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
 
             Serilog.Log.Information("Tool {Tool} completed: isValid={IsValid}, errors={ErrorCount}",
@@ -294,10 +296,10 @@ Examples:
             };
             var retError = new CallToolResult();
             retError.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorResult });
-            
+
             // Serialize error validation result as JSON for LLM consumption
-            var errorJson = System.Text.Json.JsonSerializer.Serialize(errorResult, new System.Text.Json.JsonSerializerOptions 
-            { 
+            var errorJson = System.Text.Json.JsonSerializer.Serialize(errorResult, new System.Text.Json.JsonSerializerOptions
+            {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
@@ -306,8 +308,10 @@ Examples:
         }
     }
 
-    private static string? FindFlowForOperationFallback(string operation)
+    private static string? FindFlowForOperationFallback(string operation, FuzzyMatchingService fuzzyMatcher)
     {
+        var sw = Stopwatch.StartNew();
+
         // Simple mapping - in real impl, query knowledge base
         var flowMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -322,22 +326,62 @@ Examples:
             ["exportPO"] = "export_po_flow"
         };
 
-        return flowMap.GetValueOrDefault(operation);
+        // Fast path: exact match
+        if (flowMap.TryGetValue(operation, out var flowName))
+        {
+            sw.Stop();
+            Serilog.Log.Information("FindFlowFallback: operation={Op}, flow={Flow}, fuzzy=false, time={Ms}ms",
+                operation, flowName, sw.ElapsedMilliseconds);
+            return flowName;
+        }
+
+        // Fuzzy path: try fuzzy matching operation name against dictionary keys
+        var operationNames = flowMap.Keys.ToList();
+        var matches = fuzzyMatcher.FindAllMatches(operation, operationNames, fuzzyMatcher.GetThreshold("operation"));
+
+        if (matches.Any())
+        {
+            var bestMatch = matches.First();
+            var matchedFlow = flowMap[bestMatch.Pattern];
+            sw.Stop();
+            Serilog.Log.Information("FindFlowFallback: operation={Op}, flow={Flow}, fuzzy=true, confidence={Conf:P0}, time={Ms}ms",
+                operation, matchedFlow, bestMatch.Confidence, sw.ElapsedMilliseconds);
+            return matchedFlow;
+        }
+
+        sw.Stop();
+        Serilog.Log.Information("FindFlowFallback: operation={Op}, flow=null, time={Ms}ms",
+            operation, sw.ElapsedMilliseconds);
+        return null;
     }
 
     private static (bool isValid, ValidationError? error, string? warning) ApplyValidationRule(
         string rule,
         JsonElement request,
-        string operation)
+        string operation,
+        FuzzyMatchingService fuzzyMatcher)
     {
         // Comprehensive validation for ALL Acumatica operations
         var operationLower = operation.ToLower();
 
+        // Helper: Check if operation matches entity type (with fuzzy fallback)
+        bool IsOperationType(string entityType)
+        {
+            // Fast path: exact contains
+            if (operationLower.Contains(entityType, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // Fuzzy path: check if entity type fuzzy-matches any word in operation
+            var words = operationLower.Split([' ', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
+            var matches = fuzzyMatcher.FindAllMatches(entityType, words, 0.60);
+            return matches.Any();
+        }
+
         // Vendor validations
-        if (operationLower.Contains("vendor"))
+        if (IsOperationType("vendor"))
         {
             // Check vendorName (max 60 chars, required for export)
-            if (operationLower.Contains("export"))
+            if (IsOperationType("export"))
             {
                 if (!request.TryGetProperty("vendorName", out var vendorName) ||
                     string.IsNullOrWhiteSpace(vendorName.GetString()))
@@ -386,10 +430,10 @@ Examples:
         }
 
         // Payment validations
-        if (operationLower.Contains("payment"))
+        if (IsOperationType("payment"))
         {
             // PaymentAmount required
-            if (operationLower.Contains("export") || operationLower.Contains("create"))
+            if (IsOperationType("export") || IsOperationType("create"))
             {
                 if (!request.TryGetProperty("PaymentAmount", out var amount))
                 {
@@ -422,7 +466,7 @@ Examples:
         }
 
         // PO validations
-        if (operationLower.Contains("purchase") || operationLower.Contains("po"))
+        if (IsOperationType("purchase") || IsOperationType("po"))
         {
             if (request.TryGetProperty("PONumber", out var poNumber))
             {
@@ -442,7 +486,7 @@ Examples:
         }
 
         // Item validations
-        if (operationLower.Contains("item") || operationLower.Contains("inventory"))
+        if (IsOperationType("item") || IsOperationType("inventory"))
         {
             if (request.TryGetProperty("InventoryID", out var inventoryId))
             {
@@ -462,8 +506,8 @@ Examples:
         }
 
         // Pagination validation (applies to all import/search/get/retrieve operations)
-        if (operationLower.Contains("import") || operationLower.Contains("search") || 
-            operationLower.Contains("get") || operationLower.Contains("retrieve"))
+        if (IsOperationType("import") || IsOperationType("search") ||
+            IsOperationType("get") || IsOperationType("retrieve"))
         {
             if (request.TryGetProperty("pageSize", out var pageSize))
             {
