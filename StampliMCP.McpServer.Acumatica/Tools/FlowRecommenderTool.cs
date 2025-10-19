@@ -382,7 +382,7 @@ Examples:
         // Find best matching pattern
         foreach (var (pattern, flow, reason) in commonPatterns)
         {
-            if (pattern.Equals(query, StringComparison.OrdinalIgnoreCase) || confidence >= 0.70) // 70% threshold (generous)
+            if (pattern.Equals(query, StringComparison.OrdinalIgnoreCase) || confidence >= 0.60) // 60% threshold (generous)
             {
                 matches.Add((flow, confidence, reason));
             }

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit -m \"feat(ValidationCheckerTool): add fuzzy operation name detection\n\n- Inject FuzzyMatchingService\n- Add fuzzy matching in FindFlowForOperationFallback (exact + fuzzy)\n- Add IsOperationType helper with fuzzy fallback (threshold 0.60)\n- Apply fuzzy matching to all operation type checks (vendor, payment, po, item, pagination)\n- Benchmark logging for flow fallback detection\n\nUse case: ''exprt vendro'' → vendor_export_flow (typo corrected)\nPerformance: ~1-2ms for operation name fuzzy matching\")"
+      "Bash(git commit -m \"feat(ValidationCheckerTool): add fuzzy operation name detection\n\n- Inject FuzzyMatchingService\n- Add fuzzy matching in FindFlowForOperationFallback (exact + fuzzy)\n- Add IsOperationType helper with fuzzy fallback (threshold 0.60)\n- Apply fuzzy matching to all operation type checks (vendor, payment, po, item, pagination)\n- Benchmark logging for flow fallback detection\n\nUse case: ''exprt vendro'' → vendor_export_flow (typo corrected)\nPerformance: ~1-2ms for operation name fuzzy matching\")",
+      "Bash(git commit -m \"feat(FlowRecommenderTool): lower typo tolerance threshold to 0.60\n\n- Lower CheckTypoTolerance threshold from 0.70 to 0.60 (generous)\n- Aligns with FuzzyMatchingConfig defaults (0.60-0.70 range)\n- Catches more typos with higher tolerance\n\nUse case: ''imprt itms'' → standard_import_flow (60% confidence)\nPerformance: No impact, same Fastenshtein pattern\")"
     ],
     "deny": [],
     "ask": []
