@@ -61,10 +61,19 @@ Examples:
         {
             // Step 1: Find operation's flow
             var flowName = await flowService.GetFlowForOperationAsync(operation, ct)
-                           ?? FindFlowForOperationFallback(operation, fuzzyMatcher);
+                           ?? await FindFlowForOperationFallbackAsync(operation, knowledge, fuzzyMatcher, ct);
 
             if (string.IsNullOrEmpty(flowName))
             {
+                // Try to find similar operation names using fuzzy matching across ALL operations
+                var (suggestedOp, confidence) = await FindSimilarOperationAsync(operation, knowledge, fuzzyMatcher, ct);
+
+                var errorMessage = $"Operation '{operation}' not found in knowledge base";
+                if (!string.IsNullOrEmpty(suggestedOp))
+                {
+                    errorMessage += $". Did you mean '{suggestedOp}'? ({confidence:P0} match)";
+                }
+
                 var invalid = new ValidationResult
                 {
                     IsValid = false,
@@ -76,10 +85,13 @@ Examples:
                         {
                             Field = "operation",
                             Rule = "operation_exists",
-                            Message = $"Operation '{operation}' not found in knowledge base",
-                            Expected = "Valid operation name (e.g., exportVendor, getPayments)"
+                            Message = errorMessage,
+                            Expected = suggestedOp ?? "Valid operation name (e.g., exportVendor, getPayments)"
                         }
                     },
+                    Suggestions = !string.IsNullOrEmpty(suggestedOp)
+                        ? new List<string> { $"Try: {suggestedOp}" }
+                        : new List<string>(),
                     NextActions = new List<ResourceLinkBlock>
                     {
                         new ResourceLinkBlock
@@ -308,51 +320,50 @@ Examples:
         }
     }
 
-    private static string? FindFlowForOperationFallback(string operation, FuzzyMatchingService fuzzyMatcher)
+    private static async Task<string?> FindFlowForOperationFallbackAsync(
+        string operation,
+        KnowledgeService knowledge,
+        FuzzyMatchingService fuzzyMatcher,
+        CancellationToken ct)
     {
-        var sw = Stopwatch.StartNew();
-
-        // Simple mapping - in real impl, query knowledge base
-        var flowMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["exportVendor"] = "vendor_export_flow",
-            ["getPayments"] = "payment_flow",
-            ["importData"] = "standard_import_flow",
-            ["importVendors"] = "standard_import_flow",
-            ["getVendors"] = "standard_import_flow",
-            ["retrieveVendors"] = "standard_import_flow",
-            ["matchPO"] = "po_matching_flow",
-            ["exportInvoice"] = "export_invoice_flow",
-            ["exportPO"] = "export_po_flow"
-        };
-
-        // Fast path: exact match
-        if (flowMap.TryGetValue(operation, out var flowName))
-        {
-            sw.Stop();
-            Serilog.Log.Information("FindFlowFallback: operation={Op}, flow={Flow}, fuzzy=false, time={Ms}ms",
-                operation, flowName, sw.ElapsedMilliseconds);
-            return flowName;
-        }
-
-        // Fuzzy path: try fuzzy matching operation name against dictionary keys
-        var operationNames = flowMap.Keys.ToList();
-        var matches = fuzzyMatcher.FindAllMatches(operation, operationNames, fuzzyMatcher.GetThreshold("operation"));
-
-        if (matches.Any())
-        {
-            var bestMatch = matches.First();
-            var matchedFlow = flowMap[bestMatch.Pattern];
-            sw.Stop();
-            Serilog.Log.Information("FindFlowFallback: operation={Op}, flow={Flow}, fuzzy=true, confidence={Conf:P0}, time={Ms}ms",
-                operation, matchedFlow, bestMatch.Confidence, sw.ElapsedMilliseconds);
-            return matchedFlow;
-        }
-
-        sw.Stop();
-        Serilog.Log.Information("FindFlowFallback: operation={Op}, flow=null, time={Ms}ms",
-            operation, sw.ElapsedMilliseconds);
+        // This fallback doesn't actually find flows - it just validates that the operation exists
+        // The actual flow lookup happens via flowService.GetFlowForOperationAsync
+        // This method is kept for backwards compatibility but just returns null
+        // The fuzzy matching for operation names happens in FindSimilarOperationAsync instead
         return null;
+    }
+
+    private static async Task<(string? suggestedOperation, double confidence)> FindSimilarOperationAsync(
+        string operation,
+        KnowledgeService knowledge,
+        FuzzyMatchingService fuzzyMatcher,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Load ALL operations from knowledge base
+            var allOperations = await knowledge.GetAllOperationsAsync(ct);
+            var operationNames = allOperations
+                .Where(op => !string.IsNullOrEmpty(op.Method))
+                .Select(op => op.Method!)
+                .ToList();
+
+            // Fuzzy match against all operation names
+            var matches = fuzzyMatcher.FindAllMatches(operation, operationNames, fuzzyMatcher.GetThreshold("operation"));
+
+            if (matches.Any())
+            {
+                var bestMatch = matches.First();
+                return (bestMatch.Pattern, bestMatch.Confidence);
+            }
+
+            return (null, 0.0);
+        }
+        catch (Exception ex)
+        {
+            Serilog.Log.Warning("FindSimilarOperation failed: {Error}", ex.Message);
+            return (null, 0.0);
+        }
     }
 
     private static (bool isValid, ValidationError? error, string? warning) ApplyValidationRule(

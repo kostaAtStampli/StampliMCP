@@ -14,25 +14,21 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 [McpServerToolType]
 public static class ErrorDiagnosticTool
 {
-    // SearchValues for ultra-fast exact keyword matching (fast path)
+    // SearchValues for ultra-fast exact keyword matching (fast path) - SINGLE WORDS ONLY
     private static readonly SearchValues<string> ValidationKeywords = SearchValues.Create(
-        ["required", "missing", "invalid", "maximum length", "exceeds", "limit", "field", "property", "attribute", "format", "must be", "should be"],
-        StringComparison.OrdinalIgnoreCase);
-
-    private static readonly SearchValues<string> NotFoundKeywords = SearchValues.Create(
-        ["not found", "does not exist", "cannot find", "no such", "404"],
+        ["required", "missing", "invalid", "exceeds", "field", "property", "attribute", "format"],
         StringComparison.OrdinalIgnoreCase);
 
     private static readonly SearchValues<string> BusinessLogicKeywords = SearchValues.Create(
-        ["duplicate", "already exists", "business", "cannot", "not allowed", "conflict"],
+        ["duplicate", "business", "cannot", "conflict"],
         StringComparison.OrdinalIgnoreCase);
 
     private static readonly SearchValues<string> AuthKeywords = SearchValues.Create(
-        ["auth", "session", "unauthorized", "permission", "access denied", "forbidden", "401", "403"],
+        ["auth", "session", "unauthorized", "permission", "forbidden", "401", "403"],
         StringComparison.OrdinalIgnoreCase);
 
     private static readonly SearchValues<string> RateLimitKeywords = SearchValues.Create(
-        ["rate limit", "too many", "throttle", "429"],
+        ["throttle", "429"],
         StringComparison.OrdinalIgnoreCase);
 
     private static readonly SearchValues<string> NetworkKeywords = SearchValues.Create(
@@ -197,15 +193,15 @@ Categories:
 
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = diagnostic });
-            
+
             // Serialize full diagnostic details as JSON for LLM consumption
-            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(diagnostic, new System.Text.Json.JsonSerializerOptions 
-            { 
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(diagnostic, new System.Text.Json.JsonSerializerOptions
+            {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
             ret.Content.Add(new TextContentBlock { Type = "text", Text = jsonOutput });
-            
+
             foreach (var link in diagnostic.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
             return ret;
         }
@@ -223,10 +219,10 @@ Categories:
             };
             var ret = new CallToolResult();
             ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = fallback });
-            
+
             // Serialize error fallback as JSON for LLM consumption
-            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(fallback, new System.Text.Json.JsonSerializerOptions 
-            { 
+            var jsonOutput = System.Text.Json.JsonSerializer.Serialize(fallback, new System.Text.Json.JsonSerializerOptions
+            {
                 WriteIndented = true,
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             });
@@ -238,16 +234,47 @@ Categories:
     private static string CategorizeError(string error, FuzzyMatchingService fuzzyMatcher)
     {
         var lower = error.ToLower();
+
+        // FAST PATH 1: Check multi-word phrases BEFORE splitting (substring matching)
+        // These would never match if we split into words first
+        if (lower.Contains("not found") || lower.Contains("does not exist") || lower.Contains("cannot find") || lower.Contains("no such") || lower.Contains("404"))
+        {
+            Serilog.Log.Information("Exact phrase match: category=NotFound");
+            return "NotFound";
+        }
+        if (lower.Contains("already exists") || lower.Contains("not allowed"))
+        {
+            Serilog.Log.Information("Exact phrase match: category=BusinessLogic");
+            return "BusinessLogic";
+        }
+        if (lower.Contains("access denied"))
+        {
+            Serilog.Log.Information("Exact phrase match: category=Authentication");
+            return "Authentication";
+        }
+        if (lower.Contains("authen") || lower.Contains("credential") || lower.Contains("login") || lower.Contains("session"))
+        {
+            Serilog.Log.Information("Exact phrase match: category=Authentication");
+            return "Authentication";
+        }
+        if (lower.Contains("rate limit") || lower.Contains("too many"))
+        {
+            Serilog.Log.Information("Exact phrase match: category=RateLimit");
+            return "RateLimit";
+        }
+        if (lower.Contains("maximum length") || lower.Contains("must be") || lower.Contains("should be"))
+        {
+            Serilog.Log.Information("Exact phrase match: category=Validation");
+            return "Validation";
+        }
+
+        // FAST PATH 2: SearchValues for single-word exact matching (7x faster than Contains)
         var words = lower.Split([' ', ',', '.', ':', ';'], StringSplitOptions.RemoveEmptyEntries);
 
-        // FAST PATH: SearchValues for exact keyword matching (7x faster than Contains)
-        // Check each word against pre-compiled SearchValues
         foreach (var word in words)
         {
             if (ValidationKeywords.Contains(word))
                 return "Validation";
-            if (NotFoundKeywords.Contains(word))
-                return "NotFound";
             if (BusinessLogicKeywords.Contains(word))
                 return "BusinessLogic";
             if (AuthKeywords.Contains(word))
@@ -262,10 +289,10 @@ Categories:
         var allCategories = new List<(string category, string[] keywords)>
         {
             ("Validation", ["required", "missing", "invalid", "exceeds", "limit", "field"]),
-            ("NotFound", ["not found", "does not exist", "cannot find"]),
-            ("BusinessLogic", ["duplicate", "already exists", "conflict"]),
-            ("Authentication", ["auth", "session", "unauthorized", "permission"]),
-            ("RateLimit", ["rate limit", "too many", "throttle"]),
+            ("NotFound", ["found", "exist", "find"]),  // Single words from phrases
+            ("BusinessLogic", ["duplicate", "exists", "conflict", "allowed"]),
+            ("Authentication", ["auth", "session", "unauthorized", "permission", "denied"]),
+            ("RateLimit", ["rate", "limit", "many", "throttle"]),
             ("Network", ["timeout", "connection", "network", "unreachable"])
         };
 

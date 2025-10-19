@@ -66,6 +66,46 @@ Returns:
 
         try
         {
+            // Reject queries < 2 chars (single char returns noise)
+            var trimmedQuery = (query ?? string.Empty).Trim();
+            var isWildcard = string.IsNullOrWhiteSpace(trimmedQuery) || trimmedQuery == "*";
+            if (!isWildcard && trimmedQuery.Length < 2)
+            {
+                var tooShortResult = new KnowledgeQueryResult
+                {
+                    Summary = $"Query too short: '{query}'. Minimum 2 characters required. {BuildInfo.Marker}",
+                    NextActions = new List<ResourceLinkBlock>
+                    {
+                        new ResourceLinkBlock
+                        {
+                            Uri = "mcp://stampli-acumatica/list_operations",
+                            Name = "Browse all operations",
+                            Description = "See all available operations"
+                        },
+                        new ResourceLinkBlock
+                        {
+                            Uri = "mcp://stampli-acumatica/marker",
+                            Name = BuildInfo.Marker,
+                            Description = $"build={BuildInfo.VersionTag}"
+                        }
+                    }
+                };
+
+                var retTooShort = new CallToolResult();
+                retTooShort.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = tooShortResult });
+                var jsonTooShort = System.Text.Json.JsonSerializer.Serialize(tooShortResult, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                });
+                retTooShort.Content.Add(new TextContentBlock { Type = "text", Text = jsonTooShort });
+                foreach (var link in tooShortResult.NextActions)
+                {
+                    retTooShort.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+                }
+                return retTooShort;
+            }
+
             // Step 1: Search knowledge base (with fuzzy token matching)
             var searchResults = await SearchKnowledge(query, scope, knowledge, flowService, fuzzyMatcher, ct);
 
@@ -200,9 +240,20 @@ Returns:
         var isWildcard = string.IsNullOrWhiteSpace(lowerQuery) || lowerQuery == "*";
 
         // Tokenize query for better matching (e.g., "vendor export" → ["vendor", "export"]). Treat empty or "*" as wildcard.
+        // Filter out short words (< 3 chars) to reduce noise from generic terms like "po", "id", "or", etc.
+        // Apply semantic aliases (invoice→bill, etc.) to match Acumatica terminology
         var queryTokens = isWildcard
             ? Array.Empty<string>()
-            : lowerQuery.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+            : lowerQuery.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(token => token.Length >= 3)
+                .Select(token => token switch
+                {
+                    "invoice" or "invoices" => "bill",
+                    "supplier" or "suppliers" or "payee" or "payees" => "vendor",
+                    "product" or "products" or "sku" or "skus" => "item",
+                    _ => token
+                })
+                .ToArray();
 
         // Search operations
         if (scope == null || scope == "all" || scope == "operations")

@@ -31,19 +31,23 @@ public sealed class SmartFlowMatcher
     // Common aliases - map variations to canonical terms
     private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["vendor"] = "vendor",
+        ["vendors"] = "vendor",
         ["supplier"] = "vendor",
         ["suppliers"] = "vendor",
         ["payee"] = "vendor",
         ["payees"] = "vendor",
         ["seller"] = "vendor",
         ["sellers"] = "vendor",
-        ["bill"] = "invoice",
-        ["bills"] = "invoice",
-        ["invoices"] = "invoice",
-        ["ap"] = "invoice",
-        ["aptransaction"] = "invoice",
+        ["bill"] = "bill",
+        ["bills"] = "bill",
+        ["invoice"] = "bill",  // Acumatica uses "bill" terminology, not "invoice"
+        ["invoices"] = "bill",
+        ["ap"] = "bill",
+        ["aptransaction"] = "bill",
         ["product"] = "item",
         ["products"] = "item",
+        ["item"] = "item",
         ["items"] = "item",
         ["sku"] = "item",
         ["skus"] = "item",
@@ -51,11 +55,14 @@ public sealed class SmartFlowMatcher
         ["inventories"] = "item",
         ["pay"] = "payment",
         ["pays"] = "payment",
+        ["payment"] = "payment",
         ["payments"] = "payment",
         ["paying"] = "payment",
         ["purchaseorder"] = "po",
         ["purchaseorders"] = "po",
+        ["order"] = "order",
         ["orders"] = "order",
+        ["transaction"] = "transaction",
         ["transactions"] = "transaction"
     };
 
