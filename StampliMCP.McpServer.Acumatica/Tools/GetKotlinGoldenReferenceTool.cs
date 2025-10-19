@@ -33,7 +33,7 @@ Returns:
 Default operation assumption: NOT yet implemented in Kotlin (delegates to Java parent).
 Use exportVendor patterns to implement new Kotlin operations.
 ")]
-    public static async Task<object> Execute(
+    public static async Task<ModelContextProtocol.Protocol.CallToolResult> Execute(
         KnowledgeService knowledge,
         CancellationToken ct = default)
     {
@@ -166,15 +166,26 @@ Use exportVendor patterns to implement new Kotlin operations.
             Serilog.Log.Information("Tool {Tool} completed: {DriverSize} + {HandlerSize} + {MapperSize} chars loaded",
                 "get_kotlin_golden_reference", driver.Length, handler.Length, mapper.Length);
 
-            return result;
+            var ret = new ModelContextProtocol.Protocol.CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result });
+            var summary = $"kotlin_golden_reference loaded (3 files) {StampliMCP.McpServer.Acumatica.BuildInfo.Marker}";
+            ret.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = summary });
+            ret.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
+            {
+                Uri = "mcp://stampli-acumatica/marker",
+                Name = StampliMCP.McpServer.Acumatica.BuildInfo.Marker,
+                Description = $"build={StampliMCP.McpServer.Acumatica.BuildInfo.VersionTag}"
+            });
+            return ret;
         }
         catch (Exception ex)
         {
             Serilog.Log.Error(ex, "Tool {Tool} failed: {Error}", "get_kotlin_golden_reference", ex.Message);
-            return new
+            var ret = new ModelContextProtocol.Protocol.CallToolResult();
+            var errorObj = new
             {
                 error = $"Failed to load Kotlin golden reference: {ex.Message}",
-                note = "Check that Kotlin files exist at /mnt/c/STAMPLI4/core/kotlin-drivers/kotlin-acumatica-driver/",
+                note = "Check that Kotlin files exist at C:\\STAMPLI4\\core\\finsys-modern\\kotlin-acumatica-driver\\...",
                 expectedFiles = new[]
                 {
                     "src/main/kotlin/com/stampli/kotlin/acumatica/driver/KotlinAcumaticaDriver.kt",
@@ -182,6 +193,10 @@ Use exportVendor patterns to implement new Kotlin operations.
                     "src/main/kotlin/com/stampli/kotlin/acumatica/driver/vendor/VendorPayloadMapper.kt"
                 }
             };
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorObj });
+            var summary = $"kotlin_golden_reference error: {ex.Message} {StampliMCP.McpServer.Acumatica.BuildInfo.Marker}";
+            ret.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = summary });
+            return ret;
         }
     }
 }

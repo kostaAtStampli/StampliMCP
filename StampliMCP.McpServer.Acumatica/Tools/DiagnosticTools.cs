@@ -8,9 +8,9 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 [McpServerToolType]
 public static class DiagnosticTools
 {
-    [McpServerTool(Name = "health_check", Title = "Health Check")]
-    [Description("Simple health check to verify MCP server is running and responsive")]
-    public static object HealthCheck()
+[McpServerTool(Name = "health_check_legacy", Title = "Legacy Health Check")]
+[Description("Simple health check to verify MCP server is running and responsive")]
+public static object HealthCheck()
     {
         var assembly = Assembly.GetExecutingAssembly();
         var knowledgePath = Path.Combine(AppContext.BaseDirectory, "Knowledge");

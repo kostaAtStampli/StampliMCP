@@ -95,10 +95,36 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
                         // New structure: { "operations": { "opName": {...}, ... } }
                         foreach (var opProperty in operationsElement.EnumerateObject())
                         {
-                            var op = JsonSerializer.Deserialize<Operation>(opProperty.Value.GetRawText(), _jsonOptions);
-                            if (op != null)
+                            // Normalize schema differences: some files use "operationName" instead of "method"
+                            try
                             {
-                                ops.Add(op);
+                                var element = opProperty.Value;
+                                string raw = element.GetRawText();
+
+                                // If method exists, use as-is
+                                bool hasMethod = element.TryGetProperty("method", out _);
+                                bool hasOperationName = element.TryGetProperty("operationName", out var opNameEl);
+
+                                if (!hasMethod && hasOperationName)
+                                {
+                                    // Build a JsonObject and inject "method": operationName
+                                    var node = System.Text.Json.Nodes.JsonNode.Parse(raw) as System.Text.Json.Nodes.JsonObject;
+                                    if (node != null && !node.ContainsKey("method"))
+                                    {
+                                        node["method"] = opNameEl.GetString();
+                                        raw = node.ToJsonString();
+                                    }
+                                }
+
+                                var op = JsonSerializer.Deserialize<Operation>(raw, _jsonOptions);
+                                if (op != null)
+                                {
+                                    ops.Add(op);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "Failed to parse operation entry for category {Category}", category);
                             }
                         }
                     }

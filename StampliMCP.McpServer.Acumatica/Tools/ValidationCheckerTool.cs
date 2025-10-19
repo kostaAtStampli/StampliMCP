@@ -5,6 +5,7 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Services;
+using StampliMCP.McpServer.Acumatica;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
@@ -39,7 +40,7 @@ Examples:
 • Payment: Validate CurrencyID for international payments
 • Import: Check pagination limits (max 2000 rows/page)
 ")]
-    public static async Task<ValidationResult> Execute(
+    public static async Task<CallToolResult> Execute(
         [Description("Operation name (e.g., 'exportVendor', 'getPayments')")]
         string operation,
 
@@ -57,11 +58,12 @@ Examples:
         try
         {
             // Step 1: Find operation's flow
-            var flowName = FindFlowForOperation(operation, knowledge, ct);
+            var flowName = await flowService.GetFlowForOperationAsync(operation, ct) 
+                           ?? FindFlowForOperationFallback(operation);
 
             if (string.IsNullOrEmpty(flowName))
             {
-                return new ValidationResult
+                var invalid = new ValidationResult
                 {
                     IsValid = false,
                     Operation = operation,
@@ -84,8 +86,14 @@ Examples:
                             Name = "Browse available operations",
                             Description = "Find valid operation names"
                         }
-                    }
+                    },
+                    Summary = $"Invalid: unknown operation {operation} {BuildInfo.Marker}"
                 };
+                var retInvalid = new CallToolResult();
+                retInvalid.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = invalid });
+                retInvalid.Content.Add(new TextContentBlock { Type = "text", Text = invalid.Summary });
+                foreach (var link in invalid.NextActions) retInvalid.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+                return retInvalid;
             }
 
             // Step 2: Load flow validation rules
@@ -109,7 +117,7 @@ Examples:
             }
             catch (JsonException ex)
             {
-                return new ValidationResult
+                var invalidJson = new ValidationResult
                 {
                     IsValid = false,
                     Operation = operation,
@@ -123,8 +131,13 @@ Examples:
                             Message = $"Invalid JSON: {ex.Message}",
                             Expected = "Valid JSON object"
                         }
-                    }
+                    },
+                    Summary = $"Invalid JSON {BuildInfo.Marker}"
                 };
+                var retInvalidJson = new CallToolResult();
+                retInvalidJson.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = invalidJson });
+                retInvalidJson.Content.Add(new TextContentBlock { Type = "text", Text = invalidJson.Summary });
+                return retInvalidJson;
             }
 
             // Step 4: Apply validation rules
@@ -168,6 +181,12 @@ Examples:
             }
 
             // Step 5: Build result
+            // De-duplicate repeated errors (by Field+Rule+Message)
+            errors = errors
+                .GroupBy(e => $"{e.Field}|{e.Rule}|{e.Message}")
+                .Select(g => g.First())
+                .ToList();
+
             var result = new ValidationResult
             {
                 IsValid = !errors.Any(),
@@ -177,6 +196,9 @@ Examples:
                 Warnings = warnings,
                 AppliedRules = appliedRules,
                 Suggestions = errors.Select(e => $"Fix {e.Field}: {e.Expected}").ToList(),
+                Summary = !errors.Any()
+                    ? $"Valid request for {operation} ({flowName}) {BuildInfo.Marker}"
+                    : $"Invalid request for {operation}: {errors.Count} error(s) {BuildInfo.Marker}",
                 NextActions = errors.Any()
                     ? new List<ResourceLinkBlock>
                     {
@@ -191,6 +213,12 @@ Examples:
                             Uri = $"mcp://stampli-acumatica/get_flow_details?flow={flowName}",
                             Name = "Review flow rules",
                             Description = "See all validation rules for this flow"
+                        },
+                        new ResourceLinkBlock
+                        {
+                            Uri = "mcp://stampli-acumatica/marker",
+                            Name = BuildInfo.Marker,
+                            Description = $"build={BuildInfo.VersionTag}"
                         }
                     }
                     : new List<ResourceLinkBlock>
@@ -200,21 +228,32 @@ Examples:
                             Uri = $"mcp://stampli-acumatica/kotlin_tdd_workflow?feature={operation}",
                             Name = "Proceed with implementation",
                             Description = "Request is valid - start TDD workflow"
+                        },
+                        new ResourceLinkBlock
+                        {
+                            Uri = "mcp://stampli-acumatica/marker",
+                            Name = BuildInfo.Marker,
+                            Description = $"build={BuildInfo.VersionTag}"
                         }
                     }
             };
 
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = result.Summary });
+            foreach (var link in result.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+
             Serilog.Log.Information("Tool {Tool} completed: isValid={IsValid}, errors={ErrorCount}",
                 "validate_request", result.IsValid, errors.Count);
 
-            return result;
+            return ret;
         }
         catch (Exception ex)
         {
             Serilog.Log.Error(ex, "Tool {Tool} failed: {Error}",
                 "validate_request", ex.Message);
 
-            return new ValidationResult
+            var errorResult = new ValidationResult
             {
                 IsValid = false,
                 Operation = operation,
@@ -227,22 +266,28 @@ Examples:
                         Rule = "validation_error",
                         Message = ex.Message
                     }
-                }
+                },
+                Summary = $"Validation failed: {ex.Message} {BuildInfo.Marker}"
             };
+            var retError = new CallToolResult();
+            retError.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = errorResult });
+            retError.Content.Add(new TextContentBlock { Type = "text", Text = errorResult.Summary });
+            return retError;
         }
     }
 
-    private static string? FindFlowForOperation(string operation, KnowledgeService knowledge, CancellationToken ct)
+    private static string? FindFlowForOperationFallback(string operation)
     {
         // Simple mapping - in real impl, query knowledge base
         var flowMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["exportVendor"] = "VENDOR_EXPORT_FLOW",
-            ["getPayments"] = "PAYMENT_FLOW",
-            ["importData"] = "STANDARD_IMPORT_FLOW",
-            ["matchPO"] = "PO_MATCHING_FLOW",
-            ["exportInvoice"] = "EXPORT_INVOICE_FLOW",
-            ["exportPO"] = "EXPORT_PO_FLOW"
+            ["exportVendor"] = "vendor_export_flow",
+            ["getPayments"] = "payment_flow",
+            ["importData"] = "standard_import_flow",
+            ["importVendors"] = "standard_import_flow",
+            ["matchPO"] = "po_matching_flow",
+            ["exportInvoice"] = "export_invoice_flow",
+            ["exportPO"] = "export_po_flow"
         };
 
         return flowMap.GetValueOrDefault(operation);
@@ -283,24 +328,26 @@ Examples:
                         Rule = "max_length_60",
                         Message = $"vendorName exceeds 60 character limit (current: {name.Length})",
                         CurrentValue = name,
-                        Expected = "String with length ≤ 60"
+                        Expected = "String with length ≤ 60",
+                        RuleSource = "CreateVendorHandler: name length"
                     }, null);
                 }
             }
 
-            // Check VendorID (max 30 chars)
-            if (request.TryGetProperty("VendorID", out var vendorId))
+            // Check VendorID (max 15 chars)
+            if (request.TryGetProperty("VendorID", out var vendorId) || request.TryGetProperty("vendorId", out vendorId))
             {
                 var id = vendorId.GetString() ?? "";
-                if (id.Length > 30)
+                if (id.Length > 15)
                 {
                     return (false, new ValidationError
                     {
                         Field = "VendorID",
-                        Rule = "max_length_30",
-                        Message = "VendorID exceeds 30 character limit",
+                        Rule = "max_length_15",
+                        Message = "VendorID exceeds 15 character limit",
                         CurrentValue = id,
-                        Expected = "String with length ≤ 30"
+                        Expected = "String with length ≤ 15",
+                        RuleSource = "CreateVendorHandler.java:123"
                     }, null);
                 }
             }
@@ -398,7 +445,8 @@ Examples:
                             Rule = "max_pagination_2000",
                             Message = "Page size exceeds Acumatica maximum of 2000 rows",
                             CurrentValue = size.ToString(),
-                            Expected = "Integer ≤ 2000"
+                            Expected = "Integer ≤ 2000",
+                            RuleSource = "STANDARD_IMPORT_FLOW: RESPONSE_ROWS_LIMIT"
                         }, null);
                     }
                 }

@@ -1,9 +1,11 @@
 using System.ComponentModel;
+using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Services;
+using StampliMCP.McpServer.Acumatica;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
@@ -48,7 +50,7 @@ Examples:
 • 'import payment data' → Elicits: PAYMENT_FLOW vs STANDARD_IMPORT_FLOW
 • 'sync purchase orders' → EXPORT_PO_FLOW or PO_MATCHING_FLOW (user chooses)
 ")]
-    public static async Task<FlowRecommendation> Execute(
+    public static async Task<CallToolResult> Execute(
         [Description("Use case description (e.g., 'export vendors', 'import payments', 'sync purchase orders')")]
         string useCase,
 
@@ -78,24 +80,48 @@ Examples:
 
                     var message = $"Found multiple possible flows (confidence {recommendation.Confidence:P0}). Please choose or provide more context:";
 
-                    var elicitResult = await server.ElicitAsync<FlowPreference>(
-                        message,
-                        cancellationToken: ct
-                    );
-
-                    if (elicitResult.Action == "accept" && elicitResult.Content is { } preference)
+                    var schema = new ElicitRequestParams.RequestSchema
                     {
+                        Properties =
+                        {
+                            ["flowName"] = new ElicitRequestParams.StringSchema
+                            {
+                                Description = $"Choose a flow ({string.Join(", ", alternatives.Select(a => a.Name))})"
+                            },
+                            ["additionalContext"] = new ElicitRequestParams.StringSchema
+                            {
+                                Description = "More context to refine recommendation"
+                            }
+                        }
+                    };
+
+                    var elicitResult = await server.ElicitAsync(new ElicitRequestParams
+                    {
+                        Message = message,
+                        RequestedSchema = schema
+                    }, ct);
+
+                    if (elicitResult.Action == "accept" && elicitResult.Content is { } content)
+                    {
+                        string? chosen = null;
+                        string? additional = null;
+
+                        if (content.TryGetValue("flowName", out var fEl) && fEl.ValueKind == JsonValueKind.String)
+                            chosen = fEl.GetString();
+                        if (content.TryGetValue("additionalContext", out var cEl) && cEl.ValueKind == JsonValueKind.String)
+                            additional = cEl.GetString();
+
                         // Re-run recommendation with additional context
-                        var refinedUseCase = !string.IsNullOrWhiteSpace(preference.AdditionalContext)
-                            ? $"{useCase} {preference.AdditionalContext}"
+                        var refinedUseCase = !string.IsNullOrWhiteSpace(additional)
+                            ? $"{useCase} {additional}"
                             : useCase;
 
-                        if (!string.IsNullOrEmpty(preference.FlowName))
+                        if (!string.IsNullOrEmpty(chosen))
                         {
                             // User chose a specific flow
-                            recommendation.FlowName = preference.FlowName;
+                            recommendation.FlowName = chosen;
                             recommendation.Confidence = 1.0; // User confirmed
-                            recommendation.Reasoning = $"User selected: {preference.FlowName}. {recommendation.Reasoning}";
+                            recommendation.Reasoning = $"User selected: {chosen}. {recommendation.Reasoning}";
                         }
                         else
                         {
@@ -137,18 +163,31 @@ Examples:
             };
 
             recommendation.Details = flowDetail;
+            recommendation.Summary = $"Recommend {recommendation.FlowName} (confidence {recommendation.Confidence:P0}) {BuildInfo.Marker}";
+
+            // Append temporary verification marker in next actions
+            recommendation.NextActions.Add(new ResourceLinkBlock
+            {
+                Uri = "mcp://stampli-acumatica/marker",
+                Name = BuildInfo.Marker,
+                Description = $"build={BuildInfo.VersionTag}"
+            });
 
             Serilog.Log.Information("Tool {Tool} completed: flow={Flow}, confidence={Confidence}",
                 "recommend_flow", recommendation.FlowName, recommendation.Confidence);
 
-            return recommendation;
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = recommendation });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = recommendation.Summary });
+            foreach (var link in recommendation.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+            return ret;
         }
         catch (Exception ex)
         {
             Serilog.Log.Error(ex, "Tool {Tool} failed: {Error}",
                 "recommend_flow", ex.Message);
 
-            return new FlowRecommendation
+            var fallback = new FlowRecommendation
             {
                 FlowName = "UNKNOWN",
                 Confidence = 0.0,
@@ -161,8 +200,14 @@ Examples:
                         Name = "Browse all flows",
                         Description = "Explore available flows manually"
                     }
-                }
+                },
+                Summary = $"Recommendation unavailable. {BuildInfo.Marker}"
             };
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = fallback });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = fallback.Summary });
+            foreach (var link in fallback.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+            return ret;
         }
     }
 

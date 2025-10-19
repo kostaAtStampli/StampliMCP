@@ -5,6 +5,7 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Services;
+using StampliMCP.McpServer.Acumatica;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
@@ -45,14 +46,14 @@ Returns:
 • Code snippets from real implementations
 • Next action resource links
 ")]
-    public static async Task<KnowledgeQueryResult> Execute(
+    public static async Task<CallToolResult> Execute(
         [Description("Query: operation name, entity type, pattern, or natural language question")]
         string query,
 
         [Description("Optional scope filter: operations, flows, constants, or all")]
         string? scope,
 
-        ModelContextProtocol.Server.McpServer server, // DI injects McpServer for ElicitAsync<T>
+        ModelContextProtocol.Server.McpServer server, // Schema-based elicitation via McpServer (current SDK)
         KnowledgeService knowledge,
         FlowService flowService,
         CancellationToken ct
@@ -66,7 +67,7 @@ Returns:
             // Step 1: Search knowledge base
             var searchResults = await SearchKnowledge(query, scope, knowledge, flowService, ct);
 
-            // Step 2: Try elicitation if ambiguous (Protocol 2025-06-18 - generic API)
+            // Step 2: Try elicitation if ambiguous (Protocol 2025-06-18 - schema-based API)
             // If elicitation not supported, continue with results
             if (searchResults.IsAmbiguous)
             {
@@ -78,17 +79,39 @@ Returns:
                         ? $"Found {searchResults.Operations.Count} operations. Provide more specific terms:"
                         : $"Found {searchResults.Flows.Count} flows. Provide more specific terms:";
 
-                    var elicitResult = await server.ElicitAsync<RefinementInput>(message, cancellationToken: ct);
-
-                    if (elicitResult.Action == "accept" && elicitResult.Content is { } refinement)
+                    var schema = new ElicitRequestParams.RequestSchema
                     {
-                        var refinedScope = !string.IsNullOrEmpty(refinement.Type) && refinement.Type != "all"
-                            ? refinement.Type
-                            : scope;
+                        Properties =
+                        {
+                            ["type"] = new ElicitRequestParams.StringSchema
+                            {
+                                Description = "Scope to filter (operations, flows, constants, or all)"
+                            },
+                            ["refinement"] = new ElicitRequestParams.StringSchema
+                            {
+                                Description = "Additional keywords to narrow results"
+                            }
+                        }
+                    };
 
-                        var refinedQuery = !string.IsNullOrWhiteSpace(refinement.Refinement)
-                            ? $"{query} {refinement.Refinement}"
-                            : query;
+                    var elicitResult = await server.ElicitAsync(new ElicitRequestParams
+                    {
+                        Message = message,
+                        RequestedSchema = schema
+                    }, ct);
+
+                    if (elicitResult.Action == "accept" && elicitResult.Content is { } content)
+                    {
+                        string? type = null;
+                        string? refinement = null;
+
+                        if (content.TryGetValue("type", out var typeEl) && typeEl.ValueKind == JsonValueKind.String)
+                            type = typeEl.GetString();
+                        if (content.TryGetValue("refinement", out var refEl) && refEl.ValueKind == JsonValueKind.String)
+                            refinement = refEl.GetString();
+
+                        var refinedScope = !string.IsNullOrEmpty(type) && type != "all" ? type : scope;
+                        var refinedQuery = !string.IsNullOrWhiteSpace(refinement) ? $"{query} {refinement}" : query;
 
                         searchResults = await SearchKnowledge(refinedQuery, refinedScope, knowledge, flowService, ct);
                     }
@@ -101,37 +124,41 @@ Returns:
             }
 
             // Step 3: Build structured result
-            var result = new KnowledgeQueryResult
+            var structured = new KnowledgeQueryResult
             {
                 MatchedOperations = searchResults.Operations,
                 RelevantFlows = searchResults.Flows,
                 Constants = searchResults.Constants,
                 CodeExamples = searchResults.CodeSnippets,
                 ValidationRules = searchResults.ValidationRules,
-                NextActions = BuildResourceLinks(searchResults)
+                NextActions = BuildResourceLinks(searchResults),
+                Summary = $"Found {searchResults.TotalMatches} matches (ops={searchResults.Operations.Count}, flows={searchResults.Flows.Count}) {BuildInfo.Marker}"
             };
 
-            Serilog.Log.Information("Tool {Tool} completed: ops={OpCount}, flows={FlowCount}",
-                "query_acumatica_knowledge", result.MatchedOperations.Count, result.RelevantFlows.Count);
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = structured });
+            var summary = structured.Summary ?? $"results {BuildInfo.Marker}";
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = summary });
+            // Convert resource links into content
+            foreach (var link in structured.NextActions)
+            {
+                ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+            }
 
-            return result;
+            Serilog.Log.Information("Tool {Tool} completed: ops={OpCount}, flows={FlowCount}",
+                "query_acumatica_knowledge", structured.MatchedOperations.Count, structured.RelevantFlows.Count);
+
+            return ret;
         }
         catch (Exception ex)
         {
             Serilog.Log.Error(ex, "Tool {Tool} failed: {Error}",
                 "query_acumatica_knowledge", ex.Message);
 
-            return new KnowledgeQueryResult
-            {
-                NextActions = new List<ResourceLinkBlock>
-                {
-                    new ResourceLinkBlock
-                    {
-                        Uri = "mcp://stampli-acumatica/health_check",
-                        Name = "Check server health"
-                    }
-                }
-            };
+            var ret = new CallToolResult();
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = $"query error: {ex.Message} {BuildInfo.Marker}" });
+            ret.Content.Add(new ResourceLinkBlock { Uri = "mcp://stampli-acumatica/health_check", Name = "Check server health" });
+            return ret;
         }
     }
 
@@ -143,10 +170,13 @@ Returns:
         CancellationToken ct)
     {
         var results = new SearchResults();
-        var lowerQuery = query.ToLower();
+        var lowerQuery = (query ?? string.Empty).ToLower();
+        var isWildcard = string.IsNullOrWhiteSpace(lowerQuery) || lowerQuery == "*";
 
-        // Tokenize query for better matching (e.g., "vendor export" → ["vendor", "export"])
-        var queryTokens = lowerQuery.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+        // Tokenize query for better matching (e.g., "vendor export" → ["vendor", "export"]). Treat empty or "*" as wildcard.
+        var queryTokens = isWildcard
+            ? Array.Empty<string>()
+            : lowerQuery.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
 
         // Search operations
         if (scope == null || scope == "all" || scope == "operations")
@@ -182,43 +212,8 @@ Returns:
         // Search constants specifically if requested
         if (scope == "constants")
         {
-            // Load common constants from all flows
-            var flowNames = new[]
-            {
-                "VENDOR_EXPORT_FLOW", "PAYMENT_FLOW", "STANDARD_IMPORT_FLOW",
-                "PO_MATCHING_FLOW", "PO_MATCHING_FULL_IMPORT_FLOW", "EXPORT_INVOICE_FLOW",
-                "EXPORT_PO_FLOW", "M2M_IMPORT_FLOW", "API_ACTION_FLOW"
-            };
-
-            // Add common Acumatica constants
-            results.Constants["RESPONSE_ROWS_LIMIT"] = new ConstantInfo
-            {
-                Name = "RESPONSE_ROWS_LIMIT",
-                Value = "2000",
-                Purpose = "Maximum rows per page for Acumatica pagination"
-            };
-
-            results.Constants["MAX_VENDOR_NAME_LENGTH"] = new ConstantInfo
-            {
-                Name = "MAX_VENDOR_NAME_LENGTH",
-                Value = "60",
-                Purpose = "Maximum length for vendor name field"
-            };
-
-            results.Constants["MAX_VENDOR_ID_LENGTH"] = new ConstantInfo
-            {
-                Name = "MAX_VENDOR_ID_LENGTH",
-                Value = "30",
-                Purpose = "Maximum length for VendorID field"
-            };
-
-            results.Constants["SESSION_TIMEOUT_MINUTES"] = new ConstantInfo
-            {
-                Name = "SESSION_TIMEOUT_MINUTES",
-                Value = "10",
-                Purpose = "Acumatica session timeout before re-authentication needed"
-            };
-
+            // Load constants from all known flows dynamically
+            var flowNames = await flowService.GetAllFlowNamesAsync(ct);
             foreach (var flowName in flowNames)
             {
                 try
@@ -259,13 +254,7 @@ Returns:
         // Search flows
         if (scope == null || scope == "all" || scope == "flows")
         {
-            var flowNames = new[]
-            {
-                "VENDOR_EXPORT_FLOW", "PAYMENT_FLOW", "STANDARD_IMPORT_FLOW",
-                "PO_MATCHING_FLOW", "PO_MATCHING_FULL_IMPORT_FLOW", "EXPORT_INVOICE_FLOW",
-                "EXPORT_PO_FLOW", "M2M_IMPORT_FLOW", "API_ACTION_FLOW"
-            };
-
+            var flowNames = await flowService.GetAllFlowNamesAsync(ct);
             foreach (var flowName in flowNames)
             {
                 try
@@ -274,12 +263,12 @@ Returns:
                     if (flowDoc == null) continue;
 
                     var flow = flowDoc.RootElement;
-                    var description = flow.GetProperty("description").GetString() ?? "";
+                    var description = flow.TryGetProperty("description", out var d) ? (d.GetString() ?? "") : "";
                     var flowNameLower = flowName.ToLower();
                     var descriptionLower = description.ToLower();
 
-                    // Match flow by name or description (using tokens)
-                    bool matches = queryTokens.Any(token =>
+                    // Match flow by name or description (using tokens); if no tokens, list all
+                    bool matches = queryTokens.Length == 0 || queryTokens.Any(token =>
                         flowNameLower.Contains(token) ||
                         descriptionLower.Contains(token)
                     );
@@ -290,12 +279,31 @@ Returns:
                         {
                             Name = flowName,
                             Description = description,
-                            UsedByOperations = flow.GetProperty("usedByOperations")
-                                .EnumerateArray()
-                                .Select(e => e.GetString() ?? "")
-                                .Where(s => !string.IsNullOrEmpty(s))
-                                .ToList()
+                            UsedByOperations = flow.TryGetProperty("usedByOperations", out var ubo)
+                                ? ubo.EnumerateArray().Select(e => e.GetString() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToList()
+                                : new List<string>()
                         });
+
+                        // Also hydrate matched operations from this flow
+                        if (flow.TryGetProperty("usedByOperations", out var usedBy))
+                        {
+                            foreach (var opNameEl in usedBy.EnumerateArray())
+                            {
+                                var opName = opNameEl.GetString();
+                                if (string.IsNullOrWhiteSpace(opName)) continue;
+                                var op = await knowledge.FindOperationAsync(opName!, ct);
+                                if (op != null && !results.Operations.Any(o => o.Method.Equals(op.Method, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    results.Operations.Add(new OperationSummary
+                                    {
+                                        Method = op.Method,
+                                        Summary = op.Summary ?? string.Empty,
+                                        Category = op.Category,
+                                        Flow = flowName
+                                    });
+                                }
+                            }
+                        }
 
                         // Extract constants
                         if (flow.TryGetProperty("constants", out var constants))
@@ -381,6 +389,14 @@ Returns:
         {
             Uri = "mcp://stampli-acumatica/recommend_flow?useCase=my integration need",
             Name = "Get AI-powered flow recommendation"
+        });
+
+        // Temporary verification marker
+        links.Add(new ResourceLinkBlock
+        {
+            Uri = "mcp://stampli-acumatica/marker",
+            Name = BuildInfo.Marker,
+            Description = $"build={BuildInfo.VersionTag}"
         });
 
         return links;

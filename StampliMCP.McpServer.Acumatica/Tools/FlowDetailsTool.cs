@@ -5,6 +5,7 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Services;
+using StampliMCP.McpServer.Acumatica;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
@@ -37,7 +38,7 @@ VENDOR_EXPORT_FLOW, PAYMENT_FLOW, STANDARD_IMPORT_FLOW, PO_MATCHING_FLOW,
 PO_MATCHING_FULL_IMPORT_FLOW, EXPORT_INVOICE_FLOW, EXPORT_PO_FLOW,
 M2M_IMPORT_FLOW, API_ACTION_FLOW
 ")]
-    public static async Task<FlowDetail> Execute(
+    public static async Task<CallToolResult> Execute(
         [Description("Flow name (e.g., VENDOR_EXPORT_FLOW, PAYMENT_FLOW, STANDARD_IMPORT_FLOW)")]
         string flowName,
 
@@ -55,7 +56,8 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
             if (flowDoc == null)
             {
                 Serilog.Log.Warning("Flow {FlowName} not found", flowName);
-                return new FlowDetail
+                var ret404 = new CallToolResult();
+                var detail404 = new FlowDetail
                 {
                     Name = flowName,
                     Description = $"Flow '{flowName}' not found. Check flow name spelling or use query_acumatica_knowledge to search.",
@@ -68,6 +70,10 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
                         }
                     }
                 };
+                ret404.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = detail404 });
+                ret404.Content.Add(new TextContentBlock { Type = "text", Text = $"Flow not found: {flowName} {BuildInfo.Marker}" });
+                foreach (var link in detail404.NextActions) ret404.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+                return ret404;
             }
 
             var flow = flowDoc.RootElement;
@@ -163,7 +169,7 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
                 .Where(s => !string.IsNullOrEmpty(s))
                 .ToList();
 
-            var result = new FlowDetail
+            var structured = new FlowDetail
             {
                 Name = flowName,
                 Description = flow.GetProperty("description").GetString() ?? "",
@@ -172,6 +178,7 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
                 ValidationRules = validationRules,
                 CodeSnippets = codeSnippets,
                 CriticalFiles = criticalFiles,
+                Summary = $"{flowName}: constants={constants.Count}, rules={validationRules.Count} {BuildInfo.Marker}",
                 NextActions = new List<ResourceLinkBlock>
                 {
                     new ResourceLinkBlock
@@ -187,21 +194,33 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
                     {
                         Uri = $"mcp://stampli-acumatica/query_acumatica_knowledge?query={flowName}",
                         Name = "Search related knowledge"
+                    },
+                    new ResourceLinkBlock
+                    {
+                        Uri = "mcp://stampli-acumatica/marker",
+                        Name = BuildInfo.Marker,
+                        Description = $"build={BuildInfo.VersionTag}"
                     }
                 }
             };
 
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = structured });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = structured.Summary ?? $"{flowName} {BuildInfo.Marker}" });
+            foreach (var link in structured.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+
             Serilog.Log.Information("Tool {Tool} completed: flow={Flow}, constants={ConstCount}, rules={RuleCount}",
                 "get_flow_details", flowName, constants.Count, validationRules.Count);
 
-            return result;
+            return ret;
         }
         catch (Exception ex)
         {
             Serilog.Log.Error(ex, "Tool {Tool} failed: flowName={FlowName}, error={Error}",
                 "get_flow_details", flowName, ex.Message);
 
-            return new FlowDetail
+            var ret = new CallToolResult();
+            var detail = new FlowDetail
             {
                 Name = flowName,
                 Description = $"Error loading flow: {ex.Message}",
@@ -214,6 +233,10 @@ M2M_IMPORT_FLOW, API_ACTION_FLOW
                     }
                 }
             };
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = detail });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = $"error: {ex.Message} {BuildInfo.Marker}" });
+            foreach (var link in detail.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+            return ret;
         }
     }
 }

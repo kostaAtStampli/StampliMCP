@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(while read file)",
+      "Bash(do if ! grep -q \"ResourceLinkBlock\" \"$file\")",
+      "Bash(then echo \"$file - NO resource links\")",
+      "mcp__stampli-acumatica__get_kotlin_golden_reference",
+      "mcp__stampli-acumatica__recommend_flow",
+      "mcp__stampli-acumatica__validate_request",
+      "mcp__stampli-acumatica__diagnose_error",
+      "mcp__stampli-acumatica__challenge_scan_findings",
+      "Bash(/mnt/c/Windows/System32/taskkill.exe /F /PID 11124)",
+      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" clean StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release --nologo)",
+      "Bash(git restore StampliMCP.McpServer.Acumatica.Tests/KnowledgeExtractionTests/KnowledgeExtractionTestBase.cs)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

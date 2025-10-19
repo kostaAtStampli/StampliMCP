@@ -1,9 +1,11 @@
 using System.ComponentModel;
+using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Models;
 using StampliMCP.McpServer.Acumatica.Services;
+using StampliMCP.McpServer.Acumatica;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
@@ -43,12 +45,13 @@ Categories:
 • Network - Timeouts, connection errors
 • Unknown - Unrecognized errors
 ")]
-    public static async Task<ErrorDiagnostic> Execute(
+    public static async Task<CallToolResult> Execute(
         [Description("Error message from Acumatica API")]
         string errorMessage,
 
         ModelContextProtocol.Server.McpServer server,
         FlowService flowService,
+        KnowledgeService knowledge,
         CancellationToken ct
     )
     {
@@ -66,19 +69,44 @@ Categories:
 
             if (category == "Unknown" || errorMessage.Length < 20)
             {
-                var elicitResult = await server.ElicitAsync<ErrorContext>(
-                    "Need more context to diagnose. Please provide operation and/or payload snippet:",
-                    cancellationToken: ct
-                );
-
-                if (elicitResult.Action == "accept" && elicitResult.Content is { } context)
+                try
                 {
-                    operation = context.Operation;
-                    payload = context.PayloadSnippet;
+                    var schema = new ElicitRequestParams.RequestSchema
+                    {
+                        Properties =
+                        {
+                            ["operation"] = new ElicitRequestParams.StringSchema
+                            {
+                                Description = "Operation where error occurred (e.g., exportVendor)"
+                            },
+                            ["payloadSnippet"] = new ElicitRequestParams.StringSchema
+                            {
+                                Description = "Optional request payload snippet"
+                            }
+                        }
+                    };
 
-                    // Re-categorize with context
-                    if (!string.IsNullOrEmpty(operation))
-                        category = CategorizeErrorWithContext(errorMessage, operation);
+                    var elicitResult = await server.ElicitAsync(new ElicitRequestParams
+                    {
+                        Message = "Need more context to diagnose. Provide operation and/or payload snippet:",
+                        RequestedSchema = schema
+                    }, ct);
+
+                    if (elicitResult.Action == "accept" && elicitResult.Content is { } content)
+                    {
+                        if (content.TryGetValue("operation", out var opEl) && opEl.ValueKind == JsonValueKind.String)
+                            operation = opEl.GetString();
+                        if (content.TryGetValue("payloadSnippet", out var payEl) && payEl.ValueKind == JsonValueKind.String)
+                            payload = payEl.GetString();
+
+                        // Re-categorize with context
+                        if (!string.IsNullOrEmpty(operation))
+                            category = CategorizeErrorWithContext(errorMessage, operation);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Serilog.Log.Warning("Elicitation not supported in diagnose_error: {Message}", ex.Message);
                 }
             }
 
@@ -89,8 +117,11 @@ Categories:
                 ErrorCategory = category,
                 PossibleCauses = GetPossibleCauses(category, errorMessage),
                 Solutions = GetSolutions(category, errorMessage),
-                RelatedFlowRules = GetRelatedRules(operation, flowService, ct),
+                RelatedFlowRules = string.IsNullOrEmpty(operation)
+                    ? new List<string>()
+                    : await GetRelatedRulesAsync(operation!, flowService, ct),
                 PreventionTips = GetPreventionTips(category),
+                Summary = $"Category={category}{(string.IsNullOrEmpty(operation) ? "" : ", op=" + operation)} {BuildInfo.Marker}",
                 NextActions = new List<ResourceLinkBlock>
                 {
                     new ResourceLinkBlock
@@ -100,26 +131,62 @@ Categories:
                             : "mcp://stampli-acumatica/query_acumatica_knowledge?query=validation",
                         Name = "Validate request",
                         Description = "Pre-flight validation to prevent this error"
+                    },
+                    new ResourceLinkBlock
+                    {
+                        Uri = "mcp://stampli-acumatica/marker",
+                        Name = BuildInfo.Marker,
+                        Description = $"build={BuildInfo.VersionTag}"
                     }
                 }
             };
 
+            // Enrich with operation-specific known errors (if any)
+            try
+            {
+                if (!string.IsNullOrEmpty(operation))
+                {
+                    var knownErrors = await knowledge.GetOperationErrorsAsync(operation!, ct);
+                    foreach (var e in knownErrors)
+                    {
+                        if (!string.IsNullOrWhiteSpace(e.Message))
+                        {
+                            diagnostic.PossibleCauses.Add($"Known for {operation}: {e.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Warning("Failed to enrich with operation errors: {Message}", ex.Message);
+            }
+
             Serilog.Log.Information("Tool {Tool} completed: category={Category}, solutions={SolutionCount}",
                 "diagnose_error", category, diagnostic.Solutions.Count);
 
-            return diagnostic;
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = diagnostic });
+            var summary = diagnostic.Summary ?? $"Diagnostic {BuildInfo.Marker}";
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = summary });
+            foreach (var link in diagnostic.NextActions) ret.Content.Add(new ResourceLinkBlock { Uri = link.Uri, Name = link.Name, Description = link.Description });
+            return ret;
         }
         catch (Exception ex)
         {
             Serilog.Log.Error(ex, "Tool {Tool} failed", "diagnose_error");
 
-            return new ErrorDiagnostic
+            var fallback = new ErrorDiagnostic
             {
                 ErrorMessage = errorMessage,
                 ErrorCategory = "GeneralError",
                 PossibleCauses = new List<string> { "Error analysis failed - check error message details" },
-                Solutions = new List<ErrorSolution>()
+                Solutions = new List<ErrorSolution>(),
+                Summary = $"GeneralError {BuildInfo.Marker}"
             };
+            var ret = new CallToolResult();
+            ret.StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = fallback });
+            ret.Content.Add(new TextContentBlock { Type = "text", Text = fallback.Summary });
+            return ret;
         }
     }
 
@@ -277,12 +344,22 @@ Categories:
         };
     }
 
-    private static List<string> GetRelatedRules(string? operation, FlowService flowService, CancellationToken ct)
+    private static async Task<List<string>> GetRelatedRulesAsync(string operation, FlowService flowService, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(operation))
-            return new List<string>();
-
-        // Simplified - in real impl, look up operation's flow and return its rules
+        try
+        {
+            var flowName = await flowService.GetFlowForOperationAsync(operation, ct);
+            if (string.IsNullOrEmpty(flowName)) return new List<string>();
+            var doc = await flowService.GetFlowAsync(flowName!, ct);
+            if (doc?.RootElement.TryGetProperty("validationRules", out var rulesEl) == true)
+            {
+                return rulesEl.EnumerateArray().Select(e => e.GetString() ?? "").Where(s => !string.IsNullOrEmpty(s)).ToList();
+            }
+        }
+        catch
+        {
+            // ignore
+        }
         return new List<string>();
     }
 

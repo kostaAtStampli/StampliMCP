@@ -1,0 +1,13 @@
+{
+  "purpose": "Knowledge for payment-flows",
+  "usage": "Auto-extracted from code scanning",
+  "lastUpdated": "2025-10-19 06:57:44 UTC",
+  "data": {
+    "RequiredFields": {},
+    "ScanThese": [],
+    "Helpers": [],
+    "KotlinFiles": [],
+    "KotlinProgress": "",
+    "Scan2Challenges": 0
+  }
+}

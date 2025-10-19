@@ -34,16 +34,29 @@ public sealed class FlowService(ILogger<FlowService> logger, IMemoryCache cache)
 
     public async Task<JsonDocument?> GetFlowAsync(string flowName, CancellationToken ct = default)
     {
+        // Normalize requested name to canonical embedded resource name (case-insensitive)
+        var all = await GetAllFlowNamesAsync(ct);
+        var normalized = all.FirstOrDefault(n => n.Equals(flowName, StringComparison.OrdinalIgnoreCase));
+        if (normalized is null)
+        {
+            // Try common transformations (UPPER_SNAKE to lower_snake)
+            var candidate = flowName.Replace(' ', '_').Replace('-', '_').ToLowerInvariant();
+            normalized = all.FirstOrDefault(n => n.Equals(candidate, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var cacheKey = $"flow_{normalized ?? flowName}";
+
         return await cache.GetOrCreateAsync(
-            $"flow_{flowName}",
+            cacheKey,
             async entry =>
             {
                 try
                 {
                     entry.SetOptions(_cacheOptions);
-                    var json = await ReadEmbeddedResourceAsync($"{flowName}.json", ct);
+                    var resourceFile = $"{(normalized ?? flowName)}.json";
+                    var json = await ReadEmbeddedResourceAsync(resourceFile, ct);
                     var doc = JsonDocument.Parse(json);
-                    logger.LogInformation("Loaded flow {FlowName}", flowName);
+                    logger.LogInformation("Loaded flow {FlowName}", normalized ?? flowName);
                     return doc;
                 }
                 catch (Exception ex)

@@ -11,6 +11,8 @@ namespace StampliMCP.McpServer.Acumatica.Models;
 [Description("Result from knowledge base query")]
 public class KnowledgeQueryResult
 {
+    [Description("Human-readable summary of results")]
+    public string? Summary { get; set; }
     [Description("Operations matching the query")]
     public List<OperationSummary> MatchedOperations { get; set; } = new();
 
@@ -64,6 +66,8 @@ public class FlowSummary
 [Description("Complete flow details with anatomy, constants, and rules")]
 public class FlowDetail
 {
+    [Description("Human-readable summary of flow details")]
+    public string? Summary { get; set; }
     [Description("Flow name")]
     public string Name { get; set; } = string.Empty;
 
@@ -110,6 +114,8 @@ public class FlowAnatomy
 [Description("AI-powered flow recommendation result")]
 public class FlowRecommendation
 {
+    [Description("Human-readable summary of recommendation")]
+    public string? Summary { get; set; }
     [Description("Recommended flow name")]
     public string FlowName { get; set; } = string.Empty;
 
@@ -147,6 +153,8 @@ public class AlternativeFlow
 [Description("Request validation result")]
 public class ValidationResult
 {
+    [Description("Human-readable summary of validation outcome")]
+    public string? Summary { get; set; }
     [Description("Whether the request is valid")]
     public bool IsValid { get; set; }
 
@@ -189,6 +197,9 @@ public class ValidationError
 
     [Description("Expected value or format")]
     public string? Expected { get; set; }
+
+    [Description("Origin of the rule (flow, constant, or file ref)")]
+    public string? RuleSource { get; set; }
 }
 
 // ================== Error Diagnostic ==================
@@ -196,6 +207,8 @@ public class ValidationError
 [Description("Error diagnostic result with causes and solutions")]
 public class ErrorDiagnostic
 {
+    [Description("Human-readable summary of diagnostic")]
+    public string? Summary { get; set; }
     [Description("Original error message")]
     public string ErrorMessage { get; set; } = string.Empty;
 
