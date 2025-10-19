@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Text.Json;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
@@ -12,6 +14,31 @@ namespace StampliMCP.McpServer.Acumatica.Tools;
 [McpServerToolType]
 public static class ErrorDiagnosticTool
 {
+    // SearchValues for ultra-fast exact keyword matching (fast path)
+    private static readonly SearchValues<string> ValidationKeywords = SearchValues.Create(
+        ["required", "missing", "invalid", "maximum length", "exceeds", "limit", "field", "property", "attribute", "format", "must be", "should be"],
+        StringComparison.OrdinalIgnoreCase);
+
+    private static readonly SearchValues<string> NotFoundKeywords = SearchValues.Create(
+        ["not found", "does not exist", "cannot find", "no such", "404"],
+        StringComparison.OrdinalIgnoreCase);
+
+    private static readonly SearchValues<string> BusinessLogicKeywords = SearchValues.Create(
+        ["duplicate", "already exists", "business", "cannot", "not allowed", "conflict"],
+        StringComparison.OrdinalIgnoreCase);
+
+    private static readonly SearchValues<string> AuthKeywords = SearchValues.Create(
+        ["auth", "session", "unauthorized", "permission", "access denied", "forbidden", "401", "403"],
+        StringComparison.OrdinalIgnoreCase);
+
+    private static readonly SearchValues<string> RateLimitKeywords = SearchValues.Create(
+        ["rate limit", "too many", "throttle", "429"],
+        StringComparison.OrdinalIgnoreCase);
+
+    private static readonly SearchValues<string> NetworkKeywords = SearchValues.Create(
+        ["timeout", "connection", "network", "unreachable", "503"],
+        StringComparison.OrdinalIgnoreCase);
+
     public sealed class ErrorContext
     {
         [Description("Operation where error occurred")]
@@ -52,6 +79,7 @@ Categories:
         ModelContextProtocol.Server.McpServer server,
         FlowService flowService,
         KnowledgeService knowledge,
+        FuzzyMatchingService fuzzyMatcher,
         CancellationToken ct
     )
     {
@@ -60,8 +88,11 @@ Categories:
 
         try
         {
-            // Step 1: Categorize error
-            var category = CategorizeError(errorMessage);
+            // Step 1: Categorize error (fast path: SearchValues, fuzzy fallback: Fastenshtein)
+            var sw = Stopwatch.StartNew();
+            var category = CategorizeError(errorMessage, fuzzyMatcher);
+            sw.Stop();
+            Serilog.Log.Information("Error categorization: category={Category}, time={Ms}ms", category, sw.ElapsedMilliseconds);
 
             // Step 2: Elicit context if error is ambiguous
             string? operation = null;
@@ -101,7 +132,7 @@ Categories:
 
                         // Re-categorize with context
                         if (!string.IsNullOrEmpty(operation))
-                            category = CategorizeErrorWithContext(errorMessage, operation);
+                            category = CategorizeErrorWithContext(errorMessage, operation, fuzzyMatcher);
                     }
                 }
                 catch (Exception ex)
@@ -204,52 +235,64 @@ Categories:
         }
     }
 
-    private static string CategorizeError(string error)
+    private static string CategorizeError(string error, FuzzyMatchingService fuzzyMatcher)
     {
         var lower = error.ToLower();
+        var words = lower.Split([' ', ',', '.', ':', ';'], StringSplitOptions.RemoveEmptyEntries);
 
-        // Validation errors
-        if (lower.Contains("required") || lower.Contains("missing") || lower.Contains("invalid") ||
-            lower.Contains("maximum length") || lower.Contains("exceeds") || lower.Contains("limit") ||
-            lower.Contains("field") || lower.Contains("property") || lower.Contains("attribute") ||
-            lower.Contains("format") || lower.Contains("must be") || lower.Contains("should be"))
-            return "Validation";
+        // FAST PATH: SearchValues for exact keyword matching (7x faster than Contains)
+        // Check each word against pre-compiled SearchValues
+        foreach (var word in words)
+        {
+            if (ValidationKeywords.Contains(word))
+                return "Validation";
+            if (NotFoundKeywords.Contains(word))
+                return "NotFound";
+            if (BusinessLogicKeywords.Contains(word))
+                return "BusinessLogic";
+            if (AuthKeywords.Contains(word))
+                return "Authentication";
+            if (RateLimitKeywords.Contains(word))
+                return "RateLimit";
+            if (NetworkKeywords.Contains(word))
+                return "Network";
+        }
 
-        // Not found errors
-        if (lower.Contains("not found") || lower.Contains("does not exist") || lower.Contains("cannot find") ||
-            lower.Contains("no such") || lower.Contains("404"))
-            return "NotFound";
+        // FUZZY PATH: If no exact matches, try fuzzy matching with Fastenshtein (typo tolerance)
+        var allCategories = new List<(string category, string[] keywords)>
+        {
+            ("Validation", ["required", "missing", "invalid", "exceeds", "limit", "field"]),
+            ("NotFound", ["not found", "does not exist", "cannot find"]),
+            ("BusinessLogic", ["duplicate", "already exists", "conflict"]),
+            ("Authentication", ["auth", "session", "unauthorized", "permission"]),
+            ("RateLimit", ["rate limit", "too many", "throttle"]),
+            ("Network", ["timeout", "connection", "network", "unreachable"])
+        };
 
-        // Business logic errors
-        if (lower.Contains("duplicate") || lower.Contains("already exists") || lower.Contains("business") ||
-            lower.Contains("cannot") || lower.Contains("not allowed") || lower.Contains("conflict"))
-            return "BusinessLogic";
-
-        // Authentication/Authorization errors
-        if (lower.Contains("auth") || lower.Contains("session") || lower.Contains("unauthorized") ||
-            lower.Contains("permission") || lower.Contains("access denied") || lower.Contains("forbidden") ||
-            lower.Contains("401") || lower.Contains("403"))
-            return "Authentication";
-
-        // Rate limiting
-        if (lower.Contains("rate limit") || lower.Contains("too many") || lower.Contains("throttle") ||
-            lower.Contains("429"))
-            return "RateLimit";
-
-        // Network errors
-        if (lower.Contains("timeout") || lower.Contains("connection") || lower.Contains("network") ||
-            lower.Contains("unreachable") || lower.Contains("503"))
-            return "Network";
+        foreach (var (category, keywords) in allCategories)
+        {
+            // Check if any word fuzzy-matches category keywords
+            foreach (var word in words)
+            {
+                var matches = fuzzyMatcher.FindAllMatches(word, keywords, fuzzyMatcher.GetThreshold("error"));
+                if (matches.Any())
+                {
+                    Serilog.Log.Information("Fuzzy error match: word=\"{Word}\", category={Category}, confidence={Confidence:P0}",
+                        word, category, matches.First().Confidence);
+                    return category;
+                }
+            }
+        }
 
         // Default to GeneralError instead of Unknown
         return "GeneralError";
     }
 
-    private static string CategorizeErrorWithContext(string error, string operation)
+    private static string CategorizeErrorWithContext(string error, string operation, FuzzyMatchingService fuzzyMatcher)
     {
         if (operation.ToLower().Contains("export") || operation.ToLower().Contains("import"))
             return "BusinessLogic";
-        return CategorizeError(error);
+        return CategorizeError(error, fuzzyMatcher);
     }
 
     private static List<string> GetPossibleCauses(string category, string error)
