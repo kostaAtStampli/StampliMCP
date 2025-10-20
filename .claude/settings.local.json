@@ -5,7 +5,9 @@
       "Bash(test -f /mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica/Knowledge/account-operations.json)",
       "Bash(find /mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica/Knowledge -name \"*.json\" -exec wc -l {})",
       "Bash(awk '{print $5, $9}')",
-      "Bash(awk '$1 > 300 {print $0}')"
+      "Bash(awk '$1 > 300 {print $0}')",
+      "Bash(git add -A)",
+      "Bash(git commit -m \"refactor(Knowledge): activate rich operations/ + array/object parser\n\nPROBLEM:\n- KnowledgeService loaded stub files (vendor-operations.json, etc.)\n- Stub files had minimal info (no flowTrace, scanThese, goldenTest)\n- operations/ subfolder embedded but UNUSED (1200+ lines of rich knowledge)\n- Parser only handled object format, not array format\n\nSOLUTION:\n1. Updated KnowledgeService.cs paths to operations/*.json (rich knowledge)\n2. Added array/object format detection (lines 100-143)\n3. Deleted 7 stub files (vendor/payment/po/account/field/admin/item-operations.json)\n4. Updated categories.json with correct operation counts\n\nRESULT:\n- 54 operations now loaded (was 5)\n- query_acumatica_knowledge returns RICH details (flowTrace, constants, code examples)\n- list_operations shows ALL categories\n- AI-friendly structure for adding new knowledge\n\nTEST QUERIES:\n✅ pagination limit → 2000 rows/page\n✅ session timeout → 10 minutes  \n✅ vendor required fields → vendorName (60 chars), stampliLink\n✅ PO matching → 3 flows with code snippets\n✅ international payments → cross-rate calculation examples\")"
     ],
     "deny": [],
     "ask": []

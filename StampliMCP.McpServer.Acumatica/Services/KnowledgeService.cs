@@ -74,15 +74,18 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
                     // Map category to the appropriate knowledge file
                     var knowledgeFile = category switch
                     {
-                        "payments" => "payment-operations.json",
-                        "purchaseOrders" => "po-operations.json",
-                        "accounts" => "account-operations.json",
-                        "fields" => "field-operations.json",
+                        "payments" => "operations/payments.json",
+                        "purchaseOrders" => "operations/purchaseOrders.json",
+                        "accounts" => "operations/accounts.json",
+                        "fields" => "operations/fields.json",
                         "customFields" => "custom-field-operations.json",
-                        "admin" => "admin-operations.json",
-                        "vendors" => "vendor-operations.json", // Future file when we create it
-                        "items" => "item-operations.json", // Future file
-                        _ => $"operations.{category}.json" // Fallback to old pattern
+                        "admin" => "operations/admin.json",
+                        "vendors" => "operations/vendors.json",
+                        "items" => "operations/items.json",
+                        "retrieval" => "operations/retrieval.json",
+                        "utility" => "operations/utility.json",
+                        "other" => "operations/other.json",
+                        _ => $"operations/{category}.json" // Fallback to operations subfolder
                     };
 
                     var json = await ReadEmbeddedResourceAsync(knowledgeFile, ct);
@@ -93,39 +96,48 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
 
                     if (document.RootElement.TryGetProperty("operations", out var operationsElement))
                     {
-                        // New structure: { "operations": { "opName": {...}, ... } }
-                        foreach (var opProperty in operationsElement.EnumerateObject())
+                        // Handle both array and object formats
+                        if (operationsElement.ValueKind == System.Text.Json.JsonValueKind.Array)
                         {
-                            // Normalize schema differences: some files use "operationName" instead of "method"
-                            try
+                            // Array format: { "operations": [...] } (operations/*.json files)
+                            ops = JsonSerializer.Deserialize<List<Operation>>(operationsElement.GetRawText(), _jsonOptions) ?? [];
+                        }
+                        else if (operationsElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            // Object format: { "operations": { "opName": {...}, ... } } (root files)
+                            foreach (var opProperty in operationsElement.EnumerateObject())
                             {
-                                var element = opProperty.Value;
-                                string raw = element.GetRawText();
-
-                                // If method exists, use as-is
-                                bool hasMethod = element.TryGetProperty("method", out _);
-                                bool hasOperationName = element.TryGetProperty("operationName", out var opNameEl);
-
-                                if (!hasMethod && hasOperationName)
+                                // Normalize schema differences: some files use "operationName" instead of "method"
+                                try
                                 {
-                                    // Build a JsonObject and inject "method": operationName
-                                    var node = System.Text.Json.Nodes.JsonNode.Parse(raw) as System.Text.Json.Nodes.JsonObject;
-                                    if (node != null && !node.ContainsKey("method"))
+                                    var element = opProperty.Value;
+                                    string raw = element.GetRawText();
+
+                                    // If method exists, use as-is
+                                    bool hasMethod = element.TryGetProperty("method", out _);
+                                    bool hasOperationName = element.TryGetProperty("operationName", out var opNameEl);
+
+                                    if (!hasMethod && hasOperationName)
                                     {
-                                        node["method"] = opNameEl.GetString();
-                                        raw = node.ToJsonString();
+                                        // Build a JsonObject and inject "method": operationName
+                                        var node = System.Text.Json.Nodes.JsonNode.Parse(raw) as System.Text.Json.Nodes.JsonObject;
+                                        if (node != null && !node.ContainsKey("method"))
+                                        {
+                                            node["method"] = opNameEl.GetString();
+                                            raw = node.ToJsonString();
+                                        }
+                                    }
+
+                                    var op = JsonSerializer.Deserialize<Operation>(raw, _jsonOptions);
+                                    if (op != null)
+                                    {
+                                        ops.Add(op);
                                     }
                                 }
-
-                                var op = JsonSerializer.Deserialize<Operation>(raw, _jsonOptions);
-                                if (op != null)
+                                catch (Exception ex)
                                 {
-                                    ops.Add(op);
+                                    logger.LogWarning(ex, "Failed to parse operation entry for category {Category}", category);
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "Failed to parse operation entry for category {Category}", category);
                             }
                         }
                     }
