@@ -1,0 +1,604 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://stampli.com/schemas/acumatica-mcp-operation.json",
+  "title": "Acumatica MCP Operation Knowledge Schema",
+  "description": "JSON Schema for validating Acumatica operation knowledge files in MCP server",
+  "version": "1.0.0",
+
+  "definitions": {
+    "Operation": {
+      "type": "object",
+      "required": ["method", "summary", "category"],
+      "additionalProperties": true,
+      "properties": {
+        "method": {
+          "type": "string",
+          "description": "Operation name matching Java/Kotlin method name",
+          "minLength": 1,
+          "examples": ["exportVendor", "getVendors", "voidPayment"]
+        },
+        "summary": {
+          "type": "string",
+          "description": "One-sentence description of operation",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "category": {
+          "type": "string",
+          "description": "Category name from categories.json",
+          "enum": [
+            "vendors",
+            "items",
+            "purchaseOrders",
+            "payments",
+            "accounts",
+            "fields",
+            "customFields",
+            "admin",
+            "retrieval",
+            "utility",
+            "other"
+          ]
+        },
+        "searchKeywords": {
+          "type": "array",
+          "description": "Keywords for fuzzy matching in query tool",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "maxItems": 20
+        },
+        "flow": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Integration flow name or null",
+          "examples": ["vendor_export_flow", "payment_flow", "standard_import_flow"]
+        },
+        "enumName": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "AgentOpCode enum name or null for POC methods"
+        },
+        "flowTrace": {
+          "type": "array",
+          "description": "Step-by-step execution trace through codebase",
+          "items": {
+            "$ref": "#/definitions/FlowTraceStep"
+          }
+        },
+        "scanThese": {
+          "type": "array",
+          "description": "Critical files to read when implementing/debugging",
+          "items": {
+            "$ref": "#/definitions/ScanTheseEntry"
+          }
+        },
+        "helpers": {
+          "type": "array",
+          "description": "Helper classes/utilities used by operation",
+          "items": {
+            "$ref": "#/definitions/Helper"
+          }
+        },
+        "goldenTest": {
+          "$ref": "#/definitions/GoldenTest"
+        },
+        "apiEndpoint": {
+          "$ref": "#/definitions/ApiEndpoint"
+        },
+        "requiredFields": {
+          "type": "object",
+          "description": "Required parameters for operation",
+          "additionalProperties": {
+            "$ref": "#/definitions/FieldInfo"
+          }
+        },
+        "optionalFields": {
+          "type": "object",
+          "description": "Optional parameters for operation",
+          "additionalProperties": {
+            "$ref": "#/definitions/FieldInfo"
+          }
+        },
+        "requestDtoLocation": {
+          "$ref": "#/definitions/CodeLocation"
+        },
+        "responseDtoLocation": {
+          "$ref": "#/definitions/CodeLocation"
+        },
+        "constants": {
+          "type": "object",
+          "description": "Important constants used by operation",
+          "additionalProperties": true
+        },
+        "validationRules": {
+          "type": "array",
+          "description": "Business logic validation rules",
+          "items": {
+            "type": "string"
+          }
+        },
+        "codeExamples": {
+          "type": "array",
+          "description": "Code snippets showing usage",
+          "items": {
+            "$ref": "#/definitions/CodeExample"
+          }
+        },
+        "kotlinFlowSummary": {
+          "type": "string",
+          "description": "Kotlin-specific implementation notes"
+        },
+        "relatedOperations": {
+          "type": "array",
+          "description": "Operations that work together",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isPOC": {
+          "type": "boolean",
+          "description": "True if proof-of-concept/experimental operation"
+        },
+        "notInAgentOpCode": {
+          "type": "boolean",
+          "description": "True if operation not in AgentOpCode enum"
+        },
+        "isPublicApi": {
+          "type": "boolean",
+          "description": "True if public entry point"
+        },
+        "isRouter": {
+          "type": "boolean",
+          "description": "True if method routes to other operations"
+        },
+        "isInternal": {
+          "type": "boolean",
+          "description": "True if internal implementation detail"
+        },
+        "routes": {
+          "type": "object",
+          "description": "Routing conditions and destinations",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "whenToUse": {
+          "type": "string",
+          "description": "Guidance on when to call this operation"
+        },
+        "difference": {
+          "type": "object",
+          "description": "How this differs from related operations",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "troubleshooting": {
+          "type": "array",
+          "description": "Common errors and solutions",
+          "items": {
+            "$ref": "#/definitions/TroubleshootingEntry"
+          }
+        },
+        "dac": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "object" }
+          ],
+          "description": "Acumatica DAC (Data Access Class) mapping"
+        },
+        "payloadStructure": {
+          "type": "object",
+          "description": "Example request payload structure",
+          "additionalProperties": true
+        },
+        "implementation": {
+          "$ref": "#/definitions/Implementation"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["FULLY SUPPORTED", "PARTIAL", "EXPERIMENTAL", "DEPRECATED"],
+          "description": "Support status of operation"
+        },
+        "quirk": {
+          "type": "string",
+          "description": "Special behavior or gotcha"
+        },
+        "supportMatrix": {
+          "type": "object",
+          "properties": {
+            "supported": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "unsupported": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "notes": {
+              "type": "string"
+            },
+            "importOperations": {
+              "type": "string"
+            }
+          }
+        },
+        "eightStepFlow": {
+          "type": "object",
+          "description": "Eight-step invoice export flow",
+          "properties": {
+            "step1": { "type": "string" },
+            "step2": { "type": "string" },
+            "step3": { "type": "string" },
+            "step4": { "type": "string" },
+            "step5": { "type": "string" },
+            "step6": { "type": "string" },
+            "step7": { "type": "string" },
+            "step8": { "type": "string" }
+          }
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "API endpoint pattern"
+        },
+        "examples": {
+          "type": "array",
+          "description": "Usage examples",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "response": {
+          "type": "object",
+          "description": "Response structure information",
+          "additionalProperties": true
+        },
+        "usage": {
+          "type": "object",
+          "description": "When and how to use this operation",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "FlowTraceStep": {
+      "type": "object",
+      "required": ["layer", "file", "what"],
+      "properties": {
+        "layer": {
+          "type": "string",
+          "description": "Execution layer in call stack",
+          "enum": [
+            "Service Entry",
+            "Router",
+            "Driver Entry",
+            "Risk Control",
+            "Handler",
+            "Payload Mapper",
+            "API Call",
+            "Validator",
+            "Serializer",
+            "Helper"
+          ]
+        },
+        "file": {
+          "type": "string",
+          "description": "File path relative to STAMPLI4/core",
+          "minLength": 1
+        },
+        "lines": {
+          "type": "string",
+          "description": "Line range (e.g., '123-456' or '123')",
+          "pattern": "^\\d+(-\\d+)?$"
+        },
+        "what": {
+          "type": "string",
+          "description": "What happens at this step",
+          "minLength": 10
+        }
+      }
+    },
+
+    "ScanTheseEntry": {
+      "type": "object",
+      "required": ["file", "purpose"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "File path to scan",
+          "minLength": 1
+        },
+        "lines": {
+          "type": "string",
+          "description": "Line range to focus on",
+          "pattern": "^\\d+(-\\d+)?$"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Why to read this file",
+          "minLength": 5
+        }
+      }
+    },
+
+    "Helper": {
+      "type": "object",
+      "required": ["class", "location", "purpose"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "description": "Helper class name"
+        },
+        "location": {
+          "type": "object",
+          "required": ["file"],
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "lines": {
+              "type": "string",
+              "pattern": "^\\d+(-\\d+)?$"
+            }
+          }
+        },
+        "purpose": {
+          "type": "string",
+          "description": "What this helper does"
+        }
+      }
+    },
+
+    "GoldenTest": {
+      "type": "object",
+      "required": ["file"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Integration test file path"
+        },
+        "lines": {
+          "type": "string",
+          "pattern": "^\\d+(-\\d+)?$"
+        },
+        "purpose": {
+          "type": "string"
+        }
+      }
+    },
+
+    "ApiEndpoint": {
+      "type": "object",
+      "required": ["entity", "method"],
+      "properties": {
+        "entity": {
+          "type": "string",
+          "description": "Acumatica entity name"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+          "description": "HTTP method"
+        },
+        "urlPattern": {
+          "type": "string",
+          "description": "URL pattern with placeholders"
+        }
+      }
+    },
+
+    "FieldInfo": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "object", "array", "integer", "date", "datetime"]
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {
+          "description": "Default value (any type)"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern for validation"
+        },
+        "enum": {
+          "type": "array",
+          "description": "Allowed values"
+        }
+      }
+    },
+
+    "CodeLocation": {
+      "type": "object",
+      "required": ["file"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "File path"
+        },
+        "lines": {
+          "type": "string",
+          "pattern": "^\\d+(-\\d+)?$"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Why to look at this code"
+        },
+        "method": {
+          "type": "string",
+          "description": "Method name and description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "headerLines": {
+          "type": "string",
+          "pattern": "^\\d+(-\\d+)?$"
+        },
+        "linesLines": {
+          "type": "string",
+          "pattern": "^\\d+(-\\d+)?$"
+        }
+      }
+    },
+
+    "CodeExample": {
+      "type": "object",
+      "required": ["language", "snippet"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["java", "kotlin", "json", "javascript", "typescript", "csharp", "bash", "sql"]
+        },
+        "snippet": {
+          "type": "string",
+          "description": "Code snippet"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "What this example demonstrates"
+        }
+      }
+    },
+
+    "TroubleshootingEntry": {
+      "type": "object",
+      "required": ["error", "cause", "solution"],
+      "properties": {
+        "error": {
+          "type": "string",
+          "description": "Error message or pattern"
+        },
+        "cause": {
+          "type": "string",
+          "description": "Root cause explanation"
+        },
+        "solution": {
+          "type": "string",
+          "description": "How to fix it"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "explanation": {
+          "type": "string"
+        }
+      }
+    },
+
+    "Implementation": {
+      "type": "object",
+      "required": ["file"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "description": "Implementation file path (Windows path C:\\...)"
+        },
+        "lines": {
+          "type": "string",
+          "pattern": "^\\d+(-\\d+)?$"
+        },
+        "method": {
+          "type": "string",
+          "description": "Method name and description"
+        },
+        "note": {
+          "type": "string"
+        },
+        "headerLines": {
+          "type": "string"
+        },
+        "linesLines": {
+          "type": "string"
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "required": ["category", "operations"],
+  "properties": {
+    "category": {
+      "type": "string",
+      "description": "Category name matching categories.json"
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional context about this category"
+    },
+    "description": {
+      "type": "string",
+      "description": "Category description"
+    },
+    "operations": {
+      "oneOf": [
+        {
+          "type": "array",
+          "description": "ARRAY FORMAT (STANDARD) - List of operation objects",
+          "items": {
+            "$ref": "#/definitions/Operation"
+          }
+        },
+        {
+          "type": "object",
+          "description": "OBJECT FORMAT (LEGACY) - Key-value pairs of operations",
+          "additionalProperties": {
+            "$ref": "#/definitions/Operation"
+          }
+        }
+      ]
+    },
+    "troubleshooting": {
+      "type": "array",
+      "description": "Category-level troubleshooting entries",
+      "items": {
+        "$ref": "#/definitions/TroubleshootingEntry"
+      }
+    },
+    "supportMatrix": {
+      "type": "object",
+      "description": "Category-level support matrix"
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "_comment": "CATEGORY TEMPLATE - Use this when creating a NEW category file",
+  "_usage": [
+    "1. Copy this template to operations/{newCategoryName}.json",
+    "2. Replace CATEGORY_NAME with actual category name (lowercase, camelCase)",
+    "3. Add category entry to categories.json",
+    "4. Update KnowledgeService.cs switch statement (lines 75-88) to map category name to file path",
+    "5. Fill in operations array with actual operations (use _operation_template.json as guide)",
+    "6. Remove all _comment_ and _usage fields",
+    "7. Rebuild MCP server"
+  ],
+
+  "category": "CATEGORY_NAME",
+  "note": "Optional context about this category - when to use it, what operations belong here, any special considerations",
+
+  "operations": [
+    {
+      "_example_operation": "This is an example - replace with real operations",
+      "method": "exampleOperation",
+      "summary": "One-sentence description of what this operation does",
+      "category": "CATEGORY_NAME",
+      "searchKeywords": ["keyword1", "keyword2", "common typo", "alias"],
+      "flow": "flow_name or null",
+
+      "flowTrace": [
+        {
+          "layer": "Driver Entry",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "100-120",
+          "what": "What happens at this step"
+        }
+      ],
+
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/...",
+          "lines": "100-200",
+          "purpose": "Main implementation to read"
+        }
+      ]
+    }
+  ],
+
+  "_validation": {
+    "requiredSteps": [
+      "✓ Category added to categories.json with correct count",
+      "✓ KnowledgeService.cs updated with category mapping",
+      "✓ Operations use ARRAY format (not object)",
+      "✓ All operations have method, summary, category fields",
+      "✓ searchKeywords added for fuzzy matching",
+      "✓ File size under 500 lines",
+      "✓ Valid JSON syntax",
+      "✓ MCP server rebuilt and tested"
+    ],
+    "kServiceUpdate": {
+      "file": "StampliMCP.McpServer.Acumatica/Services/KnowledgeService.cs",
+      "lines": "75-88",
+      "example": "\"newCategory\" => \"operations/newCategory.json\","
+    }
+  },
+
+  "_exampleCategories": {
+    "vendors": "Vendor CRUD (4 operations)",
+    "payments": "Payment operations (7 operations)",
+    "fields": "Field search operations (10 operations)",
+    "admin": "Admin/config operations (9 operations)"
+  },
+
+  "_whenToCreateNewCategory": [
+    "Existing category would exceed 12-15 operations after addition",
+    "Operations form distinct logical group that doesn't fit existing categories",
+    "Entity type has no existing category (e.g., if adding SalesOrder operations)",
+    "Functional area is clearly separate (e.g., reporting, analytics, webhooks)"
+  ],
+
+  "_preferExistingCategory": "ALWAYS prefer adding to existing category over creating new one unless clear justification exists"
+}

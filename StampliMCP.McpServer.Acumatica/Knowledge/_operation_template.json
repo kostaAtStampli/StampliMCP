@@ -1,0 +1,215 @@
+{
+  "_comment": "OPERATION TEMPLATE - Use this skeleton when adding new operations to MCP knowledge",
+  "_usage": "Copy this structure, fill in fields based on KNOWLEDGE_CONTRIBUTING.md guide",
+  "_arrayFormat": "MANDATORY - Always add operations in array format, not object format",
+
+  "category": "CATEGORY_NAME",
+  "note": "Optional: Context about this category or special notes",
+
+  "operations": [
+    {
+      "_comment_required_fields": "These 3 fields are REQUIRED for every operation",
+
+      "method": "OPERATION_NAME",
+      "summary": "One-sentence description of what this operation does",
+      "category": "CATEGORY_NAME",
+
+      "_comment_highly_recommended": "Include these for completeness and AI-friendliness",
+
+      "searchKeywords": [
+        "operation name",
+        "common typo",
+        "entity alias",
+        "action verb synonym",
+        "use case phrase"
+      ],
+
+      "flow": "FLOW_NAME or null",
+
+      "flowTrace": [
+        {
+          "layer": "Service Entry|Router|Driver Entry|Handler|Payload Mapper|API Call|Validator",
+          "file": "relative/path/from/STAMPLI4/core/src/main/java/...",
+          "lines": "123-456",
+          "what": "Description of what happens at this step in execution"
+        }
+      ],
+
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/...",
+          "lines": "123-456",
+          "purpose": "Why AI should read this file (e.g., 'Main entry point', 'Core logic', 'JSON mapping')"
+        }
+      ],
+
+      "_comment_optional_fields": "Add these when information is available",
+
+      "enumName": "ENUM_NAME or null",
+
+      "isPOC": false,
+      "notInAgentOpCode": false,
+      "isPublicApi": false,
+      "isRouter": false,
+      "isInternal": false,
+
+      "requiredFields": {
+        "fieldName": {
+          "type": "string|number|boolean|object|array",
+          "maxLength": 60,
+          "aliases": ["alias1", "alias2"],
+          "description": "Optional field description"
+        }
+      },
+
+      "optionalFields": {
+        "fieldName": {
+          "type": "string",
+          "maxLength": 100,
+          "default": "defaultValue"
+        }
+      },
+
+      "requestDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/...",
+        "lines": "15-45",
+        "purpose": "See full DTO structure, fields, validation method"
+      },
+
+      "responseDtoLocation": {
+        "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/...",
+        "lines": "1-20",
+        "purpose": "See response structure (id, erpTransactionId, content, error, errorCode)"
+      },
+
+      "helpers": [
+        {
+          "class": "HelperClassName",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/...",
+            "lines": "22-90"
+          },
+          "purpose": "What this helper does (e.g., 'Main handler', 'Validation logic', 'JSON serialization')"
+        }
+      ],
+
+      "goldenTest": {
+        "file": "finsys-drivers/acumatica/src/test/java/.../SomeITest.java",
+        "lines": "30-300",
+        "purpose": "Integration test demonstrating operation with ENV1"
+      },
+
+      "apiEndpoint": {
+        "entity": "EntityName",
+        "method": "GET|POST|PUT|DELETE",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/{Entity}"
+      },
+
+      "constants": {
+        "CONSTANT_NAME": "value",
+        "MAX_LENGTH": 60,
+        "DEFAULT_VALUE": "STANDARD"
+      },
+
+      "validationRules": [
+        "Field X must be <= N characters",
+        "Field Y is required when Z is present",
+        "Field must match pattern: regex"
+      ],
+
+      "codeExamples": [
+        {
+          "language": "java|kotlin|json",
+          "snippet": "Code example showing usage",
+          "explanation": "What this example demonstrates"
+        }
+      ],
+
+      "kotlinFlowSummary": "Kotlin-specific implementation notes (e.g., 'Uses Handler pattern with XyzHandler.handle() delegation')",
+
+      "relatedOperations": [
+        "relatedOperation1",
+        "relatedOperation2"
+      ],
+
+      "routes": {
+        "CONDITION_1": "Calls operation1() - description",
+        "CONDITION_2": "Calls operation2() - description",
+        "DEFAULT": "Fallback behavior"
+      },
+
+      "whenToUse": "Guidance on when to call this operation vs alternatives",
+
+      "difference": {
+        "thisOperation": "Description of this operation's purpose",
+        "otherOperation": "How it differs from related operation"
+      },
+
+      "troubleshooting": [
+        {
+          "error": "Error message or pattern",
+          "cause": "Root cause explanation",
+          "solution": "How to fix it",
+          "steps": [
+            "Step 1: ...",
+            "Step 2: ..."
+          ],
+          "keywords": ["keyword1", "keyword2"]
+        }
+      ],
+
+      "dac": "DACName.FieldPattern (e.g., 'BAccount.Attribute*' for custom fields)",
+
+      "payloadStructure": {
+        "FieldName": { "value": "exampleValue" },
+        "custom": {
+          "Container": {
+            "AttributeXYZ": { "value": "customValue" }
+          }
+        }
+      },
+
+      "implementation": {
+        "file": "C:\\STAMPLI4\\core\\...",
+        "lines": "145-166",
+        "method": "methodName() - description"
+      },
+
+      "status": "FULLY SUPPORTED|PARTIAL|EXPERIMENTAL|DEPRECATED",
+
+      "quirk": "Special behavior or gotcha to be aware of",
+
+      "supportMatrix": {
+        "supported": ["Entity1", "Entity2"],
+        "unsupported": ["Entity3", "Entity4"],
+        "notes": "Additional context about support"
+      },
+
+      "eightStepFlow": {
+        "step1": "Description of step 1",
+        "step2": "Description of step 2",
+        "step3": "...",
+        "step4": "...",
+        "step5": "...",
+        "step6": "...",
+        "step7": "...",
+        "step8": "..."
+      },
+
+      "_comment_end": "Remove all _comment_ fields when creating actual operation entry"
+    }
+  ],
+
+  "_validation_checklist": [
+    "✓ method, summary, category are present (required)",
+    "✓ searchKeywords added (5-15 keywords recommended)",
+    "✓ flow specified if operation uses known flow pattern",
+    "✓ scanThese included if implementation exists",
+    "✓ flowTrace added for export/complex operations",
+    "✓ Array format used (not object)",
+    "✓ categories.json count updated",
+    "✓ Valid JSON syntax (no trailing commas, proper quotes)",
+    "✓ File size under 500 lines after addition",
+    "✓ User reminded to rebuild MCP server"
+  ]
+}

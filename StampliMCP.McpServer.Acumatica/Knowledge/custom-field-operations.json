@@ -1,8 +1,8 @@
 {
   "category": "customFields",
   "description": "Custom field discovery and entity export operations with Acumatica attributes",
-  "operations": {
-    "$adHocSchema": {
+  "operations": [
+    {
       "method": "$adHocSchema",
       "summary": "Discover all custom fields/attributes configured for an Acumatica entity via $adHocSchema endpoint",
       "category": "customFields",
@@ -42,7 +42,7 @@
         "nextStep": "Use discovered Attribute IDs in PUT/POST payloads or $custom GET parameter"
       }
     },
-    "exportVendorWithCustomFields": {
+    {
       "method": "exportVendorWithCustomFields",
       "summary": "Export vendor to Acumatica with custom fields (BAccount.Attribute* DAC)",
       "category": "customFields",
@@ -65,7 +65,7 @@
       },
       "status": "FULLY SUPPORTED"
     },
-    "exportInvoiceWithCustomFields": {
+    {
       "method": "exportInvoiceWithCustomFields",
       "summary": "Export bill/invoice to Acumatica with custom fields (Document.Attribute* for header, Transactions.Attribute* for lines)",
       "category": "customFields",
@@ -99,7 +99,7 @@
       },
       "status": "FULLY SUPPORTED"
     },
-    "exportPaymentWithCustomFields": {
+    {
       "method": "exportPaymentWithCustomFields",
       "summary": "Export payment to Acumatica with custom fields (INVERTED: Transactions.Attribute* for header, Document.Attribute* for lines)",
       "category": "customFields",
@@ -129,7 +129,7 @@
       },
       "status": "FULLY SUPPORTED"
     },
-    "exportPurchaseOrderWithCustomFields": {
+    {
       "method": "exportPurchaseOrderWithCustomFields",
       "summary": "Export purchase order to Acumatica with custom fields (PurchaseOrder.Attribute* for header, Details.Attribute* for lines)",
       "category": "customFields",
@@ -158,7 +158,7 @@
       },
       "status": "FULLY SUPPORTED"
     }
-  },
+  ],
 
   "troubleshooting": [
     {

@@ -1,5 +1,48 @@
 {
+  "_aiGuide": {
+    "purpose": "This file is the registry of all operation categories in the MCP knowledge system",
+    "whenAdding": "When AI adds new operation to category, increment the count field for that category",
+    "whenCreating": "Only create new category if existing category would exceed 12-15 operations OR operations form distinct logical group",
+    "formatStandard": "ALL operation files MUST use ARRAY format: \"operations\": [...]",
+    "rebuildRequired": "After any Knowledge/*.json changes, ALWAYS rebuild MCP server (see KNOWLEDGE_CONTRIBUTING.md)",
+    "categoryRules": {
+      "vendors": "Vendor CRUD operations (create/read/update/search/delete)",
+      "items": "Item search and category operations",
+      "purchaseOrders": "PO operations (search, get items per PO, export, matching flows)",
+      "payments": "Bill payments, checks, voids, credits, payment receipts",
+      "accounts": "GL accounts, bank accounts, payable accounts, discount accounts",
+      "fields": "Field search operations (cost codes, job numbers, classes, customers, units, filtering) - STANDARD fields only",
+      "customFields": "Custom field discovery ($adHocSchema) + export operations with Attribute* DAC - NOT for getCustomFieldSearchList",
+      "admin": "Admin/config operations (connect, disconnect, ping, validate, extension version)",
+      "retrieval": "Duplicate checks and retrieval operations",
+      "utility": "Debugging and testing tools",
+      "other": "Router methods (exportAPTransaction) and internal methods (exportInvoice) without AgentOpCode"
+    },
+    "decisionTree": "See KNOWLEDGE_CONTRIBUTING.md for detailed category selection decision tree"
+  },
+
+  "_formatStandard": {
+    "required": "ARRAY format",
+    "structure": {
+      "category": "categoryName",
+      "operations": [
+        {"method": "opName", "summary": "...", "category": "categoryName"},
+        {"method": "anotherOp", "summary": "...", "category": "categoryName"}
+      ]
+    },
+    "legacy": "OBJECT format (\"operations\": {\"opName\": {...}}) is DEPRECATED - use array only"
+  },
+
+  "_rebuildWorkflow": {
+    "step1": "Kill MCP server: /mnt/c/Windows/System32/taskkill.exe /F /IM stampli-mcp-acumatica.exe",
+    "step2": "Build: dotnet build -c Release --nologo",
+    "step3": "Publish: dotnet publish StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj -c Release -r win-x64 --self-contained /p:PublishSingleFile=true /p:PublishAot=false --nologo --no-build",
+    "step4": "Reconnect: /mcp (in Claude Code)",
+    "testing": "Run health_check, list_operations, and query_acumatica_knowledge to verify"
+  },
+
   "note": "Operations loaded from operations/ subfolder (rich knowledge with flowTrace, scanThese, goldenTest) + custom-field-operations.json (special). KnowledgeService.cs loads from operations/{category}.json.",
+
   "categories": [
     { "name": "vendors", "count": 4, "description": "Vendor import/export/search operations (operations/vendors.json)" },
     { "name": "items", "count": 2, "description": "Item search and categories (operations/items.json)" },
@@ -14,4 +57,3 @@
     { "name": "other", "count": 2, "description": "General AP transaction export + invoice export (operations/other.json)" }
   ]
 }
-
