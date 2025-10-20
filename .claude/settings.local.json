@@ -1,12 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit -m \"feat(ValidationCheckerTool): add fuzzy operation name detection\n\n- Inject FuzzyMatchingService\n- Add fuzzy matching in FindFlowForOperationFallback (exact + fuzzy)\n- Add IsOperationType helper with fuzzy fallback (threshold 0.60)\n- Apply fuzzy matching to all operation type checks (vendor, payment, po, item, pagination)\n- Benchmark logging for flow fallback detection\n\nUse case: ''exprt vendro'' → vendor_export_flow (typo corrected)\nPerformance: ~1-2ms for operation name fuzzy matching\")",
-      "Bash(git commit -m \"feat(FlowRecommenderTool): lower typo tolerance threshold to 0.60\n\n- Lower CheckTypoTolerance threshold from 0.70 to 0.60 (generous)\n- Aligns with FuzzyMatchingConfig defaults (0.60-0.70 range)\n- Catches more typos with higher tolerance\n\nUse case: ''imprt itms'' → standard_import_flow (60% confidence)\nPerformance: No impact, same Fastenshtein pattern\")",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" test StampliMCP.McpServer.Acumatica.Tests/StampliMCP.McpServer.Acumatica.Tests.csproj -c Release --nologo)",
-      "Bash(\"/mnt/c/Program Files/dotnet/dotnet.exe\" test StampliMCP.McpServer.Acumatica.Tests/StampliMCP.McpServer.Acumatica.Tests.csproj -c Release --nologo --verbosity normal)",
-      "Bash(git commit -m \"test(FuzzyMatchingService): add comprehensive unit tests for fuzzy matching\n\n- Add FuzzyMatchingServiceTests.cs with 11 tests\n- Fix FlowServiceTests + ValidationCheckerToolTests to inject FuzzyMatchingService\n- Test exact matches, typo tolerance, case insensitivity, threshold checks\n- Tests cover common typos: vendro→vendor, exprt→export, imprt→import\n\nNote: 2 tests failing (threshold tuning needed), but fuzzy matching works in production\nReady for live MCP testing with typos\")",
-      "mcp__stampli-acumatica__list_prompts"
+      "Bash(xargs -I {} basename {})",
+      "Bash(test -f /mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica/Knowledge/account-operations.json)",
+      "Bash(find /mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica/Knowledge -name \"*.json\" -exec wc -l {})",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(awk '$1 > 300 {print $0}')"
     ],
     "deny": [],
     "ask": []
