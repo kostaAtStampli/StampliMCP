@@ -4,24 +4,33 @@
     {
       "method": "exportAPTransaction",
       "enumName": "EXPORT",
-      "summary": "Exports AP transaction (invoice or payment receipt) to Acumatica. Routes to exportInvoice or exportPaymentReceipt based on TransactionType.",
+      "summary": "PUBLIC API - Exports AP transaction (invoice or payment receipt) to Acumatica. ROUTER method that delegates to exportInvoice or exportPaymentReceipt based on TransactionType.",
       "category": "other",
-      
+      "isPublicApi": true,
+      "isRouter": true,
+      "routes": {
+        "PAID_INVOICE": "Calls exportPaymentReceipt() - Quick Check flow",
+        "BILL": "Calls exportInvoice() - Regular bill flow",
+        "DEFAULT": "Calls exportInvoice() for any other TransactionType"
+      },
+      "whenToUse": "Use this when you have ApTransaction DTO and want automatic routing based on TransactionType field",
+      "relatedMethods": ["exportInvoice", "exportPaymentReceipt"],
+
       "requiredFields": {},
       "optionalFields": {},
-      
+
       "requestDtoLocation": {
         "file": "bridge/bridge-financial-system/src/main/java/com/stampli/request/functions/ExportRequest.java",
         "lines": "1-50",
         "purpose": "See export request structure with ApTransaction"
       },
-      
+
       "responseDtoLocation": {
         "file": "bridge/bridge-financial-system/src/main/java/com/stampli/response/functions/ExportResponse.java",
         "lines": "1-20",
         "purpose": "See export response structure"
       },
-      
+
       "flowTrace": [
         {
           "layer": "Driver",
@@ -30,7 +39,7 @@
           "what": "Routes based on TransactionType - PAID_INVOICE → exportPaymentReceipt, else → exportInvoice"
         }
       ],
-      
+
       "helpers": [
         {
           "class": "AcumaticaExportHelper",
@@ -49,13 +58,13 @@
           "purpose": "Export utilities and logging"
         }
       ],
-      
+
       "apiEndpoint": {
         "entity": "Bill",
         "method": "PUT/POST",
         "urlPattern": "https://{hostname}/entity/{apiVersion}/Bill (or PaymentReceipt based on type)"
       },
-      
+
       "scanThese": [
         {
           "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
@@ -63,7 +72,73 @@
           "purpose": "Main method - see TransactionType routing logic"
         }
       ],
-      
+
+      "goldenTest": null
+    },
+    {
+      "method": "exportInvoice",
+      "enumName": null,
+      "summary": "INTERNAL METHOD - Exports regular bill (NOT Quick Check) to Acumatica with 8-step validation, tax processing, posting, and Stampli link. Called by exportAPTransaction when TransactionType != PAID_INVOICE.",
+      "category": "other",
+      "isPublicApi": false,
+      "isInternal": true,
+      "flow": "export_invoice_flow",
+      "whenToUse": "Do NOT call directly - use exportAPTransaction which routes to this method. This is implementation detail.",
+      "difference": {
+        "exportAPTransaction": "PUBLIC router method - accepts ApTransaction DTO and routes based on TransactionType",
+        "exportInvoice": "INTERNAL implementation - handles regular bills (Hold=true), NOT Quick Checks"
+      },
+
+      "requiredFields": {},
+      "optionalFields": {},
+
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "679-714",
+          "what": "Main implementation - 8-step flow with tax processing and rollback on error"
+        }
+      ],
+
+      "eightStepFlow": {
+        "step1": "Create entity (Hold=true)",
+        "step2": "Convert lines to applied taxes (if taxZone != null)",
+        "step3": "Modify taxable items category",
+        "step4": "Update tax map",
+        "step5": "Validate rounding differences",
+        "step6": "Validate amounts match",
+        "step7": "Release from hold (if NOT Quick Check)",
+        "step8": "Post/Release + Add Stampli link (deleteEntity on failure)"
+      },
+
+      "helpers": [
+        {
+          "class": "AcumaticaInvoiceSerializer",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaInvoiceSerializer.java",
+            "lines": "62-96"
+          },
+          "purpose": "Serializes bill to Acumatica JSON - Hold=true, VendorTaxZone, writeCustomFieldsValue()"
+        },
+        {
+          "class": "AcumaticaExportValidator",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportValidator.java",
+            "lines": "34-121"
+          },
+          "purpose": "Pre-export validation - isSameTaxCodes, isValidTaxLines, isMissingReceiptsForItem"
+        }
+      ],
+
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "679-714",
+          "purpose": "Main method - see 8-step export flow implementation"
+        }
+      ],
+
       "goldenTest": null
     }
   ]

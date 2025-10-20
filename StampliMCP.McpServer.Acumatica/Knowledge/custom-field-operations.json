@@ -1,0 +1,240 @@
+{
+  "category": "customFields",
+  "description": "Custom field discovery and entity export operations with Acumatica attributes",
+  "operations": {
+    "$adHocSchema": {
+      "method": "$adHocSchema",
+      "summary": "Discover all custom fields/attributes configured for an Acumatica entity via $adHocSchema endpoint",
+      "category": "customFields",
+      "flow": null,
+      "searchKeywords": ["custom field", "custom fields", "attribute", "attributes", "adhoc", "adhocschema", "$adHocSchema", "discovery", "sm207060"],
+      "endpoint": "GET /entity/{Endpoint}/{Version}/{Entity}/$adHocSchema",
+      "examples": [
+        {
+          "entity": "Vendor",
+          "url": "GET /entity/Default/22.200.001/Vendor/$adHocSchema",
+          "purpose": "Discover all custom attributes configured for Vendor entity"
+        },
+        {
+          "entity": "Bill",
+          "url": "GET /entity/Default/22.200.001/Bill/$adHocSchema",
+          "purpose": "Discover all custom attributes configured for Bill entity"
+        },
+        {
+          "entity": "Payment",
+          "url": "GET /entity/Default/22.200.001/Payment/$adHocSchema",
+          "purpose": "Discover all custom attributes configured for Payment entity"
+        },
+        {
+          "entity": "PurchaseOrder",
+          "url": "GET /entity/Default/22.200.001/PurchaseOrder/$adHocSchema",
+          "purpose": "Discover all custom attributes configured for PurchaseOrder entity"
+        }
+      ],
+      "response": {
+        "description": "Returns JSON schema showing all fields including custom attributes",
+        "format": "Custom attributes appear as Attribute{ID} where {ID} is the attribute identifier (e.g., AttributeAAA)",
+        "note": "Custom fields are configured per Acumatica tenant - different customers have different custom fields"
+      },
+      "usage": {
+        "when": "Before implementing custom field integration",
+        "why": "To discover what custom fields are configured for the entity in this specific Acumatica tenant",
+        "nextStep": "Use discovered Attribute IDs in PUT/POST payloads or $custom GET parameter"
+      }
+    },
+    "exportVendorWithCustomFields": {
+      "method": "exportVendorWithCustomFields",
+      "summary": "Export vendor to Acumatica with custom fields (BAccount.Attribute* DAC)",
+      "category": "customFields",
+      "flow": "vendor_export_flow",
+      "searchKeywords": ["vendor custom field", "vendor attribute", "baccount", "vendor export"],
+      "dac": "BAccount.Attribute*",
+      "payloadStructure": {
+        "VendorName": { "value": "Test Vendor" },
+        "custom": {
+          "BAccount": {
+            "AttributeAAA": { "value": "CustomValue1" },
+            "AttributeBBB": { "value": "CustomValue2" }
+          }
+        }
+      },
+      "implementation": {
+        "file": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\vendor\\VendorPayloadMapper.java",
+        "lines": "145-166",
+        "method": "writeCustomFieldsToJson() - shared utility method"
+      },
+      "status": "FULLY SUPPORTED"
+    },
+    "exportInvoiceWithCustomFields": {
+      "method": "exportInvoiceWithCustomFields",
+      "summary": "Export bill/invoice to Acumatica with custom fields (Document.Attribute* for header, Transactions.Attribute* for lines)",
+      "category": "customFields",
+      "flow": "export_invoice_flow",
+      "searchKeywords": ["invoice custom field", "bill custom field", "document attribute", "transactions attribute"],
+      "dac": {
+        "header": "Document.Attribute*",
+        "lines": "Transactions.Attribute*"
+      },
+      "payloadStructure": {
+        "ReferenceNbr": { "value": "000123" },
+        "custom": {
+          "Document": {
+            "AttributeXYZ": { "value": "HeaderCustomValue" }
+          },
+          "Transactions": [
+            {
+              "AttributeABC": { "value": "Line1CustomValue" }
+            },
+            {
+              "AttributeABC": { "value": "Line2CustomValue" }
+            }
+          ]
+        }
+      },
+      "implementation": {
+        "file": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\api\\AcumaticaInvoiceSerializer.java",
+        "headerLines": "57-66",
+        "linesLines": "143-196",
+        "method": "writeCustomFieldsToJson() - shared utility method"
+      },
+      "status": "FULLY SUPPORTED"
+    },
+    "exportPaymentWithCustomFields": {
+      "method": "exportPaymentWithCustomFields",
+      "summary": "Export payment to Acumatica with custom fields (INVERTED: Transactions.Attribute* for header, Document.Attribute* for lines)",
+      "category": "customFields",
+      "flow": "payment_flow",
+      "searchKeywords": ["payment custom field", "quick check custom field", "payment attribute", "inverted"],
+      "dac": {
+        "header": "Transactions.Attribute* (INVERTED - normally for lines)",
+        "lines": "Document.Attribute* (INVERTED - normally for header)"
+      },
+      "quirk": "Quick Check/Payment INVERTS normal container mapping - Transactions for header, Document for lines",
+      "payloadStructure": {
+        "PaymentRef": { "value": "CHK-001" },
+        "custom": {
+          "Transactions": {
+            "AttributePaymentType": { "value": "ACH" }
+          },
+          "Document": [
+            {
+              "AttributeLineNote": { "value": "Line 1 custom value" }
+            }
+          ]
+        }
+      },
+      "implementation": {
+        "file": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\api\\AcumaticaPaymentSerializer.java",
+        "note": "Uses same shared utility writeCustomFieldsToJson(), but with inverted DAC mapping"
+      },
+      "status": "FULLY SUPPORTED"
+    },
+    "exportPurchaseOrderWithCustomFields": {
+      "method": "exportPurchaseOrderWithCustomFields",
+      "summary": "Export purchase order to Acumatica with custom fields (PurchaseOrder.Attribute* for header, Details.Attribute* for lines)",
+      "category": "customFields",
+      "flow": "export_po_flow",
+      "searchKeywords": ["po custom field", "purchase order custom field", "purchaseorder attribute", "details attribute"],
+      "dac": {
+        "header": "PurchaseOrder.Attribute*",
+        "lines": "Details.Attribute*"
+      },
+      "payloadStructure": {
+        "OrderNbr": { "value": "PO-001" },
+        "custom": {
+          "PurchaseOrder": {
+            "AttributePOType": { "value": "Standard" }
+          },
+          "Details": [
+            {
+              "AttributeItemNote": { "value": "Custom item note" }
+            }
+          ]
+        }
+      },
+      "implementation": {
+        "file": "C:\\STAMPLI4\\core\\finsys-drivers\\acumatica\\src\\main\\java\\com\\stampli\\driver\\api\\AcumaticaPurchaseOrderSerializer.java",
+        "method": "writeCustomFieldsToJson() - shared utility method"
+      },
+      "status": "FULLY SUPPORTED"
+    }
+  },
+
+  "troubleshooting": [
+    {
+      "error": "404 Error on custom field",
+      "cause": "Custom field not configured in Acumatica tenant",
+      "solution": "Navigate to SM207060 screen in Acumatica to verify custom field exists for this tenant",
+      "steps": [
+        "1. Log into Acumatica",
+        "2. Navigate to System > Customization > User-Defined Fields (SM207060)",
+        "3. Select entity type (Vendor, Bill, Payment, etc.)",
+        "4. Click 'Extend Entity' button (even if appears grayed out)",
+        "5. Verify AttributeID exists in list",
+        "6. If missing, add new custom attribute with required ID and properties",
+        "7. Save configuration and retry API call"
+      ],
+      "keywords": ["404", "not found", "sm207060", "extend entity", "custom field missing"]
+    },
+    {
+      "error": "Wrong DAC container",
+      "cause": "Using incorrect DAC container for entity type",
+      "examples": [
+        "Using Document for Vendor (should be BAccount)",
+        "Using BAccount for Invoice (should be Document/Transactions)",
+        "Using Document for Payment header (should be Transactions - INVERTED)"
+      ],
+      "solution": "Check DAC mapping table in custom-field-patterns.json",
+      "dacMapping": {
+        "Vendor": "BAccount.Attribute*",
+        "Invoice_Header": "Document.Attribute*",
+        "Invoice_Lines": "Transactions.Attribute*",
+        "Payment_Header": "Transactions.Attribute* (INVERTED)",
+        "Payment_Lines": "Document.Attribute* (INVERTED)",
+        "PurchaseOrder_Header": "PurchaseOrder.Attribute*",
+        "PurchaseOrder_Lines": "Details.Attribute*"
+      },
+      "keywords": ["dac", "container", "wrong dac", "baccount", "document", "transactions"]
+    },
+    {
+      "error": "Case sensitivity issue",
+      "cause": "Attribute IDs are CASE-SENSITIVE and typically UPPERCASE",
+      "examples": [
+        "AttributeAAA works, attributeaaa fails",
+        "AttributeDEPT works, attributedept fails"
+      ],
+      "solution": "Always use exact case from $adHocSchema discovery or SM207060 screen",
+      "keywords": ["case sensitive", "uppercase", "lowercase", "attribute case"]
+    },
+    {
+      "error": "Quick Check container inversion confusion",
+      "cause": "Payment/Quick Check uses opposite container mapping from Bill",
+      "explanation": "Bills use Document for header, Transactions for lines. Payments/Quick Checks use Transactions for header, Document for lines.",
+      "solution": "For Payment: Use Transactions.Attribute* for HEADER custom fields, Document.Attribute* for LINE custom fields",
+      "keywords": ["quick check", "payment", "inverted", "container inversion", "transactions", "document"]
+    },
+    {
+      "error": "Empty GET response for custom fields",
+      "cause": "Custom fields configured but not set on specific entity",
+      "explanation": "If a custom field has no value set on an entity, it won't appear in GET response (not null, just absent)",
+      "solution": "This is expected Acumatica behavior - empty custom fields don't appear in response",
+      "keywords": ["empty response", "null custom field", "missing custom field value"]
+    },
+    {
+      "error": "PUT URL with entity ID",
+      "cause": "Including entity ID in PUT URL for custom fields",
+      "examples": [
+        "PUT /Vendor/VEND001 (WRONG)",
+        "PUT /Vendor (CORRECT)"
+      ],
+      "solution": "Use base endpoint without ID - Acumatica routes based on payload VendorID/ReferenceNbr",
+      "keywords": ["put url", "entity id", "base endpoint"]
+    }
+  ],
+
+  "supportMatrix": {
+    "supported": ["Vendor", "Invoice/Bill", "Payment/Check", "PurchaseOrder"],
+    "unsupported": ["Customer", "SalesOrder", "Item"],
+    "importOperations": "NOT SUPPORTED - Import operations (getVendors, getAccounts, etc.) read standard fields only"
+  }
+}

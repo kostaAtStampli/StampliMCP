@@ -1,5 +1,5 @@
 {
-  "note": "47 operations in AgentOpCode.java (exportVendor is POC, not in AgentOpCode). Total with POC = 48.",
+  "note": "52 operations total: 47 in AgentOpCode.java + 5 custom field export operations (exportVendor POC not in AgentOpCode). Total with POC = 53.",
   "categories": [
     { "name": "vendors", "count": 3, "countWithPOC": 4, "description": "Vendor import/export/search operations" },
     { "name": "items", "count": 2, "description": "Item search and categories" },
@@ -7,6 +7,7 @@
     { "name": "payments", "count": 7, "description": "Bill payments, voids, credits" },
     { "name": "accounts", "count": 6, "description": "GL/bank/payable account searches" },
     { "name": "fields", "count": 10, "description": "Custom fields, cost codes, classes" },
+    { "name": "customFields", "count": 5, "description": "Custom field discovery and entity export with attributes" },
     { "name": "admin", "count": 9, "description": "Connect, config, validation" },
     { "name": "retrieval", "count": 1, "description": "Duplicate checks" },
     { "name": "utility", "count": 2, "description": "Debug and test tools" },

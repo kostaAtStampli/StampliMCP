@@ -78,6 +78,7 @@ public sealed class KnowledgeService(ILogger<KnowledgeService> logger, IMemoryCa
                         "purchaseOrders" => "po-operations.json",
                         "accounts" => "account-operations.json",
                         "fields" => "field-operations.json",
+                        "customFields" => "custom-field-operations.json",
                         "admin" => "admin-operations.json",
                         "vendors" => "vendor-operations.json", // Future file when we create it
                         "items" => "item-operations.json", // Future file
