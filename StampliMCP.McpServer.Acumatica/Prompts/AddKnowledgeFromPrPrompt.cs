@@ -50,7 +50,7 @@ You are updating the Stampli MCP Acumatica knowledge base based on learnings fro
 
 ---
 
-## WORKFLOW: 4-Step Knowledge Addition
+## WORKFLOW: 7-Step Knowledge Addition with Two-Scan Verification
 
 ### STEP 1: Duplicate Detection
 
@@ -67,7 +67,78 @@ Analyze results:
 
 ---
 
-### STEP 2: Triage Decision
+### STEP 2: Scan Code Location (MANDATORY VERIFICATION)
+
+**CRITICAL**: Before adding knowledge, you MUST verify the code location exists and extract actual patterns.
+
+Extract file path and line numbers from the learning:
+- Example: ""See JournalEntryHandler.java:156-203"" → file = C:\STAMPLI4\...\JournalEntryHandler.java, lines = 156-203
+
+Use **Read tool** to scan the actual file at the specified lines.
+
+Extract and return as **Scan 1 JSON**:
+```json
+{{
+  ""filePath"": ""C:\\STAMPLI4\\core\\..."",
+  ""lineRange"": ""156-203"",
+  ""claimedBehavior"": ""what the PR learning claims"",
+  ""foundConstants"": [
+    {{""name"": ""..."", ""value"": ""..."", ""line"": X}}
+  ],
+  ""foundValidationRules"": [
+    {{""field"": ""..."", ""type"": ""required|maxLength|format"", ""value"": ""..."", ""line"": X}}
+  ],
+  ""foundMethods"": [
+    {{""signature"": ""..."", ""lines"": ""X-Y"", ""purpose"": ""...""}}
+  ],
+  ""codeSnippet"": ""first 10 lines of actual code""
+}}
+```
+
+---
+
+### STEP 3: Challenge Your Findings (PREVENT HALLUCINATION)
+
+After Scan 1, call the MCP tool **challenge_scan_findings** with:
+```
+challenge_scan_findings(
+  scan1Results: ""<your Scan 1 JSON from STEP 2>"",
+  challengeAreas: [""validation_rules"", ""line_numbers"", ""constants""]
+)
+```
+
+The tool will generate skeptical verification questions like:
+- ""Did you REALLY count the actual lines? Re-verify!""
+- ""Are there MORE validation rules you missed in that method?""
+- ""Verify those constant values are EXACT - check again!""
+
+---
+
+### STEP 4: Re-Scan and Verify (SCAN 2)
+
+Execute the challenge questions from STEP 3 by:
+1. **RE-READING** the file at the specified lines
+2. **COUNTING** actual lines (verify start/end of method)
+3. **FINDING ALL** validations (not just obvious ones - check if statements, helper calls)
+4. **VERIFYING** constant values are exact
+5. **CORRECTING** any errors from Scan 1
+
+Return **Scan 2 Verified Results**:
+```json
+{{
+  ""scan1Corrections"": [""list what Scan 2 corrected from Scan 1""],
+  ""verifiedLineRange"": ""actual start-end after recount"",
+  ""verifiedConstants"": [...],
+  ""verifiedValidationRules"": [...],
+  ""additionalPatternsFound"": [""things Scan 1 missed""]
+}}
+```
+
+**CRITICAL RULE**: Trust Scan 2 results over Scan 1. If there are discrepancies, use Scan 2 values.
+
+---
+
+### STEP 5: Triage Decision
 
 Decide the verdict based on these rules:
 
@@ -92,21 +163,23 @@ Decide the verdict based on these rules:
 - Not a duplicate
 - Ready to document
 
-If verdict is ADD, proceed to Step 3. Otherwise, skip to Step 4 (output result).
+If verdict is ADD, proceed to Step 6. Otherwise, skip to Step 7 (output result).
 
 ---
 
-### STEP 3: Add Knowledge to Files (ONLY if verdict = ADD)
+### STEP 6: Add Knowledge to Files (ONLY if verdict = ADD)
 
 You are running in the StampliMCP repository directory: `/mnt/c/Users/Kosta/source/repos/StampliMCP`
 
-#### 3a. Read Documentation
+**IMPORTANT**: Use Scan 2 Verified Results from STEP 4 when creating the operation JSON (not Scan 1).
+
+#### 6a. Read Documentation
 Use **Read tool** to understand structure:
 - `StampliMCP.McpServer.Acumatica/Knowledge/KNOWLEDGE_CONTRIBUTING.md` - Category decision tree
 - `StampliMCP.McpServer.Acumatica/Knowledge/_operation_template.json` - Operation structure
 - `StampliMCP.McpServer.Acumatica/Knowledge/categories.json` - Category registry
 
-#### 3b. Route to Category
+#### 6b. Route to Category
 Use the decision tree from KNOWLEDGE_CONTRIBUTING.md to determine category:
 - Extract entity type (Vendor, Payment, PurchaseOrder, etc.)
 - Extract action (export, import, search, void, etc.)
@@ -117,7 +190,7 @@ Example:
 - ""export vendor with custom fields"" → category = ""customFields""
 - ""search cost codes"" → category = ""fields""
 
-#### 3c. Generate Operation JSON
+#### 6c. Generate Operation JSON
 Use _operation_template.json as skeleton. REQUIRED fields:
 - **method**: Operation name (camelCase)
 - **summary**: One-sentence description
@@ -130,7 +203,7 @@ Optional but recommended:
 - **troubleshooting**: Common errors and solutions
 - **constants**: Important constants used
 
-#### 3d. Update operations/<category>.json
+#### 6d. Update operations/<category>.json
 Use **Read tool** to read current file:
 ```
 StampliMCP.McpServer.Acumatica/Knowledge/operations/<category>.json
@@ -144,7 +217,7 @@ CRITICAL RULES:
 - Ensure valid JSON (no trailing commas)
 - Match indentation of existing operations
 
-#### 3e. Update categories.json Count
+#### 6e. Update categories.json Count
 Use **Edit tool** on:
 ```
 StampliMCP.McpServer.Acumatica/Knowledge/categories.json
@@ -154,7 +227,7 @@ Find the category entry and increment the count by 1.
 
 Example: If category is ""payments"" and count was 7, change to 8.
 
-#### 3f. Rebuild MCP Server
+#### 6f. Rebuild MCP Server
 Use **Bash tool** to rebuild:
 
 ```bash
@@ -172,7 +245,7 @@ Check exit codes to determine rebuild status (success or failed).
 
 ---
 
-### STEP 4: Output Structured Result
+### STEP 7: Output Structured Result
 
 Return a JSON object with this structure:
 
@@ -194,6 +267,10 @@ Return a JSON object with this structure:
 ## CRITICAL ENFORCEMENT RULES
 
 ✅ **MANDATORY**: Call query_acumatica_knowledge FIRST (prevent duplicates)
+✅ **MANDATORY**: Scan code location and verify it exists (STEP 2)
+✅ **MANDATORY**: Call challenge_scan_findings tool (STEP 3)
+✅ **MANDATORY**: Re-scan and verify findings (STEP 4)
+✅ **MANDATORY**: Trust Scan 2 results over Scan 1 (prevent hallucination)
 ✅ **MANDATORY**: Code location (file + lines) required for ADD verdict
 ✅ **MANDATORY**: Use ARRAY format for operations
 ✅ **MANDATORY**: Increment categories.json count when adding

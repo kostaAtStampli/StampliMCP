@@ -52,57 +52,77 @@ Usage: Callable from any Claude Code session to update MCP knowledge base.
 
             Serilog.Log.Information("Created temp directory: {TestDir}", testDir);
 
-            // Build prompt for Claude CLI - direct string (not via MCP prompt, since we're in tool context)
+            // Build prompt for Claude CLI with TWO-SCAN ENFORCEMENT
             var prompt = $@"
 You are updating the Stampli MCP Acumatica knowledge base from PR {prNumber}.
 
 Learning: {learnings}
 
-WORKFLOW:
-1. Call query_acumatica_knowledge to check for duplicates
-2. Decide verdict: ADD | SKIP | DUPLICATE | BACKLOG
-   - DUPLICATE if fuzzy match > 80%
-   - SKIP if customer-specific (affects only 1 customer)
-   - BACKLOG if no code location (file + lines)
-   - ADD if general pattern with code reference
-3. If ADD:
-   - Read KNOWLEDGE_CONTRIBUTING.md for category routing
-   - Read _operation_template.json for structure
-   - Read operations/{{category}}.json current state
-   - Edit operations/{{category}}.json to add operation (ARRAY format)
-   - Edit categories.json to increment count
-   - Rebuild MCP server via Bash (kill → build → publish)
-4. Output JSON result:
+WORKFLOW: 7-Step Knowledge Addition with Two-Scan Verification
+
+STEP 1: Duplicate Detection
+Call query_acumatica_knowledge(query=""<key terms>"", scope=""all"") to check for duplicates.
+If DUPLICATE (fuzzy match > 80%) AND exact code location match, skip to STEP 7.
+If DUPLICATE but uncertain, continue to STEP 2 for verification.
+
+STEP 2: Scan Code Location (MANDATORY VERIFICATION)
+Extract file path and line numbers from the learning.
+Use Read tool to scan the file.
+Return Scan 1 JSON with foundConstants, foundValidationRules, foundMethods.
+
+STEP 3: Challenge Your Findings
+Call challenge_scan_findings tool with:
+  scan1Results: ""<your Scan 1 JSON>""
+  challengeAreas: [""validation_rules"", ""line_numbers"", ""constants""]
+
+STEP 4: Re-Scan and Verify (SCAN 2)
+Execute challenge questions by RE-READING the file.
+VERIFY line ranges, constants, validations.
+Return Scan 2 Verified Results with scan1Corrections.
+
+STEP 5: Triage Decision
+- DUPLICATE: fuzzy match > 80%
+- SKIP: customer-specific quirk
+- BACKLOG: missing code location
+- ADD: general pattern with code reference
+
+STEP 6: Add Knowledge (ONLY if verdict = ADD)
+Use Scan 2 Verified Results (not Scan 1).
+Read KNOWLEDGE_CONTRIBUTING.md, route to category.
+Update operations/<category>.json (ARRAY format).
+Increment categories.json count.
+Rebuild MCP server.
+
+STEP 7: Output JSON
 {{
   ""verdict"": ""ADD|SKIP|DUPLICATE|BACKLOG"",
   ""reason"": ""..."",
   ""duplicateOf"": [""...""],
   ""category"": ""..."",
+  ""scan1Results"": {{...}},
+  ""scan2Corrections"": [""...""],
   ""filesModified"": [""...""],
-  ""operationAdded"": {{ ... }},
+  ""operationAdded"": {{...}},
   ""rebuildStatus"": ""success|failed|skipped"",
   ""suggestion"": ""...""
 }}
 
 Working directory: /mnt/c/Users/Kosta/source/repos/StampliMCP
 
-CRITICAL RULES:
-- MUST call query_acumatica_knowledge first
-- Code location (file + lines) required for ADD
+CRITICAL ENFORCEMENT:
+- MANDATORY: Scan code location (STEP 2)
+- MANDATORY: Call challenge_scan_findings (STEP 3)
+- MANDATORY: Re-scan and verify (STEP 4)
+- MANDATORY: Trust Scan 2 over Scan 1
 - Use ARRAY format for operations
-- Increment categories.json count
 - Generate searchKeywords (5-15 keywords)
-- Rebuild after changes
 
 Begin now.
 ";
 
-            // Escape newlines for bash (bash interprets newlines as command separators)
-            var escapedPrompt = prompt.Replace("\r\n", " ").Replace("\n", " ");
-
-            // Write prompt to temp file (avoids bash escaping hell)
+            // Write prompt to temp file (will be piped to Claude CLI via stdin)
             var promptFile = Path.Combine(testDir, "add_knowledge_prompt.txt");
-            await File.WriteAllTextAsync(promptFile, escapedPrompt);
+            await File.WriteAllTextAsync(promptFile, prompt);
 
             Serilog.Log.Information("Wrote prompt to file: {PromptFile} ({Length} chars)", promptFile, prompt.Length);
 
@@ -110,11 +130,11 @@ Begin now.
             var wslPromptPath = promptFile.Replace("\\", "/").Replace("C:", "/mnt/c");
             var wslTestDir = testDir.Replace("\\", "/").Replace("C:", "/mnt/c");
 
-            // Spawn Claude CLI using $(cat 'path') pattern (avoids escaping issues)
+            // Spawn Claude CLI using stdin pipe (avoids bash interpretation of prompt content)
             var startInfo = new ProcessStartInfo
             {
                 FileName = "wsl",
-                Arguments = $"bash -c \"MCP_LOG_DIR='{wslTestDir}' ~/.local/bin/claude --print --dangerously-skip-permissions \\\"$(cat '{wslPromptPath}')\\\"\"",
+                Arguments = $"bash -c \"MCP_LOG_DIR='{wslTestDir}' cat '{wslPromptPath}' | ~/.local/bin/claude --print --dangerously-skip-permissions\"",
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -165,7 +185,7 @@ Begin now.
                 var errorTask = process.StandardError.ReadToEndAsync();
 
                 // Wait with 3 minute timeout (knowledge addition usually takes 30-60 seconds)
-                var timeout = TimeSpan.FromMinutes(3);
+                var timeout = TimeSpan.FromMinutes(10); // Increased for two-scan workflow
                 var completed = await Task.Run(() => process.WaitForExit((int)timeout.TotalMilliseconds));
 
                 if (!completed)
