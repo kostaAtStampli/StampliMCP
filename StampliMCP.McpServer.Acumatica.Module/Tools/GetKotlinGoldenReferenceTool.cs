@@ -1,4 +1,8 @@
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Services;
 
@@ -49,6 +53,41 @@ Use exportVendor patterns to implement new Kotlin operations.
             var driverPath = Path.Combine(basePath, "KotlinAcumaticaDriver.kt");
             var handlerPath = Path.Combine(basePath, "vendor", "CreateVendorHandler.kt");
             var mapperPath = Path.Combine(basePath, "vendor", "VendorPayloadMapper.kt");
+
+            var missingFiles = new List<string>();
+            if (!File.Exists(driverPath)) missingFiles.Add(driverPath);
+            if (!File.Exists(handlerPath)) missingFiles.Add(handlerPath);
+            if (!File.Exists(mapperPath)) missingFiles.Add(mapperPath);
+
+            if (missingFiles.Count > 0)
+            {
+                Serilog.Log.Warning("Kotlin golden reference files missing: {Files}", missingFiles);
+
+                var payload = new
+                {
+                    error = "Missing Kotlin golden reference files on this machine.",
+                    missingFiles
+                };
+
+                var errorResult = new ModelContextProtocol.Protocol.CallToolResult
+                {
+                    StructuredContent = JsonSerializer.SerializeToNode(payload)
+                };
+
+                errorResult.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock
+                {
+                    Type = "text",
+                    Text = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true })
+                });
+
+                errorResult.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
+                {
+                    Uri = "mcp://stampli-unified/erp__query_knowledge?erp=acumatica&query=kotlin golden reference",
+                    Name = "Check embedded Kotlin reference"
+                });
+
+                return errorResult;
+            }
 
             // Read all 3 files
             var driver = await File.ReadAllTextAsync(driverPath, ct);
