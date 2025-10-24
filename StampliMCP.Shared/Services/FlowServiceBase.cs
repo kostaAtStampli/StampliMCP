@@ -92,7 +92,7 @@ public abstract class FlowServiceBase
                     var resourceFile = $"{(normalized ?? flowName)}.json";
                     var json = await ReadEmbeddedResourceAsync(resourceFile, ct);
                     var doc = JsonDocument.Parse(json);
-                    Logger.LogInformation("Loaded flow {FlowName}", normalized ?? flowName);
+                    Logger.LogDebug("Loaded flow {FlowName}", normalized ?? flowName);
                     return doc;
                 }
                 catch (Exception ex)
@@ -117,7 +117,7 @@ public abstract class FlowServiceBase
                         .Select(r => r.Replace($"{FlowResourcePrefix}.", "")
                                       .Replace(".json", ""))
                         .ToList();
-                    Logger.LogInformation("Found {Count} flows", flowNames.Count);
+                    Logger.LogDebug("Found {Count} flows", flowNames.Count);
                     return Task.FromResult(flowNames);
                 }
                 catch (Exception ex)

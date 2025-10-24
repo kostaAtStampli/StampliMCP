@@ -78,7 +78,7 @@ public abstract class KnowledgeServiceBase
                     var json = await ReadEmbeddedResourceAsync("categories.json", ct);
                     var data = JsonSerializer.Deserialize<CategoriesFile>(json, JsonOptions);
                     var categories = data?.Categories ?? [];
-                    Logger.LogInformation("Loaded {Count} categories from embedded resources", categories.Count);
+                    Logger.LogDebug("Loaded {Count} categories from embedded resources", categories.Count);
                     return categories;
                 }
                 catch (Exception ex)
@@ -162,7 +162,7 @@ public abstract class KnowledgeServiceBase
                     // Also store in concurrent dictionary for fast lookup
                     _operationsByCategory.TryAdd(category, ops);
 
-                    Logger.LogInformation("Loaded {Count} operations for {Category} from {File}", ops.Count, category, knowledgeFile);
+                    Logger.LogDebug("Loaded {Count} operations for {Category} from {File}", ops.Count, category, knowledgeFile);
                     return ops;
                 }
                 catch (Exception ex)
@@ -235,7 +235,7 @@ public abstract class KnowledgeServiceBase
                     var json = await ReadEmbeddedResourceAsync("enums.json", ct);
                     var data = JsonSerializer.Deserialize<EnumsFile>(json, JsonOptions);
                     var enums = data?.Enums ?? [];
-                    Logger.LogInformation("Loaded {Count} enum mappings from embedded resources", enums.Count);
+                    Logger.LogDebug("Loaded {Count} enum mappings from embedded resources", enums.Count);
                     return enums;
                 }
                 catch (Exception ex)

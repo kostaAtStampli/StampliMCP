@@ -18,7 +18,6 @@
 ## First Calls To Try
 - `mcp_overview()` → High-level architecture and next actions.
 - `erp__list_erps()` → Registered ERPs + capabilities.
-- `mcp__debug_elicitation()` → Confirms whether your client supports elicitation.
 - `erp__list_flows(erp="acumatica")` → Flow catalog for an ERP.
 - `erp__query_knowledge(erp="acumatica", query="*")` → Browse categories/operations/flows.
 
@@ -62,8 +61,8 @@
 
 ## Quick Troubleshooting
 - No elicitation form appears
-  - Run `mcp__debug_elicitation()` to confirm support.
   - Check client logs for `initialize.capabilities.elicitation`.
+  - Server continues without prompts when the client declines; refine manually if needed.
 - Flow not found
   - Verify name from `erp__list_flows(erp)` and try again.
 - Knowledge mismatch

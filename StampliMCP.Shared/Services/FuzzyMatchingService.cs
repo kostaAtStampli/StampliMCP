@@ -49,7 +49,7 @@ public sealed class FuzzyMatchingService
             .ToList();
 
         sw.Stop();
-        _logger.LogInformation(
+        _logger.LogDebug(
             "FuzzyMatch: query=\"{Query}\", patterns={PatternCount}, matches={MatchCount}, threshold={Threshold:P0}, time={ElapsedMs}ms",
             query, patternList.Count, results.Count, threshold, sw.ElapsedMilliseconds);
 

@@ -1,3 +1,4 @@
+#if DEV_TOOLS
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json;
@@ -65,3 +66,5 @@ public static class ElicitationDebugTool
         return result;
     }
 }
+
+#endif

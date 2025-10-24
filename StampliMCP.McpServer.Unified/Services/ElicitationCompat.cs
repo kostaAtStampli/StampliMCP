@@ -16,6 +16,8 @@ namespace StampliMCP.McpServer.Unified.Services;
 /// </summary>
 internal static class ElicitationCompat
 {
+    private static int _elicitationUnavailable;
+
     internal record Field(string Name, string Kind, string? Description = null, string[]? Options = null);
 
     internal readonly record struct ElicitationResult(bool Supported, string? Action, IReadOnlyDictionary<string, JsonElement>? Content);
@@ -31,6 +33,11 @@ internal static class ElicitationCompat
         CancellationToken ct)
     {
         var fieldList = fields?.ToList() ?? new List<Field>();
+        if (Interlocked.CompareExchange(ref _elicitationUnavailable, 0, 0) == 1)
+        {
+            return new ElicitationResult(false, null, null);
+        }
+
         if (fieldList.Count == 0)
         {
             return new ElicitationResult(false, null, null);
@@ -55,7 +62,10 @@ internal static class ElicitationCompat
         }
         catch (Exception ex)
         {
-            Log.Debug("Elicitation skipped: {Message}", ex.Message);
+            if (Interlocked.Exchange(ref _elicitationUnavailable, 1) == 0)
+            {
+                Log.Debug("Elicitation disabled for session: {Message}", ex.Message);
+            }
             return new ElicitationResult(false, null, null);
         }
     }

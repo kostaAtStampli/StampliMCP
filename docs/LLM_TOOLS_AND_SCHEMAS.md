@@ -12,9 +12,6 @@ This is the canonical tool catalog and the structured results the server returns
 - `mcp_overview()`
   - File: `UnifiedOverviewTool.cs:17`
   - Returns: architecture overview and next actions.
-- `mcp__debug_elicitation()`
-  - File: `ElicitationDebugTool.cs:14`
-  - Purpose: Probe client support for elicitation; returns supported/action/content.
 - `mcp__validate_embedded_knowledge()`
   - File: `KnowledgeValidationTool.cs`
   - Purpose: Sanity-check embedded categories/operations/flows per ERP.
@@ -92,6 +89,7 @@ This is the canonical tool catalog and the structured results the server returns
 - The server asks for primitive inputs via schemas:
   - BooleanSchema, NumberSchema, StringSchema, EnumSchema (subset)
 - Helper code: `StampliMCP.McpServer.Unified/Services/ElicitationCompat.cs:27`
+- If the client declines or lacks support, the helper caches it and tools continue without prompting.
 - Examples in tools: `ErpKnowledgeTools`, `ErpRecommendationTool`, `ErpValidationTool`, `ErpDiagnosticTool`.
 
 

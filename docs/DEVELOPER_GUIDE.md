@@ -27,7 +27,7 @@ taskkill /F /IM stampli-mcp-unified.exe
 
 ## Logs & Debug
 - Logs: `%TEMP%/mcp_logs/unified/structured.jsonl` (compact JSON) and console stderr.
-- Debug elicitation support quickly with `mcp__debug_elicitation()`.
+- Debug elicitation support (Debug builds only) via `mcp__debug_elicitation()`.
 - Validate knowledge with `mcp__validate_embedded_knowledge()` before publishing.
 
 ## Add A New ERP
