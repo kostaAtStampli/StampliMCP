@@ -1,291 +1,53 @@
-# 🚀 NEW DEVELOPER QUICKSTART
+# Developer Quickstart – Unified MCP
 
-## Reality Check
-✅ Tests in Kotlin (LiveErpTestBase + DSLs)  
-✅ Implementation in Java (legacy driver)  
-✅ Only exportVendor is Kotlin (everything else Java)  
-✅ Use ENV1 for testing (63.32.187.185)  
+## Prerequisites
+- .NET 10 SDK (preview) installed (used throughout the repo).
+- Windows + WSL (knowledge files reference paths in both).
 
----
-
-## Your First Feature
-
-### Step-by-Step TDD Workflow
-
-1. **Ask MCP**: "How do I implement [feature]?"
-2. **MCP guides**: Flow selection → Validation rules → File locations
-3. **Write Kotlin test** in: `finsys-modern/kotlin-acumatica-driver/src/test/kotlin/`
-4. **Run test**: `mvn test -Pmodern-live -Dtest=YourTest` (fails - RED ❌)
-5. **Implement in Java**: `finsys-drivers/acumatica/src/main/java/`
-6. **Run test again** (passes - GREEN ✅)
-7. **Refactor** if needed
-
----
-
-## Tools That Help
-
-| Tool | Purpose |
-|------|---------|
-| `kotlin_tdd_workflow` | Complete TDD guidance with file locations and patterns |
-| `modern_harness_guide` | DSL and harness documentation (LiveErpTestBase) |
-| `validate_request` | Check your JSON payloads against Acumatica rules |
-| `diagnose_error` | Fix problems with detailed error analysis |
-| `get_kotlin_golden_reference` | View exportVendor Kotlin implementation (the only one) |
-
----
-
-## Common Patterns
-
-### Kotlin Test Pattern
-```kotlin
-package com.stampli.finsys.modern.acumatica
-
-import com.stampli.finsys.modern.testing.LiveErpTestBase
-import com.stampli.finsys.modern.testing.Dsl
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Tag
-import org.assertj.core.api.Assertions.assertThat
-
-class YourFeatureTest : LiveErpTestBase() {
-    
-    @Test
-    @Tag("live-acumatica")
-    fun `test feature works`() {
-        // Arrange - Build test data with DSL
-        val data = Dsl.vendor("C1") {
-            vendorId("TEST-${System.currentTimeMillis()}")
-            name("Test Vendor")
-            address {
-                line1("123 Main St")
-                city("San Francisco")
-            }
-        }
-        
-        // Act - Call Java implementation
-        val request = createRequest(data.toMap())
-        val response = driver.yourFeature(request)
-        
-        // Assert
-        assertThat(response.error).isNull()
-        assertThat(response.response).isNotNull()
-        
-        // Record for analysis
-        recordExport(ExportKey.from(response))
-    }
-}
-```
-
-### Java Implementation Pattern
-```java
-package com.stampli.driver.handlers;
-
-import com.stampli.driver.ApiCallerFactory;
-import com.stampli.driver.AcumaticaDriver;
-import com.stampli.request.ExportRequest;
-import com.stampli.response.ExportResponse;
-
-public class YourFeatureHandler {
-    
-    public static ExportResponse execute(
-        ApiCallerFactory factory,
-        ExportRequest request
-    ) {
-        ExportResponse response = new ExportResponse();
-        
-        try {
-            // 1. Validate
-            String error = validateRequest(request);
-            if (error != null) {
-                response.setError(error);
-                return response;
-            }
-            
-            // 2. Map to Acumatica JSON
-            String payload = mapToJson(request);
-            
-            // 3. Call API with authentication wrapper
-            ResponseData apiResponse = AcumaticaAuthenticator.authenticatedApiCall(
-                request,
-                factory,
-                (client) -> {
-                    ApiCaller caller = factory.createPutRestApiCaller(
-                        request,
-                        AcumaticaEndpoint.YOUR_ENDPOINT,
-                        new AcumaticaUrlSuffixAssembler(),
-                        payload
-                    );
-                    return caller.call(client);
-                }
-            );
-            
-            // 4. Handle response
-            if (!apiResponse.isSuccessful()) {
-                response.setError("API call failed: " + apiResponse.getContent());
-                return response;
-            }
-            
-            response.setResponseCode(200);
-            // ... build response object
-            
-        } catch (Exception e) {
-            response.setError(e.getMessage());
-        }
-        
-        return response;
-    }
-    
-    private static String validateRequest(ExportRequest request) {
-        // Add validation logic
-        if (request.getRawData() == null) {
-            return "Missing data";
-        }
-        // ... more validation
-        return null;
-    }
-    
-    private static String mapToJson(ExportRequest request) {
-        JSONObject root = new JSONObject();
-        // Map raw data to Acumatica format
-        // Use putValue() helper for nested {"value": ...} structure
-        return root.toString();
-    }
-}
-```
-
----
-
-## Environment Details
-
-### ENV1 (Test Environment)
-- **Host**: `http://63.32.187.185/StampliAcumaticaDB`
-- **User**: `admin`
-- **Password**: `Password1`
-- **Subsidiary**: `StampliCompany`
-- **Note**: Test data may be deleted between runs - always use DSLs to create test data
-
-### Maven Profiles
+## 1. Clone & Restore
 ```bash
-# Integration tests (no live ERP)
-mvn test -Pmodern-it
-
-# Live ERP tests against ENV1
-mvn test -Pmodern-live
-
-# Vendor probe only (always green)
-mvn test -Pmodern-live-env1
-
-# Run specific test
-mvn test -Pmodern-live -Dtest=YourFeatureTest
-
-# Run with recording
-mvn test -Pmodern-live -Dlive.outDir=./test-results
+git clone https://github.com/stampli/StampliMCP.git
+cd StampliMCP
+"/mnt/c/Program Files/dotnet/dotnet.exe" restore
 ```
 
----
-
-## Module Structure
-
-```
-finsys-modern/
-├── kotlin-acumatica-driver/         # Acumatica driver + tests
-│   ├── src/main/kotlin/             # Main code (only exportVendor)
-│   └── src/test/kotlin/             # 👈 WRITE YOUR TESTS HERE
-│       └── com/stampli/finsys/modern/acumatica/
-│
-├── kotlin-drivers-common/           # Test harness
-│   └── src/main/kotlin/.../testing/
-│       ├── LiveErpTestBase.kt       # Base class for tests
-│       └── Dsl.kt                   # DSL builders
-│
-finsys-drivers/
-└── acumatica/
-    └── src/main/java/               # 👈 IMPLEMENT IN JAVA HERE
-        └── com/stampli/driver/
+## 2. Build Everything (Debug)
+```bash
+"/mnt/c/Program Files/dotnet/dotnet.exe" build StampliMCP.slnx -c Debug --nologo
 ```
 
----
-
-## DSL Examples
-
-### Vendor DSL
-```kotlin
-val vendor = Dsl.vendor("C1") {
-    vendorId("V-${timestamp}")
-    name("Acme Corporation")
-    vendorClass("VENDOR")
-    customField("Department", "Finance")
-    
-    address {
-        line1("123 Main St")
-        city("San Francisco")
-        state("CA")
-        zip("94105")
-    }
-    
-    bank {
-        accountId("CHK-001")
-        routingNumber("123456789")
-        bankName("Chase Bank")
-    }
-}
-
-// Convert to Map for Java driver
-val rawData = vendor.toMap()
+## 3. Run Unified MCP Locally
+```bash
+"/mnt/c/Program Files/dotnet/dotnet.exe" run --project StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj
 ```
 
-### Purchase Order DSL
-```kotlin
-val po = Dsl.purchaseOrder("C1") {
-    poNumber("PO-${timestamp}")
-    vendorId("V-123")
-    date(LocalDate.now())
-    
-    line {
-        itemId("WIDGET")
-        quantity(BigDecimal("10"))
-        unitPrice(BigDecimal("25.50"))
-        description("Test Widget")
-    }
-}
+Available modules today: `acumatica` (full) and `intacct` (stub).
+
+## 4. Publish (Release, Self-Contained)
+```bash
+"/mnt/c/Program Files/dotnet/dotnet.exe" publish \
+  StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj \
+  -c Release -r win-x64 --self-contained true \
+  /p:PublishSingleFile=true --nologo
 ```
 
----
+Binary: `StampliMCP.McpServer.Unified/bin/Release/net10.0/win-x64/publish/stampli-mcp-unified.exe`
 
-## Troubleshooting
+## 5. Configure Tooling
+- `.claude/settings.local.json`, `mcp-runner.cmd`, `stampli-mcp-wrapper.sh`, etc. already point at the unified binary.
+- For other clients, use the DLL path (`.../bin/Debug/net10.0/stampli-mcp-unified.dll`) or the published exe.
 
-| Issue | Solution |
-|-------|----------|
-| **Connection failures** | Check ENV1 is accessible: `ping 63.32.187.185` |
-| **Test data conflicts** | Use `System.currentTimeMillis()` in IDs for uniqueness |
-| **Cleanup failures** | LiveErpTestBase logs errors but continues - check logs |
-| **Recording not working** | Verify `-Dlive.outDir` path is writable |
-| **DSL compilation errors** | Ensure `kotlin-drivers-common` is on classpath |
-| **"Not found" errors** | Verify Kotlin files exist in `finsys-modern/` (not `kotlin-drivers/`) |
+## 6. Adding an ERP Module
+1. Create a new classlib under `StampliMCP.McpServer.<Erp>.Module`.
+2. Populate `Knowledge/` (categories, operations, flows).
+3. Implement knowledge/flow services and the module class.
+4. Register the module in `StampliMCP.McpServer.Unified/Program.cs`.
+5. Implement optional validation/diagnostic services by implementing the shared interfaces.
+6. Run `erp__list_erps()` via any MCP client to verify it loads.
 
----
-
-## Next Steps
-
-1. **Ask MCP** for guidance: Call `kotlin_tdd_workflow` tool with your feature description
-2. **Read golden reference**: Call `get_kotlin_golden_reference` to see exportVendor patterns
-3. **Check harness**: Call `modern_harness_guide` for LiveErpTestBase and DSL docs
-4. **Start coding**: Write test (RED) → Implement (GREEN) → Refactor
-
----
-
-## Quick Reference Card
-
-```
-📁 Where to write tests:    finsys-modern/kotlin-acumatica-driver/src/test/kotlin/
-📁 Where to implement:      finsys-drivers/acumatica/src/main/java/
-🧪 Base class:              LiveErpTestBase
-🏗️  DSL:                    Dsl.vendor, Dsl.purchaseOrder
-🔧 Maven:                   mvn test -Pmodern-live -Dtest=YourTest
-🌍 Environment:             ENV1 (63.32.187.185)
-✅ Kotlin operations:       Only exportVendor
-📦 Package (tests):         com.stampli.finsys.modern.acumatica
-📦 Package (impl):          com.stampli.driver
-```
-
-**Welcome aboard! 🎉**
-
+## 7. Tests
+- E2E tests: `StampliMCP.E2E` exercises the unified server over stdio.
+  - Build: `"/mnt/c/Program Files/dotnet/dotnet.exe" build StampliMCP.E2E -c Debug`
+  - Run: `"/mnt/c/Program Files/dotnet/dotnet.exe" test StampliMCP.E2E -c Debug`
+  - Optional for planner tests: set `CLAUDE_CLI_PATH` (e.g., `~/.local/bin/claude`) and `MCP_LOG_DIR`.
+  - Planner apply-path tests can be gated behind an env flag and a local stub CLI.

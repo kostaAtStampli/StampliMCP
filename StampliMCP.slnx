@@ -1,9 +1,12 @@
 <Solution>
   <Project Path="StampliMCP.ApiService/StampliMCP.ApiService.csproj" />
   <Project Path="StampliMCP.AppHost/StampliMCP.AppHost.csproj" />
-  <Project Path="StampliMCP.McpServer.Acumatica.Tests/StampliMCP.McpServer.Acumatica.Tests.csproj" />
-  <Project Path="StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj" />
+  
+  <Project Path="StampliMCP.McpServer.Acumatica.Module/StampliMCP.McpServer.Acumatica.Module.csproj" />
+  <Project Path="StampliMCP.McpServer.Intacct.Module/StampliMCP.McpServer.Intacct.Module.csproj" />
+  <Project Path="StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj" />
   <Project Path="StampliMCP.ServiceDefaults/StampliMCP.ServiceDefaults.csproj" />
-  <Project Path="StampliMCP.Tests/StampliMCP.Tests.csproj" />
+  
   <Project Path="StampliMCP.Web/StampliMCP.Web.csproj" />
+  <Project Path="StampliMCP.E2E/StampliMCP.E2E.csproj" />
 </Solution>

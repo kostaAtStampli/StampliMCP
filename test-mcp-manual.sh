@@ -14,12 +14,12 @@ echo "Test directory: $TEST_DIR"
 cat > "$TEST_DIR/.claude-code-config.json" <<'EOF'
 {
   "mcpServers": {
-    "stampli_acumatica": {
+    "stampli_unified": {
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "C:\\Users\\Kosta\\source\\repos\\StampliMCP\\StampliMCP.McpServer.Acumatica\\StampliMCP.McpServer.Acumatica.csproj"
+        "C:\\Users\\Kosta\\source\\repos\\StampliMCP\\StampliMCP.McpServer.Unified\\StampliMCP.McpServer.Unified.csproj"
       ],
       "env": {
         "MCP_DEBUG": "true"

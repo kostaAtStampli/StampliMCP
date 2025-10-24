@@ -13,7 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\StampliMCP.ApiService\StampliMCP.ApiService.csproj" />
     <ProjectReference Include="..\StampliMCP.Web\StampliMCP.Web.csproj" />
-    <ProjectReference Include="..\StampliMCP.McpServer.Acumatica\StampliMCP.McpServer.Acumatica.csproj" />
+    <ProjectReference Include="..\StampliMCP.McpServer.Unified\StampliMCP.McpServer.Unified.csproj" />
   </ItemGroup>
 
   <ItemGroup>

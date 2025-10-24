@@ -1,0 +1,19 @@
+{
+  "description": "Stub Intacct flow for unified MCP testing",
+  "anatomy": {
+    "flow": "Stub -> Map -> Return"
+  },
+  "constants": {
+    "STUB_PAGE_SIZE": {
+      "value": "500",
+      "purpose": "Default page size for Intacct stub queries"
+    }
+  },
+  "validationRules": [
+    "required_fields",
+    "max_length_50"
+  ],
+  "usedByOperations": [
+    "stubIntacctOperation"
+  ]
+}

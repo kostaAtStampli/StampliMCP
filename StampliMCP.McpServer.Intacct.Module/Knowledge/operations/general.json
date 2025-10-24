@@ -1,0 +1,9 @@
+{
+  "operations": [
+    {
+      "method": "stubIntacctOperation",
+      "summary": "Example Intacct operation used for stubbed responses",
+      "category": "general"
+    }
+  ]
+}

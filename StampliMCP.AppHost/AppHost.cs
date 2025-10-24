@@ -4,9 +4,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 var apiService = builder.AddProject<Projects.StampliMCP_ApiService>("apiservice")
     .WithHttpHealthCheck("/health");
 
-// Add MCP server (stdio-based, not HTTP)
+// Add unified MCP server (stdio-based, not HTTP)
 // Note: MCP uses stdio transport, not HTTP, so no health checks or lifecycle management apply
-var mcpAcumatica = builder.AddProject<Projects.StampliMCP_McpServer_Acumatica>("mcp-acumatica");
+var mcpUnified = builder.AddProject<Projects.StampliMCP_McpServer_Unified>("mcp-unified");
 
 // Configure web frontend with dependencies and health checks
 builder.AddProject<Projects.StampliMCP_Web>("webfrontend")

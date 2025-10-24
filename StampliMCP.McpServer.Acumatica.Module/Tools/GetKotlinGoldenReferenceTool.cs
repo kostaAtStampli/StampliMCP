@@ -63,30 +63,123 @@ Use exportVendor patterns to implement new Kotlin operations.
             {
                 Serilog.Log.Warning("Kotlin golden reference files missing: {Files}", missingFiles);
 
-                var payload = new
+                // Fallback: return embedded reference JSON so callers still get actionable guidance
+                var fallbackPatterns = await knowledge.GetKotlinGoldenReferenceAsync(ct);
+
+                var fallback = new
                 {
-                    error = "Missing Kotlin golden reference files on this machine.",
+                    goldenOperation = "exportVendor",
+                    status = "FALLBACK: Using embedded Kotlin reference (source files not found)",
+                    definitions = new
+                    {
+                        files = new object[]
+                        {
+                            new
+                            {
+                                file = "KotlinAcumaticaDriver.kt",
+                                path = driverPath,
+                                purpose = "Main driver - shows override pattern",
+                                lines = "1-27",
+                                content = (string?)null,
+                                keyPatterns = new[]
+                                {
+                                    "class KotlinAcumaticaDriver : AcumaticaDriver()",
+                                    "override fun exportVendor(request: ExportVendorRequest): ExportVendorResponse",
+                                    "val handler = CreateVendorHandler()",
+                                    "return handler.handle(request, apiCallerFactory, connectionManager)",
+                                    "response.error = e.message (property syntax, not setError())",
+                                    "try-catch with error in response.error, never throw exceptions"
+                                }
+                            },
+                            new
+                            {
+                                file = "CreateVendorHandler.kt",
+                                path = handlerPath,
+                                purpose = "Handler pattern - shows null safety (!!, ?., let), early returns, Kotlin idioms",
+                                lines = "1-132",
+                                content = (string?)null,
+                                keyPatterns = new[]
+                                {
+                                    "internal class CreateVendorHandler",
+                                    "companion object { private val logger = Logger.getLogger(...) }",
+                                    "if (raw == null) { response.error = \"...\"; return response }",
+                                    "val validName = name!! (null assertion)",
+                                    "raw[\"id\"]?.takeIf { it.toString().isNotBlank() }.let { id -> ... }",
+                                    "string interpolation: ${e.message}",
+                                    "JSONObject().apply { put(key, value) }"
+                                }
+                            },
+                            new
+                            {
+                                file = "VendorPayloadMapper.kt",
+                                path = mapperPath,
+                                purpose = "Object singleton - shows data object, extension functions, apply/let usage",
+                                lines = "1-71",
+                                content = (string?)null,
+                                keyPatterns = new[]
+                                {
+                                    "internal data object VendorPayloadMapper (singleton with no state)",
+                                    "fun JSONObject.withValue(v: String) = apply { } (extension function)",
+                                    "const val STAMPLI_LINK_PREFIX (compile-time constant)",
+                                    "JSONObject().apply { put(...); put(...) } (scope function for initialization)"
+                                }
+                            }
+                        },
+                        criticalQuirks = new
+                        {
+                            kotlinSpecific = new[]
+                            {
+                                "Use 'data object' for singletons with no state (not 'object')",
+                                "Property access: response.error = \"message\" (NOT setError())",
+                                "Null safety: !!, ?., let, takeIf, elvis operator ?:",
+                                "Scope functions: apply for initialization, let for null-safe chaining",
+                                "companion object for static-like members (logger, constants)",
+                                "lateinit var for properties initialized in @BeforeEach (tests)"
+                            },
+                            acumaticaSpecific = new[]
+                            {
+                                "NEVER throw exceptions - always return error in response.error field",
+                                "RESPONSE_ROWS_LIMIT = 2000 (pagination page size)",
+                                "TIME_LIMIT = 10 minutes (session refresh during long imports)",
+                                "AcumaticaImportHelper template pattern from Java (reuse infrastructure)",
+                                "AcumaticaAuthenticator.authenticatedApiCall() wrapper (login-try-finally-logout)",
+                                "hasNextPage() returns true if responseRowsCount == pageSize (more pages exist)"
+                            }
+                        }
+                    },
+                    extractedPatterns = fallbackPatterns,
+                    instructions = new[]
+                    {
+                        "Embedded reference loaded. Review patterns, then run kotlin_tdd_workflow.",
+                        "Most operations are still Java-backed; exportVendor is the golden Kotlin example."
+                    },
                     missingFiles
                 };
 
-                var errorResult = new ModelContextProtocol.Protocol.CallToolResult
+                var ok = new ModelContextProtocol.Protocol.CallToolResult
                 {
-                    StructuredContent = JsonSerializer.SerializeToNode(payload)
+                    StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = fallback })
                 };
 
-                errorResult.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock
+                var fallbackJsonOutput = System.Text.Json.JsonSerializer.Serialize(fallback, new System.Text.Json.JsonSerializerOptions
                 {
-                    Type = "text",
-                    Text = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true })
+                    WriteIndented = true,
+                    DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
                 });
-
-                errorResult.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
+                ok.Content.Add(new ModelContextProtocol.Protocol.TextContentBlock { Type = "text", Text = fallbackJsonOutput });
+                ok.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
                 {
-                    Uri = "mcp://stampli-unified/erp__query_knowledge?erp=acumatica&query=kotlin golden reference",
-                    Name = "Check embedded Kotlin reference"
+                    Uri = "mcp://stampli-unified/kotlin_tdd_workflow",
+                    Name = "Run Kotlin TDD workflow",
+                    Description = "Use the workflow after reviewing the reference"
                 });
-
-                return errorResult;
+                ok.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
+                {
+                    Uri = "mcp://stampli-unified/erp__list_erps",
+                    Name = "List registered ERPs",
+                    Description = "Verify available ERP modules"
+                });
+                return ok;
             }
 
             // Read all 3 files
@@ -100,7 +193,7 @@ Use exportVendor patterns to implement new Kotlin operations.
             Serilog.Log.Information("DEBUG: Read {File} - {Size} chars", "VendorPayloadMapper.kt", mapper.Length);
 
             // Get the extracted patterns from embedded knowledge
-            var patterns = await knowledge.GetKotlinGoldenReferenceAsync(ct);
+            var embeddedPatterns = await knowledge.GetKotlinGoldenReferenceAsync(ct);
             Serilog.Log.Information("DEBUG: Loaded Kotlin patterns from knowledge service");
 
             var result = new
@@ -185,7 +278,7 @@ Use exportVendor patterns to implement new Kotlin operations.
                     }
                 },
 
-                extractedPatterns = patterns,
+                extractedPatterns = embeddedPatterns,
 
                 instructions = new[]
                 {

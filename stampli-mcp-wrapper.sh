@@ -3,7 +3,7 @@
 # Suppresses info/debug logs to prevent interference with JSON-RPC communication
 
 # Path to the actual executable
-EXEC_PATH="/mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica/bin/Release/net10.0/win-x64/publish/stampli-mcp-acumatica.exe"
+EXEC_PATH="/mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Unified/bin/Release/net10.0/stampli-mcp-unified.dll"
 
 # Set environment variable to suppress console logging
 export Logging__Console__LogLevel__Default=None

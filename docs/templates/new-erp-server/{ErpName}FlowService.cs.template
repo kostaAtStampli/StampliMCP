@@ -1,0 +1,50 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using StampliMCP.Shared.Services;
+
+namespace StampliMCP.McpServer.{ErpName}.Services;
+
+/// <summary>
+/// {ErpName}-specific flow service
+/// Inherits generic flow loading from base class
+/// Adds {ErpName}-specific flow matching logic
+/// </summary>
+public sealed class {ErpName}FlowService : FlowServiceBase
+{
+    protected override string FlowResourcePrefix => "StampliMCP.McpServer.{ErpName}.Knowledge.flows";
+
+    public {ErpName}FlowService(
+        ILogger<{ErpName}FlowService> logger,
+        IMemoryCache cache,
+        FuzzyMatchingService fuzzyMatcher)
+        : base(logger, cache, fuzzyMatcher, typeof({ErpName}FlowService).Assembly)
+    {
+    }
+
+    /// <summary>
+    /// {ErpName}-specific flow matching based on description keywords
+    /// Customize this method to match your ERP's specific integration patterns
+    /// </summary>
+    public (string FlowName, string Confidence, string Reasoning) MatchFeatureToFlowAsync(
+        string description,
+        CancellationToken ct = default)
+    {
+        var sw = Stopwatch.StartNew();
+        var lower = description.ToLower();
+
+        // Add your {ErpName}-specific flow matching logic here
+        // Example:
+        // if (ContainsOrFuzzy(lower, "vendor", 0.60) && ContainsOrFuzzy(lower, "export", 0.60))
+        // {
+        //     sw.Stop();
+        //     Logger.LogInformation("FlowMatch: vendor_export_flow, time={Ms}ms", sw.ElapsedMilliseconds);
+        //     return ("vendor_export_flow", "HIGH", "User wants to export vendor");
+        // }
+
+        // Default fallback
+        sw.Stop();
+        Logger.LogInformation("FlowMatch: standard_import_flow (fallback), time={Ms}ms", sw.ElapsedMilliseconds);
+        return ("standard_import_flow", "LOW", "No specific flow detected, defaulting to standard import");
+    }
+}

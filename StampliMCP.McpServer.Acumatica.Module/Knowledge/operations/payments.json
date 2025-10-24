@@ -1,0 +1,291 @@
+{
+  "category": "payments",
+  "operations": [
+    {
+      "method": "exportBillPayment",
+      "enumName": "EXPORT_BILL_PAYMENT",
+      "summary": "Exports bill payment (check or quick check) to Acumatica. Includes payment serialization, validation, and release operations.",
+      "category": "payments",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "400-420",
+          "what": "Routes to payment export via export manager wrapper"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaPaymentSerializer",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaPaymentSerializer.java",
+            "lines": "1-200"
+          },
+          "purpose": "Serializes payment data for checks/quick checks"
+        },
+        {
+          "class": "AcumaticaExportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportHelper.java",
+            "lines": "20-150"
+          },
+          "purpose": "Orchestrates export with release and post-operations"
+        },
+        {
+          "class": "AcumaticaExportValidator",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaExportValidator.java",
+            "lines": "1-100"
+          },
+          "purpose": "Validates payment data before export"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Check",
+        "method": "PUT",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Check (or Payment based on type)"
+      },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.exportBillPayment()",
+        "flow": [
+          "1. Build payment request with bill references",
+          "2. Kotlin intercepts at IDualFinsysDriver method",
+          "3. Validate payment account and amounts",
+          "4. Auth wrap with AcumaticaAuthenticator",
+          "5. POST to Payment/Check endpoint with release action"
+        ],
+        "reuseComponents": ["AcumaticaAuthenticator", "PaymentValidator", "BillPaymentMapper"],
+        "criticalPatterns": {
+          "partialPayments": "Handle partial payments and remaining balances",
+          "voidHandling": "Support void operations with message",
+          "errorHandling": "response.error = 'message', no exceptions"
+        }
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "400-420",
+          "purpose": "Main method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    {
+      "method": "getPaidBills",
+      "enumName": "GET_PAID_BILLS",
+      "summary": "Retrieves paid bills from Acumatica.",
+      "category": "payments",
+      
+      "requiredFields": {},
+      "optionalFields": {},
+      
+      "flowTrace": [
+        {
+          "layer": "Driver",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "120-140",
+          "what": "Uses import helper with payment assemblers"
+        }
+      ],
+      
+      "helpers": [
+        {
+          "class": "AcumaticaImportHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaImportHelper.java",
+            "lines": "64-120"
+          },
+          "purpose": "Import helper pattern"
+        }
+      ],
+      
+      "apiEndpoint": {
+        "entity": "Bill",
+        "method": "GET",
+        "urlPattern": "https://{hostname}/entity/{apiVersion}/Bill?$filter=...",
+        "pagination": true
+      },
+
+      "kotlinFlowSummary": {
+        "interceptPoint": "DriverEngine → KotlinAcumaticaDriver.getPaidBills()",
+        "flow": [
+          "1. Query bills with Status='Paid'",
+          "2. Reuse AcumaticaImportHelper for pagination",
+          "3. Assemble payment details for reconciliation"
+        ],
+        "reuseComponents": ["AcumaticaImportHelper", "BillResponseAssembler"],
+        "criticalPatterns": {
+          "errorHandling": "response.error = 'message', no exceptions"
+        }
+      },
+      
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "120-140",
+          "purpose": "Main method"
+        }
+      ],
+      
+      "goldenTest": null
+    },
+    { "method": "deletePayment", "enumName": "DELETE_PAYMENT", "summary": "Deletes a payment.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "440-460", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "voidPayment", "enumName": "VOID_PAYMENT", "summary": "Voids a payment.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "480-500", "purpose": "Main method" }], "goldenTest": null },
+    {
+      "method": "voidPaymentWithMessage",
+      "enumName": "VOID_PAYMENT_WITH_MESSAGE",
+      "summary": "Voids a payment with a message. Follows void-release-post workflow: voids payment, releases from hold, posts voided check.",
+      "category": "payments",
+      "flow": "api_action_flow",
+
+      "requiredFields": {
+        "paymentId": {
+          "type": "string",
+          "purpose": "Payment reference number to void"
+        }
+      },
+      "optionalFields": {},
+
+      "flowTrace": [
+        {
+          "layer": "Handler",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+          "lines": "30-57",
+          "what": "Main voidPayment method - orchestrates void workflow"
+        },
+        {
+          "layer": "Helper",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+          "lines": "59-76",
+          "what": "releaseVoidPaymentFromHold - releases voided check from hold status, deletes entity on failure"
+        },
+        {
+          "layer": "API Call",
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+          "lines": "67",
+          "what": "POST to RELEASE_HOLD_VOID_CHECK endpoint"
+        }
+      ],
+
+      "helpers": [
+        {
+          "class": "AcumaticaApiActionHelper",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+            "lines": "26-100"
+          },
+          "purpose": "Helper for API action operations - void payment workflow"
+        },
+        {
+          "class": "VoidPaymentResponseAssembler",
+          "location": {
+            "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/assembler/VoidPaymentResponseAssembler.java",
+            "lines": "1-50"
+          },
+          "purpose": "Assembles void payment response"
+        }
+      ],
+
+      "apiEndpoint": {
+        "entity": "Check",
+        "method": "POST",
+        "urlPattern": "https://{hostname}/entity/Stampli/20.200.001/Payment/VoidPayment",
+        "releaseEndpoint": "https://{hostname}/entity/Stampli/20.200.001/Check/ReleaseFromHold"
+      },
+
+      "validationRules": [
+        "paymentId (referenceNbr) is required - throws exception if empty (StringUtils.isEmpty check)",
+        "Release hold response must be successful - otherwise deletes entity and sets error",
+        "On release failure: deletes voided check via deleteEntity() rollback",
+        "On exception during release: deletes entity and throws AcumaticaApiException"
+      ],
+
+      "constants": {
+        "RELEASE_HOLD_VOID_CHECK_ENDPOINT": {
+          "value": "Check/ReleaseFromHold",
+          "definedIn": "AcumaticaEndpoint.java:59",
+          "purpose": "Endpoint to release voided check from hold status before posting"
+        }
+      },
+
+      "workflow": {
+        "steps": [
+          "1. Void payment via VOID_PAYMENT endpoint (AcumaticaApiActionHelper.java:30-57)",
+          "2. releaseVoidPaymentFromHold() - releases voided check from hold status (lines 59-76)",
+          "3. postVoidedCheck() - posts the voided check (lines 130-147)",
+          "4. On failure at step 2 or 3: rollback via deleteEntity() (lines 78-91)"
+        ],
+        "releaseVoidPaymentFromHoldDetails": {
+          "purpose": "Private helper method that releases voided check from hold status. Part of 3-step void-release-post workflow.",
+          "signature": "private static void releaseVoidPaymentFromHold(VoidPaymentWithMessageRequest, VoidPaymentWithMessageResponse, ApiCallerFactory, CloseableHttpClient, String voidedCheckType)",
+          "location": "AcumaticaApiActionHelper.java:59-76",
+          "logic": [
+            "1. Extract referenceNbr from request.getPaymentId()",
+            "2. Validate referenceNbr is not empty (throws exception if missing)",
+            "3. Create request body using createReleaseCheckRequestBody(referenceNbr, voidedCheckType)",
+            "4. POST to RELEASE_HOLD_VOID_CHECK endpoint (Check/ReleaseFromHold)",
+            "5. If !isSuccessful(): deleteEntity() + set response.error",
+            "6. On exception: deleteEntity() + throw AcumaticaApiException"
+          ],
+          "errorHandling": {
+            "missingReferenceNbr": "Throws AcumaticaApiException: 'Unable to release hold from quick check - missing reference number'",
+            "releaseHoldFails": "Calls deleteEntity() to rollback, then sets response.setError()",
+            "anyException": "Calls deleteEntity() to rollback, then throws AcumaticaApiException"
+          }
+        },
+        "rollbackPattern": "Deletes created voided check if release from hold fails (ensures no orphaned voided checks in hold status)"
+      },
+
+      "scanThese": [
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+          "lines": "30-57",
+          "purpose": "Main voidPayment method - orchestrates workflow"
+        },
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/api/AcumaticaApiActionHelper.java",
+          "lines": "59-76",
+          "purpose": "releaseVoidPaymentFromHold - critical helper for void-release flow"
+        },
+        {
+          "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java",
+          "lines": "505-525",
+          "purpose": "Driver entry point"
+        }
+      ],
+
+      "searchKeywords": [
+        "void payment",
+        "void check",
+        "release void payment",
+        "release from hold",
+        "void payment with message",
+        "release void check",
+        "voided check",
+        "void and release",
+        "payment void workflow",
+        "release hold void check",
+        "releaseVoidPaymentFromHold",
+        "release void payment from hold",
+        "void payment hold",
+        "release check from hold",
+        "void workflow",
+        "payment rollback"
+      ],
+
+      "goldenTest": null
+    },
+    { "method": "retrieveCredits", "enumName": "RETRIEVE_CREDITS", "summary": "Retrieves credits.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "540-560", "purpose": "Main method" }], "goldenTest": null },
+    { "method": "retrieveBills", "enumName": "RETRIEVE_BILLS", "summary": "Retrieves bills.", "category": "payments", "requiredFields": {}, "scanThese": [{ "file": "finsys-drivers/acumatica/src/main/java/com/stampli/driver/AcumaticaDriver.java", "lines": "580-600", "purpose": "Main method" }], "goldenTest": null }
+  ]
+}
+

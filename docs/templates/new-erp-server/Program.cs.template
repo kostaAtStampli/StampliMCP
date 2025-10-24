@@ -1,0 +1,69 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using ModelContextProtocol.Server;
+using Serilog;
+using Serilog.Formatting.Compact;
+using StampliMCP.Shared.Models;
+using StampliMCP.Shared.Services;
+using StampliMCP.McpServer.{ErpName}.Services;
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.File(
+        new CompactJsonFormatter(),
+        @"C:\STAMPLI-MCP-LOGS\{ErpNameLower}-mcp-server.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 7,
+        shared: true
+    )
+    .CreateLogger();
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddSerilog();
+
+// Register FuzzyMatchingService and Config from shared library
+builder.Services.AddSingleton<FuzzyMatchingConfig>(sp => new FuzzyMatchingConfig
+{
+    DefaultThreshold = 0.60,
+    TypoToleranceThreshold = 0.70,
+    OperationMatchThreshold = 0.60,
+    ErrorMatchThreshold = 0.65,
+    FlowMatchThreshold = 0.60,
+    KeywordMatchThreshold = 0.60
+});
+builder.Services.AddSingleton<FuzzyMatchingService>();
+
+// Register {ErpName} Knowledge and Flow services
+builder.Services.AddSingleton<{ErpName}KnowledgeService>();
+builder.Services.AddSingleton<{ErpName}FlowService>();
+
+// Register MCP server
+builder.Services.AddMcpServer(
+    "stampli-{ErpNameLower}-server",
+    "{ErpName} MCP Server",
+    "1.0.0",
+    options =>
+    {
+        options.Capabilities.Tools = new();
+        options.Capabilities.Prompts = new();
+        options.Capabilities.Experimental = new { };
+    });
+
+var app = builder.Build();
+
+try
+{
+    Log.Information("{ErpName} MCP Server starting...");
+    await app.RunAsync();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "{ErpName} MCP Server crashed");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}

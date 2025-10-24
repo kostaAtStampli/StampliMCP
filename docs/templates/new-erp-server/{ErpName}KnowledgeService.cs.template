@@ -1,0 +1,31 @@
+using System.Reflection;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using StampliMCP.Shared.Services;
+
+namespace StampliMCP.McpServer.{ErpName}.Services;
+
+/// <summary>
+/// {ErpName}-specific knowledge service
+/// Inherits generic knowledge loading from base class
+/// </summary>
+public sealed class {ErpName}KnowledgeService : KnowledgeServiceBase
+{
+    public {ErpName}KnowledgeService(ILogger<{ErpName}KnowledgeService> logger, IMemoryCache cache)
+        : base(logger, cache, typeof({ErpName}KnowledgeService).Assembly)
+    {
+    }
+
+    protected override string ResourcePrefix => "StampliMCP.McpServer.{ErpName}.Knowledge";
+
+    protected override Dictionary<string, string> CategoryFileMapping => new()
+    {
+        // Define your category-to-file mappings here
+        // Example:
+        // ["vendors"] = "operations/vendors.json",
+        // ["invoices"] = "operations/invoices.json",
+        // ["payments"] = "operations/payments.json",
+    };
+
+    // Add {ErpName}-specific methods here (e.g., for custom resources, configs, etc.)
+}

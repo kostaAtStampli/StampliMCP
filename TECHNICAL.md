@@ -1,141 +1,68 @@
-# Technical Reference
+# Technical Notes – Unified MCP
 
-## Critical WSL/Windows Path Quirks
+## Architecture
 
-```bash
-# Publishing: NEVER use WSL paths for output!
--o /home/kosta/              # ❌ Creates C:\home\kosta\
--o "C:\home\kosta"           # ✅ Correct Windows path
+- **Unified host** (`StampliMCP.McpServer.Unified`) is the only executable.  It sets up logging, dependency injection, and the MCP transport.
+- **ERP modules** (`StampliMCP.McpServer.<Erp>.Module`) are class libraries that own:
+  - Embedded knowledge (`Knowledge/` JSON, Markdown, XML).
+  - Services inheriting shared base classes (`KnowledgeServiceBase`, `FlowServiceBase`).
+  - Optional validation/diagnostic/recommendation services implementing shared interfaces.
+  - Module-specific tools/prompts (auto-registered by the unified host).
+- **Shared library** (`StampliMCP.Shared`) exposes base services, models, and the `IErpModule` / `IErpFacade` abstractions used for dynamic dispatch.
 
-# In C# code: MCP runs as Windows .exe
-@"C:\STAMPLI4\..."           # ✅ Native Windows path
-"/mnt/c/STAMPLI4/..."        # ❌ Becomes C:\mnt\c\STAMPLI4
+Current module roster:
 
-# WSL commands: Quote paths with spaces
-"/mnt/c/Program Files/dotnet/dotnet.exe"  # ✅ Quoted
-```
+- Acumatica (full knowledge, flows, validation, developer tools)
+- Intacct (stub module for wiring verification)
 
-## Process Management
+## Registry & Facades
 
-### Always Kill Before Rebuild
-```bash
-# Windows process (from WSL)
-/mnt/c/Windows/System32/taskkill.exe /F /IM stampli-mcp-acumatica.exe
+`ErpRegistry` takes the registered modules, builds a case-insensitive alias map, and creates a new DI scope per tool invocation.  This prevents singleton/scoped conflicts and provides a strongly typed facade exposing module services.  Example:
 
-# Check if running
-/mnt/c/Windows/System32/tasklist.exe | grep stampli-mcp
-```
-
-### MCP Reconnection
-After killing process:
-1. Rebuild/publish
-2. Run `/mcp` in Claude to reconnect
-3. Test with `health_check()`
-
-## Architecture Decisions
-
-### Why Embedded Resources?
-- Single-file deployment (≈108 MB)
-- No file path issues at runtime
-- Knowledge travels with exe
-- Trade-off: Must rebuild for knowledge changes
-
-### Model Design Choices
 ```csharp
-// EnumName is nullable - not all operations have enums
-public string? EnumName { get; init; }
-
-// RequiredFields uses FieldInfo objects, not strings
-public Dictionary<string, FieldInfo> RequiredFields { get; init; }
+using var facade = registry.GetFacade("acumatica");
+var operations = await facade.Knowledge.GetAllOperationsAsync(ct);
 ```
 
-### JSON Structure Requirements
-```json
-{
-  "requiredFields": {
-    "vendorName": {
-      "type": "string",
-      "maxLength": 60,
-      "description": "Vendor name"
-    }
-  }
-}
-// NOT: "vendorName": "max 60 chars"
-```
+## Adding an ERP Module
 
-## Knowledge Structure
+1. Create the module project (`StampliMCP.McpServer.<Erp>.Module`).
+2. Populate `Knowledge/categories.json`, `Knowledge/operations/<category>.json`, and `Knowledge/flows/*.json`.
+3. Implement `<Erp>KnowledgeService`/`<Erp>FlowService` inheriting the shared bases and overriding `ResourcePrefix`.
+4. Implement module class with aliases and capabilities:
+   ```csharp
+   public sealed class FooModule : IErpModule { ... }
+   ```
+5. Register module in `Program.cs` (add to `modules` array).
+6. Provide optional services by implementing the shared interfaces:
+   - `IErpValidationService`
+   - `IErpDiagnosticService`
+   - `IErpRecommendationService`
+7. Run `dotnet build` + `erp__list_erps` to verify the module loads.
 
-### Embedded Files (48 total)
-```
-Knowledge/
-├── categories.json              # 7 operation categories
-├── vendor-operations.json       # 6 vendor ops (NEW)
-├── item-operations.json         # 4 item ops (NEW)
-├── operations.{category}.json   # Legacy format (still used)
-├── flows.*.json                 # 9 integration patterns
-└── kotlin/
-    ├── GOLDEN_PATTERNS.md       # exportVendor implementation
-    ├── TDD_WORKFLOW.md          # Test-driven methodology
-    └── *.xml                    # Workflow definitions
-```
+## Key Tool Patterns
 
-### Operation Model
-```csharp
-public sealed record Operation
-{
-    required public string Method { get; init; }
-    public string? EnumName { get; init; }  // Nullable!
-    required public string Summary { get; init; }
-    required public string Category { get; init; }
-    public Dictionary<string, FieldInfo> RequiredFields { get; init; }
-    // ... other fields
-}
-```
+- **Generic tools**: Live under `StampliMCP.McpServer.Unified/Tools/`.  They always accept an `erp` parameter and resolve the facade.
+- **Module tools**: Remain in their respective module assemblies (e.g., Acumatica Kotlin TDD helpers).  The unified host registers module tool assemblies so clients can still call them.
+- **Resource links**: Unified tools emit URIs of the form `mcp://stampli-unified/erp__<tool>?erp=<alias>&...` to encourage ERP-parameterized access.
 
-## Common Issues & Solutions
+## Build Targets
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Empty query results | JSON structure mismatch | RequiredFields must be FieldInfo objects, not strings |
-| MCP not reconnecting | Claude doesn't auto-reconnect | Run `/mcp` command manually |
-| Build access denied | exe still running | `taskkill /F /IM stampli-mcp-acumatica.exe` |
-| Knowledge not updating | Embedded resources | Rebuild after changing Knowledge/*.json |
-| Wrong error category | Pattern missing | Check ErrorDiagnosticTool.CategorizeError() |
+- `dotnet build` – Debug for unified server + modules.
+- `dotnet publish -r win-x64 --self-contained true /p:PublishSingleFile=true` – produces `stampli-mcp-unified.exe`.
+- Scripts (`mcp-runner.cmd`, wrappers) have been updated to point at the unified DLL/exe.
 
-## Testing Checklist
+## Tests
 
-After changes:
-1. Kill existing process
-2. Build Release
-3. Publish exe
-4. Run `/mcp` to reconnect
-5. Test `health_check()` - verify version
-6. Test `query_acumatica_knowledge("vendor")` - should return 6 ops
-7. Test `check_knowledge_files()` - should show 48 files
+`StampliMCP.E2E` drives the unified server over stdio for realistic, end‑to‑end validation. Use `dotnet test` on that project. Planner tests can use a real Claude CLI (set `CLAUDE_CLI_PATH`) or a local stub for deterministic runs.
 
-## Performance Notes
+## Aspire AppHost
 
-- Query returns ~500 bytes metadata
-- Full operation details ~2–5 KB
-- Embedded resources load once, cached in memory
-- Single-file exe ≈108 MB (includes .NET runtime)
+`StampliMCP.AppHost` now references the unified server (`mcp-unified`) so local multi-service environments automatically use the new binary.
 
-## Debug Commands
+## Pending/Next
 
-```bash
-# List embedded resources
-dotnet run -- list-resources
-
-# Check what's actually embedded
-grep "EmbeddedResource" *.csproj
-
-# Verify JSON structure
-jq . Knowledge/vendor-operations.json
-```
-
-## Version History
-
-- **4.0.0** (Oct 2025) - Current, 10 tools, fixed JSON structure
-- **3.0.0** - Obsolete "Nuclear" single-tool architecture
-- **2.x** - Legacy multi-tool versions
-- **1.x** - Initial prototypes
+- Update documentation/templates when new ERP modules are added.
+- Migrate any remaining code referencing the old Acumatica exe (search the repo for `McpServer.Acumatica`).
+- Consider adding tooling for automatic module discovery instead of hard-coding the array in `Program.cs` once module count grows.
+- Knowledge update planner: now exposed via `erp__knowledge_update_plan` with strict JSON parsing, environment-configurable CLI, and guarded apply to module `Knowledge/**`. Add E2E tests for dry-run/apply when feasible.

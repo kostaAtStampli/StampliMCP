@@ -147,6 +147,7 @@ public static class ErpKnowledgeTools
         [Description("ERP identifier (e.g., acumatica)")] string erp,
         [Description("Query text (operation name, entity, question)")] string query,
         [Description("Optional scope filter: operations, flows, constants, or all")] string? scope,
+        IMcpServer server,
         ErpRegistry registry,
         CancellationToken ct)
     {
@@ -156,7 +157,93 @@ public static class ErpKnowledgeTools
         var flowService = facade.Flow;
         var fuzzyMatcher = facade.GetService<FuzzyMatchingService>();
 
-        var structured = await BuildKnowledgeResult(erp, query, scope, knowledge, flowService, fuzzyMatcher, ct);
+                // Normalize scope to be case-insensitive across all branches
+        var normalizedScope = scope?.Trim().ToLowerInvariant();
+
+        // If scope is not provided or invalid, opportunistically elicit a scope from the user
+        var validScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "operations", "flows", "constants", "all" };
+        if (normalizedScope is null || !validScopes.Contains(normalizedScope))
+        {
+            try
+            {
+                var fields = new[]
+                {
+                    new Services.ElicitationCompat.Field(
+                        Name: "scope",
+                        Kind: "string",
+                        Description: "Choose scope: operations | flows | constants | all",
+                        Options: new[] { "operations", "flows", "constants", "all" }
+                    )
+                };
+
+                var (accepted, content) = await Services.ElicitationCompat.TryElicitAsync(
+                    server,
+                    "Select a scope to narrow the knowledge search.",
+                    fields,
+                    ct);
+
+                if (accepted && content is not null && content.TryGetValue("scope", out var scopeEl) && scopeEl.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var chosen = scopeEl.GetString();
+                    if (!string.IsNullOrWhiteSpace(chosen))
+                    {
+                        normalizedScope = chosen!.Trim().ToLowerInvariant();
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore elicitation failures; continue with existing scope
+            }
+        }
+
+
+        var structured = await BuildKnowledgeResult(erp, query, normalizedScope, knowledge, flowService, fuzzyMatcher, ct);
+
+        // If results are too broad, offer a refinement prompt
+        if ((structured.MatchedOperations?.Count ?? 0) > 20 || (structured.RelevantFlows?.Count ?? 0) > 10)
+        {
+            try
+            {
+                var fields = new[]
+                {
+                    new Services.ElicitationCompat.Field(
+                        Name: "refine",
+                        Kind: "string",
+                        Description: "Add keywords to refine (e.g., 'vendor export validation')"
+                    ),
+                    new Services.ElicitationCompat.Field(
+                        Name: "scope",
+                        Kind: "string",
+                        Description: "Optionally narrow scope again: operations | flows | constants | all",
+                        Options: new[] { "operations", "flows", "constants", "all" }
+                    )
+                };
+
+                var (accepted, content) = await Services.ElicitationCompat.TryElicitAsync(
+                    server,
+                    $"Found {structured.MatchedOperations.Count} operations and {structured.RelevantFlows.Count} flows. Refine your search?",
+                    fields,
+                    ct);
+
+                if (accepted && content is not null)
+                {
+                    var refine = content.TryGetValue("refine", out var refEl) && refEl.ValueKind == System.Text.Json.JsonValueKind.String ? refEl.GetString() : null;
+                    var scope2 = content.TryGetValue("scope", out var scEl) && scEl.ValueKind == System.Text.Json.JsonValueKind.String ? scEl.GetString() : null;
+                    var newScope = string.IsNullOrWhiteSpace(scope2) ? normalizedScope : scope2!.Trim().ToLowerInvariant();
+                    if (!string.IsNullOrWhiteSpace(refine) || !string.Equals(newScope, normalizedScope, StringComparison.Ordinal))
+                    {
+                        normalizedScope = newScope;
+                        structured = await BuildKnowledgeResult(erp, string.IsNullOrWhiteSpace(refine) ? query : refine!, normalizedScope, knowledge, flowService, fuzzyMatcher, ct);
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore elicitation failures
+            }
+        }
+
 
         var result = new CallToolResult
         {
@@ -257,7 +344,7 @@ public static class ErpKnowledgeTools
                     flowSummaries.Add(summary);
                 }
 
-                if (root.TryGetProperty("constants", out var constObj) && (scope is null or "all" || scope.Equals("constants", StringComparison.OrdinalIgnoreCase)))
+                if (root.TryGetProperty("constants", out var constObj) && (scope is null or "all" or "constants"))
                 {
                     foreach (var constant in constObj.EnumerateObject())
                     {
@@ -272,7 +359,7 @@ public static class ErpKnowledgeTools
                     }
                 }
 
-                if (root.TryGetProperty("validationRules", out var rules) && (scope is null || scope.Equals("all", StringComparison.OrdinalIgnoreCase)))
+                if (root.TryGetProperty("validationRules", out var rules) && (scope is null || scope is "all"))
                 {
                     foreach (var rule in rules.EnumerateArray())
                     {
@@ -284,7 +371,7 @@ public static class ErpKnowledgeTools
                     }
                 }
 
-                if (root.TryGetProperty("codeSnippets", out var snippetObj) && (scope is null || scope.Equals("all", StringComparison.OrdinalIgnoreCase)))
+                if (root.TryGetProperty("codeSnippets", out var snippetObj) && (scope is null || scope is "all"))
                 {
                     foreach (var snippet in snippetObj.EnumerateObject())
                     {

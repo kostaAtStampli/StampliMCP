@@ -1,120 +1,148 @@
-# Acumatica MCP Server
+# Stampli MCP – Unified Server
 
-MCP (Model Context Protocol) server for Acumatica ERP integration - provides AI with surgical access to 39 operations across 9 flows via code pointers instead of document dumps.
+A single MCP host that serves Stampli’s ERP knowledge base across multiple modules (Acumatica, Intacct, …).  Each ERP implements a library containing its embedded knowledge, services, and optional validation/diagnostics.  `StampliMCP.McpServer.Unified` discovers those libraries and exposes a consistent set of `erp__*` tools for clients.
 
-## Installation
+---
+**Server:** `stampli-mcp-unified`
+**Modules:** Acumatica (full), Intacct (stub)
+**Targets:** .NET 10 (preview SDK)
+**Docs Index:** See DOCS.md
+---
 
-### Claude Desktop
+## Quick Start
 
-Add to `claude_desktop_config.json`:
+### 1. Build (Debug)
+```bash
+# From repo root
+"/mnt/c/Program Files/dotnet/dotnet.exe" build StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj -c Debug --nologo
+```
+
+### 2. Run Locally
+```bash
+# Launch unified host
+"/mnt/c/Program Files/dotnet/dotnet.exe" run --project StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj
+```
+
+### 3. Configure MCP Client (example: Claude Desktop)
 ```json
 {
   "mcpServers": {
-    "stampli-acumatica": {
-      "command": "C:\\path\\to\\stampli-mcp-acumatica.exe"
+    "stampli-unified": {
+      "command": "C:\\Users\\YourName\\source\\repos\\StampliMCP\\StampliMCP.McpServer.Unified\\bin\\Debug\\net10.0\\stampli-mcp-unified.dll",
+      "args": []
     }
   }
 }
 ```
 
-### VS Code / Cursor
-
-Use the `.mcp.json` configuration in project root (check into git for team sharing).
-
-## Usage
-
-### Query Operations
-```typescript
-mcp__stampli-acumatica__query_acumatica_knowledge("vendor")
-// Returns: 6 vendor operations with summaries
-
-mcp__stampli-acumatica__query_acumatica_knowledge("payment")
-// Returns: Operations related to payments
-```
-
-### Key Tools
-
-| Tool | Purpose |
-|------|---------|
-| `list_flows` | List integration flows with descriptions and usedByOperations |
-| `get_flow_details` | Flow anatomy, constants, rules, code snippets |
-| `query_acumatica_knowledge` | Natural language search across operations/flows/constants |
-| `list_operations` | Enumerate operations by category with flow mapping |
-| `recommend_flow` | AI flow recommendation with alternatives/elicitation |
-| `validate_request` | Pre‑flight JSON validation using flow rules |
-| `diagnose_error` | Error diagnostics with related flow rules |
-| `list_prompts` | List registered MCP prompts |
-| `get_kotlin_golden_reference` | Kotlin golden reference (exportVendor) |
-| `health_check` | Server status/version + verification marker |
-| `check_knowledge_files` | List embedded knowledge resources |
-
-## Build & Deploy (Windows exe)
-
-```bash
-# Kill running process before publish (prevents file lock)
-"/mnt/c/Windows/System32/taskkill.exe" /F /IM stampli-mcp-acumatica.exe || true
-
-# Build Release (optional)
-"/mnt/c/Program Files/dotnet/dotnet.exe" build -c Release --nologo
-
-# Publish self-contained, single-file exe (≈108 MB)
-"/mnt/c/Program Files/dotnet/dotnet.exe" publish \
-  StampliMCP.McpServer.Acumatica/StampliMCP.McpServer.Acumatica.csproj \
-  -c Release -r win-x64 --self-contained \
-  /p:PublishSingleFile=true /p:PublishTrimmed=false /p:PublishAot=false --nologo
-```
-
-Output: `bin\Release\net10.0\win-x64\publish\stampli-mcp-acumatica.exe`
-
-## Architecture
-
-**"Code GPS, Not Document Dumper"**
-
-Instead of dumping massive JSON:
-1. LLM queries for lightweight operation metadata (~500 bytes)
-2. MCP returns summary + code pointers (file:line_range)
-3. LLM reads pointed files for deep understanding
-4. Result: ~10KB context vs 50KB+ dump
-
-## Project Structure
-
-```
-StampliMCP/
-├── CLAUDE.md              # AI context (autoloads)
-├── README.md              # This file
-├── TECHNICAL.md           # Developer reference
-└── StampliMCP.McpServer.Acumatica/
-    ├── Tools/             # 10 MCP tool implementations
-    ├── Services/          # Business logic
-    ├── Models/            # Data structures
-    └── Knowledge/         # 48 embedded JSON/MD files
-        ├── vendor-operations.json
-        ├── item-operations.json
-        └── kotlin/        # TDD patterns
-```
-
-## Quick Test
-
-After starting the server:
+### 4. Call Tools
 ```javascript
-// Health check (expects A3 marker in text content)
-mcp__stampli-acumatica__health_check()
-// status=ok version=4.0.0 ... #STAMPLI-MCP-2025-10-GOLDEN#
+// List registered ERPs
+mcp__erp__list_erps()
 
-// List flows (expects 9 flows and marker)
-mcp__stampli-acumatica__list_flows()
+// Query knowledge
+mcp__erp__query_knowledge({ erp: "acumatica", query: "vendor" })
 
-// Flow details (case-insensitive name)
-mcp__stampli-acumatica__get_flow_details("VENDOR_EXPORT_FLOW")
-
-// Knowledge query (empty flows scope lists all flows)
-mcp__stampli-acumatica__query_acumatica_knowledge("", "flows")
-
-// Validation (should flag VendorID > 15)
-mcp__stampli-acumatica__validate_request("exportVendor", "{\"vendorName\":\"A\",\"VendorID\":\"1234567890123456789\"}")
+// Validate a request (Acumatica module implements validation)
+mcp__erp__validate_request({ erp: "acumatica", operation: "exportVendor", requestPayload: "{\"VendorID\":\"123\"}" })
 ```
 
-## Support
+## Self-Contained Publish (Release)
+```bash
+"/mnt/c/Program Files/dotnet/dotnet.exe" publish \
+  StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj \
+  -c Release -r win-x64 --self-contained true \
+  /p:PublishSingleFile=true --nologo
+```
+Output: `StampliMCP.McpServer.Unified/bin/Release/net10.0/win-x64/publish/stampli-mcp-unified.exe`
 
-- [Technical Reference](./TECHNICAL.md) - WSL quirks, architecture decisions
-- [Java Legacy Code](file:///C:/STAMPLI4/core/src/main/java/com/stampli/integration/acumatica) - Source implementation
+## Architecture Overview
+
+```
+StampliMCP.McpServer.Unified/
+  Program.cs            # Host + registry wiring
+  Services/ErpRegistry  # ERP lookup + facade scope
+  Tools/erp__*.cs       # Generic tools (knowledge, flows, validation…)
+
+Modules/
+  StampliMCP.McpServer.Acumatica.Module/
+    Knowledge/          # Embedded JSON/MD/XML resources
+    Services/           # ERP-specific services (knowledge, flows, validation…)
+    Tools/              # Acumatica developer helpers
+  StampliMCP.McpServer.Intacct.Module/
+    Knowledge/          # Stub data for multi-ERP verification
+    Services/           # Thin wrappers over shared base classes
+```
+
+- `IErpModule` registers services and exposes metadata/capabilities.
+- `IErpFacade` creates a scoped view per tool call (solves DI lifetime issues).
+- Generic tools resolve a facade for the requested ERP and operate on shared models from `StampliMCP.Shared`.
+
+## Adding a New ERP Module
+
+1. `dotnet new classlib -n StampliMCP.McpServer.Foo.Module -f net10.0`
+2. Follow the Intacct module template:
+   - Create `Knowledge/` with categories, operations, flows.
+   - Implement `<Foo>KnowledgeService` / `<Foo>FlowService` inheriting the shared base classes.
+   - Implement `<Foo>Module` returning aliases, capabilities, and services.
+3. Register the module in `StampliMCP.McpServer.Unified/Program.cs` (add to the `modules` array).
+4. Provide optional validation/diagnostic/recommendation services by implementing the shared interfaces (e.g., `IErpValidationService`).
+5. Build and run `erp__list_erps` to verify the module loads.
+
+## Tool Surface (Unified)
+
+| Tool | Description |
+|------|-------------|
+| `erp__health_check` | Unified server status + registered ERPs |
+| `erp__list_erps` | Keys, aliases, capabilities |
+| `erp__query_knowledge` | Natural-language search over operations/flows (scope is case-insensitive; may prompt for scope/refinement if client supports elicitation) |
+| `erp__list_operations` | ERP operations with optional flow info |
+| `erp__list_flows` | ERP flows + usedByOperations |
+| `erp__get_flow_details` | Flow anatomy, constants, validation rules |
+| `erp__validate_request` | Pre-flight validation (if ERP module implements it) |
+| `erp__diagnose_error` | Error triage (module-provided) |
+| `erp__recommend_flow` | Flow recommendation (module-provided; may prompt to choose among alternatives) |
+| `erp__knowledge_update_plan` | Plan/apply knowledge updates from PR context (two-scan enforced) |
+| `erp__challenge_scan_findings` | Generate Scan‑2 questions from Scan‑1 results (ERP‑agnostic) |
+| `erp__list_prompts` | List prompts registered for the ERP module |
+| `erp__check_knowledge_files` | List embedded Knowledge resources for the ERP |
+
+Module-specific developer helpers (e.g., Kotlin TDD workflow) remain available and are registered via the module assembly.
+
+### Acumatica Helper Tools
+
+- `get_kotlin_golden_reference` – loads the Kotlin exportVendor reference bundle (mandatory before Kotlin TDD workflows). Falls back to embedded reference if local files are unavailable.
+- `kotlin_tdd_workflow` – prescriptive Kotlin implementation planner with enforced dual-file scan.
+- `acumatica__add_knowledge_from_pr_prompt` – prompt-only helper used historically for planning knowledge updates (replaced by `erp__knowledge_update_plan`).
+
+### Knowledge Update Planner
+
+- Use `erp__knowledge_update_plan(erp, prNumber?, learnings?, currentBranch?, dryRun=true)`
+  - Captures git context and ERP knowledge snapshot
+  - Requires STRICT JSON verdict; two-scan enforcement via `erp__challenge_scan_findings`
+  - When `dryRun=false` and schema valid, safely applies updates limited to `…/Module/Knowledge/**`
+  - Configure CLI via env (optional):
+    - `CLAUDE_CLI_PATH` (default `~/.local/bin/claude`)
+    - `CLAUDE_CLI_ARGS` (default `--print --dangerously-skip-permissions`)
+
+## Scripts & Shortcuts
+
+- `mcp-runner.cmd`, `mcp-wrapper.py`, `stampli-mcp-wrapper.sh`, `test-mcp-manual.sh`: all point at the unified host.
+- Aspire AppHost (`StampliMCP.AppHost`) orchestrates API, web UI, and unified MCP for local multi-service runs.
+
+## Testing
+
+`StampliMCP.E2E` runs end‑to‑end tests against the unified server over stdio.
+
+Examples:
+```bash
+"/mnt/c/Program Files/dotnet/dotnet.exe" build StampliMCP.E2E -c Debug --nologo
+"/mnt/c/Program Files/dotnet/dotnet.exe" test StampliMCP.E2E -c Debug --nologo
+```
+Planner tests can be enabled with a real Claude CLI by setting `CLAUDE_CLI_PATH`; otherwise they can use a local stub for deterministic runs.
+
+## Status
+
+- Acumatica module fully ported (knowledge, validation, developer tools).
+- Intacct module provides a stub dataset proving the multi-ERP wiring.
+- Ready to onboard additional ERPs by cloning the module template.

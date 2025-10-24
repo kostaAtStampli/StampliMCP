@@ -43,7 +43,7 @@ def forward_stream(input_stream, output_stream, should_filter=False):
 
 def main():
     # Path to the actual executable
-    exe_path = "/mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Acumatica/bin/Release/net10.0/win-x64/publish/stampli-mcp-acumatica.exe"
+    exe_path = "/mnt/c/Users/Kosta/source/repos/StampliMCP/StampliMCP.McpServer.Unified/bin/Debug/net10.0/stampli-mcp-unified.dll"
 
     # Set environment to suppress console logging
     env = os.environ.copy()
