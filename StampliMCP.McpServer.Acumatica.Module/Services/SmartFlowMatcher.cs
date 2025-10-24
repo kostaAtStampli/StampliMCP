@@ -3,6 +3,9 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using StampliMCP.Shared.Models;
 using StampliMCP.Shared.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace StampliMCP.McpServer.Acumatica.Services;
 
@@ -14,74 +17,58 @@ public sealed class SmartFlowMatcher
     private readonly FuzzyMatchingService _fuzzyMatcher;
     private readonly ILogger<SmartFlowMatcher> _logger;
 
-    public SmartFlowMatcher(FuzzyMatchingService fuzzyMatcher, ILogger<SmartFlowMatcher> logger)
+    private readonly SearchValues<string> _actionWords;
+    private readonly SearchValues<string> _entityWords;
+    private readonly Dictionary<string, string> _aliases;
+
+    public SmartFlowMatcher(FuzzyMatchingService fuzzyMatcher, ILogger<SmartFlowMatcher> logger, FlowMatchingConfiguration configuration)
     {
         _fuzzyMatcher = fuzzyMatcher;
         _logger = logger;
+
+        configuration ??= FlowMatchingConfiguration.CreateDefault();
+        var defaults = FlowMatchingConfiguration.CreateDefault();
+
+        var actionWords = (configuration.ActionWords?.Count > 0 ? configuration.ActionWords : defaults.ActionWords)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Select(w => w.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var entityWords = (configuration.EntityWords?.Count > 0 ? configuration.EntityWords : defaults.EntityWords)
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .Select(w => w.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _actionWords = SearchValues.Create(actionWords, StringComparison.OrdinalIgnoreCase);
+        _entityWords = SearchValues.Create(entityWords, StringComparison.OrdinalIgnoreCase);
+
+        var aliasSource = configuration.Aliases is { Count: > 0 } ? configuration.Aliases : defaults.Aliases;
+        _aliases = new Dictionary<string, string>(aliasSource, StringComparer.OrdinalIgnoreCase);
     }
-    // Pre-compiled SearchValues for ultra-fast matching (7x faster than Contains)
-    private static readonly SearchValues<string> ActionWords = SearchValues.Create(
-        ["import", "export", "sync", "send", "get", "fetch", "create", "retrieve", "pull", "push", "submit", "release"],
-        StringComparison.OrdinalIgnoreCase);
-
-    private static readonly SearchValues<string> EntityWords = SearchValues.Create(
-        ["vendor", "vendors", "invoice", "invoices", "bill", "bills", "payment", "payments",
-         "item", "items", "product", "products", "po", "purchase", "order", "orders", "transaction", "transactions"],
-        StringComparison.OrdinalIgnoreCase);
-
-    // Common aliases - map variations to canonical terms
-    private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["vendor"] = "vendor",
-        ["vendors"] = "vendor",
-        ["supplier"] = "vendor",
-        ["suppliers"] = "vendor",
-        ["payee"] = "vendor",
-        ["payees"] = "vendor",
-        ["seller"] = "vendor",
-        ["sellers"] = "vendor",
-        ["bill"] = "bill",
-        ["bills"] = "bill",
-        ["invoice"] = "bill",  // Acumatica uses "bill" terminology, not "invoice"
-        ["invoices"] = "bill",
-        ["ap"] = "bill",
-        ["aptransaction"] = "bill",
-        ["product"] = "item",
-        ["products"] = "item",
-        ["item"] = "item",
-        ["items"] = "item",
-        ["sku"] = "item",
-        ["skus"] = "item",
-        ["inventory"] = "item",
-        ["inventories"] = "item",
-        ["pay"] = "payment",
-        ["pays"] = "payment",
-        ["payment"] = "payment",
-        ["payments"] = "payment",
-        ["paying"] = "payment",
-        ["purchaseorder"] = "po",
-        ["purchaseorders"] = "po",
-        ["order"] = "order",
-        ["orders"] = "order",
-        ["transaction"] = "transaction",
-        ["transactions"] = "transaction"
-    };
 
     public FlowMatch AnalyzeQuery(string query)
     {
         // 1. Normalize and tokenize
         var normalized = query.ToLowerInvariant();
-        var words = normalized.Split([' ', ',', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
+        var originalWords = normalized.Split([' ', ',', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
 
         // 2. Apply aliases - replace synonyms with canonical terms
-        words = words.Select(w => Aliases.GetValueOrDefault(w, w)).ToArray();
+        var words = originalWords
+            .Select(w => _aliases.TryGetValue(w, out var mapped) ? mapped : w)
+            .ToArray();
 
-        // 3. Extract actions and entities using SearchValues (7x faster!)
-        var actions = words.Where(w => ActionWords.Contains(w)).ToList();
-        var entitiesRaw = words.Where(w => EntityWords.Contains(w)).ToList();
+        // 3. Extract actions and entities using SearchValues (ultra-fast lookup)
+        var actions = words
+            .Where(w => _actionWords.Contains(w))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        // 4. Normalize entities to singular canonical forms
-        var entities = entitiesRaw.Select(e => Aliases.GetValueOrDefault(e, e)).Distinct().ToList();
+        var entities = words
+            .Where(w => _entityWords.Contains(w))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         return new FlowMatch
         {

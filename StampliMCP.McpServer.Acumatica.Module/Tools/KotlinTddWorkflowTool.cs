@@ -209,7 +209,10 @@ FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TA
         // 4. TDD workflow: RED → GREEN → REFACTOR
 
         // STEP 1: Match feature to flow
-        var (matchedFlowName, confidence, reasoning) = flowService.MatchFeatureToFlowAsync(feature, ct);
+        var matchAnalysis = flowService.MatchFeatureToFlow(feature, ct);
+        var matchedFlowName = matchAnalysis.Primary.FlowName;
+        var confidence = matchAnalysis.Primary.ConfidenceLabel;
+        var reasoning = matchAnalysis.Primary.Reasoning;
         flowName = matchedFlowName;
         var flowDoc = await flowService.GetFlowAsync(flowName, ct);
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Unified.Services;
@@ -23,6 +24,7 @@ public static class ErpValidationTool
         [Description("ERP identifier (e.g., acumatica)")] string erp,
         [Description("Operation name (e.g., exportVendor)")] string operation,
         [Description("JSON request payload to validate")] string requestPayload,
+        IMcpServer server,
         ErpRegistry registry,
         CancellationToken ct)
     {
@@ -61,6 +63,41 @@ public static class ErpValidationTool
 
         var result = await validation.ValidateAsync(operation, requestPayload, ct);
 
+        if (!result.IsValid)
+        {
+            var missingFields = ExtractMissingFields(result.Errors);
+            if (missingFields.Count > 0)
+            {
+                var fields = new[]
+                {
+                    new Services.ElicitationCompat.Field(
+                        Name: "autoFix",
+                        Kind: "boolean",
+                        Description: $"Autofill placeholders for: {string.Join(", ", missingFields)}?")
+                };
+
+                var outcome = await Services.ElicitationCompat.TryElicitAsync(
+                    server,
+                    "Missing required fields detected. Autofill placeholder values?",
+                    fields,
+                    ct);
+
+                if (outcome.Supported && string.Equals(outcome.Action, "accept", StringComparison.OrdinalIgnoreCase) &&
+                    outcome.Content is { } content && content.TryGetValue("autoFix", out var autoFixElement) &&
+                    autoFixElement.ValueKind == JsonValueKind.True)
+                {
+                    var patched = TryBuildPatchedPayload(requestPayload, missingFields);
+                    if (patched is not null)
+                    {
+                        result.SuggestedPayload = patched;
+                        result.Suggestions ??= new List<string>();
+                        result.Suggestions.Add("SuggestedPayload contains placeholder values for missing fields. Replace and revalidate.");
+                    }
+                }
+            }
+        }
+
+
         result.Summary = result.IsValid
             ? $"Valid request for {operation} ({result.Flow})"
             : $"Invalid request for {operation}: {result.Errors.Count} error(s)";
@@ -88,7 +125,78 @@ public static class ErpValidationTool
                 }
             };
 
+        if (!result.IsValid && result.SuggestedPayload is not null)
+        {
+            result.NextActions.Add(new ResourceLinkBlock
+            {
+                Uri = "mcp://stampli-unified/erp__validate_request",
+                Name = "Re-run validation with SuggestedPayload",
+                Description = "Copy SuggestedPayload into payload before calling again."
+            });
+        }
+
         return BuildCallToolResult(result);
+    }
+
+    private static List<string> ExtractMissingFields(IEnumerable<ValidationError> errors)
+    {
+        var fields = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var error in errors ?? Enumerable.Empty<ValidationError>())
+        {
+            if (error.Rule is not ("required_fields" or "flow_required_field"))
+            {
+                continue;
+            }
+
+            var parts = (error.Field ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var part in parts)
+            {
+                if (!string.IsNullOrWhiteSpace(part))
+                {
+                    fields.Add(part.Trim());
+                }
+            }
+        }
+
+        return fields.ToList();
+    }
+
+    private static string? TryBuildPatchedPayload(string payload, IEnumerable<string> missingFields)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(payload))
+            {
+                return null;
+            }
+
+            var node = JsonNode.Parse(payload);
+            if (node is not JsonObject obj)
+            {
+                return null;
+            }
+
+            foreach (var field in missingFields)
+            {
+                if (string.IsNullOrWhiteSpace(field))
+                {
+                    continue;
+                }
+
+                var property = field.Trim();
+                if (!obj.ContainsKey(property))
+                {
+                    obj[property] = $"<TODO: provide {property}>";
+                }
+            }
+
+            return obj.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static CallToolResult BuildCallToolResult(ValidationResult result)

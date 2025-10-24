@@ -154,3 +154,66 @@ Content: { scope: "flows", refine: "export" }
 ## Error Handling Contracts
 - Tools never throw exceptions outward; errors are represented in result objects (`Errors`, `Solutions`, `Summary`).
 - Invalid inputs return structured errors (e.g., `ValidationResult.Errors` with `rule` and `expected`).
+
+---
+## Full JSON Examples
+
+- FlowRecommendation
+```
+{
+  "Summary": "Recommended flow 'export_po_flow' (HIGH)",
+  "FlowName": "export_po_flow",
+  "Confidence": 0.86,
+  "Reasoning": "entities po, actions export, keywords order",
+  "Details": {
+    "Name": "export_po_flow",
+    "Description": "Export purchase orders to Acumatica with validation...",
+    "Anatomy": { "Flow": "...", "Validation": "...", "Mapping": "...", "AdditionalInfo": { } },
+    "Constants": { "MAX_VENDORID_LENGTH": { "Name": "MAX_VENDORID_LENGTH", "Value": "30", "File": "...", "Line": 42, "Purpose": "id length" } },
+    "ValidationRules": [ "VendorID: required; max 30" ],
+    "CodeSnippets": { "serialize": "..." },
+    "CriticalFiles": [ { "File": "src/...", "Lines": "200-260", "Purpose": "mapping", "KeyPatterns": ["put("VendorID", ...)"] } ],
+    "NextActions": [ ]
+  },
+  "AlternativeFlows": [ { "Name": "po_matching_flow", "Confidence": 0.52, "Reason": "entity match but action ambiguous" } ],
+  "Scores": { "overall": 0.86, "entity": 1.0, "action": 0.8, "keywords": 0.5 },
+  "NextActions": [ { "Uri": "mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow=export_po_flow", "Name": "View export_po_flow details" } ]
+}
+```
+
+- ValidationResult
+```
+{
+  "IsValid": false,
+  "Operation": "exportVendor",
+  "Flow": "vendor_export_flow",
+  "Errors": [
+    { "Field": "VendorID", "Rule": "flow_required_field", "Message": "VendorID is required", "Expected": "Provide a value" }
+  ],
+  "Warnings": [],
+  "AppliedRules": [ "flow_required:VendorID" ],
+  "Suggestions": [ "Fix VendorID: Provide a value" ],
+  "SuggestedPayload": "{
+  "VendorID": "<TODO: provide VendorID>"
+}",
+  "NextActions": [
+    { "Uri": "mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow=vendor_export_flow", "Name": "Review flow rules" },
+    { "Uri": "mcp://stampli-unified/erp__validate_request", "Name": "Re-run validation with SuggestedPayload" }
+  ]
+}
+```
+
+- ErrorDiagnostic
+```
+{
+  "Summary": "Diagnostics completed for ERP 'acumatica'",
+  "ErrorMessage": "Invalid field: VendorID",
+  "ErrorCategory": "Validation",
+  "PossibleCauses": [ "VendorID missing", "VendorID exceeds max length" ],
+  "Solutions": [ { "Description": "Provide VendorID ≤ 30", "CodeExample": "payload.VendorID = 'ACU-123'" } ],
+  "RelatedFlowRules": [ "VendorID: required; max 30" ],
+  "PreventionTips": [ "Validate payload before sending" ],
+  "AdditionalContext": { "operation": "exportVendor", "stage": "export", "recentChanges": "false" },
+  "NextActions": [ { "Uri": "mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow=vendor_export_flow", "Name": "Review flow rules" } ]
+}
+```

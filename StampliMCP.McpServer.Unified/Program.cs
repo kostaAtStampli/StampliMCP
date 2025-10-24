@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Caching.Memory;
@@ -39,8 +40,9 @@ try
 
     builder.Services.AddMemoryCache(options =>
     {
-        options.SizeLimit = 200;
-        options.CompactionPercentage = 0.25;
+        options.SizeLimit = 2000;
+        options.CompactionPercentage = 0.20;
+        options.ExpirationScanFrequency = TimeSpan.FromMinutes(5);
     });
 
     // Register ERP modules

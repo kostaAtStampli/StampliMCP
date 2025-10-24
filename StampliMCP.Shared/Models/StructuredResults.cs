@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using ModelContextProtocol.Protocol;
 
@@ -133,6 +134,9 @@ public class FlowRecommendation
     [Description("Alternative flows that might also work")]
     public List<AlternativeFlow> AlternativeFlows { get; set; } = new();
 
+    [Description("Score breakdown (overall/action/entity/keywords)")]
+    public Dictionary<string, double> Scores { get; set; } = new();
+
     [Description("Next actions")]
     public List<ResourceLinkBlock> NextActions { get; set; } = new();
 }
@@ -178,6 +182,9 @@ public class ValidationResult
 
     [Description("Suggestions to fix errors")]
     public List<string> Suggestions { get; set; } = new();
+
+    [Description("Suggested payload with placeholders (when auto-fix is accepted)")]
+    public string? SuggestedPayload { get; set; }
 
     [Description("Next actions")]
     public List<ResourceLinkBlock> NextActions { get; set; } = new();
@@ -230,6 +237,9 @@ public class ErrorDiagnostic
 
     [Description("Tips to prevent this error in the future")]
     public List<string> PreventionTips { get; set; } = new();
+
+    [Description("User-provided context captured during elicitation")]
+    public Dictionary<string, string>? AdditionalContext { get; set; }
 
     [Description("Next actions")]
     public List<ResourceLinkBlock> NextActions { get; set; } = new();

@@ -1,0 +1,130 @@
+{
+  "flows": [
+    {
+      "name": "vendor_export_flow",
+      "actions": [
+        "export"
+      ],
+      "entities": [
+        "vendor"
+      ],
+      "keywords": [
+        "vendor",
+        "bank",
+        "ui"
+      ]
+    },
+    {
+      "name": "export_invoice_flow",
+      "actions": [
+        "export"
+      ],
+      "entities": [
+        "bill"
+      ],
+      "keywords": [
+        "invoice",
+        "bill"
+      ]
+    },
+    {
+      "name": "payment_flow",
+      "actions": [
+        "export",
+        "release"
+      ],
+      "entities": [
+        "payment"
+      ],
+      "keywords": [
+        "payment",
+        "cross",
+        "rate"
+      ]
+    },
+    {
+      "name": "export_po_flow",
+      "actions": [
+        "export"
+      ],
+      "entities": [
+        "po"
+      ],
+      "keywords": [
+        "purchase",
+        "order"
+      ]
+    },
+    {
+      "name": "po_matching_flow",
+      "actions": [
+        "import"
+      ],
+      "entities": [
+        "po"
+      ],
+      "keywords": [
+        "match",
+        "receipt"
+      ]
+    },
+    {
+      "name": "po_matching_full_import_flow",
+      "actions": [
+        "import"
+      ],
+      "entities": [
+        "po"
+      ],
+      "keywords": [
+        "all",
+        "bulk",
+        "closed"
+      ]
+    },
+    {
+      "name": "m2m_import_flow",
+      "actions": [
+        "import"
+      ],
+      "entities": [
+        "relationship"
+      ],
+      "keywords": [
+        "m2m",
+        "relationship",
+        "project"
+      ]
+    },
+    {
+      "name": "api_action_flow",
+      "actions": [
+        "action"
+      ],
+      "entities": [
+        "payment",
+        "bill"
+      ],
+      "keywords": [
+        "void",
+        "release",
+        "hold"
+      ]
+    },
+    {
+      "name": "standard_import_flow",
+      "actions": [
+        "import"
+      ],
+      "entities": [],
+      "keywords": [
+        "import",
+        "get",
+        "retrieve",
+        "fetch",
+        "list",
+        "search"
+      ]
+    }
+  ]
+}

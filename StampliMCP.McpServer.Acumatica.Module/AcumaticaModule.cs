@@ -32,6 +32,10 @@ public sealed class AcumaticaModule : IErpModule
     {
         services.AddSingleton<AcumaticaKnowledgeService>();
         services.AddSingleton<AcumaticaFlowService>();
+        services.AddSingleton<MatchingConfigurationProvider>();
+        services.AddSingleton<FlowMatchingConfiguration>(sp => sp.GetRequiredService<MatchingConfigurationProvider>().Configuration);
+        services.AddSingleton<FlowSignatureProvider>();
+        services.AddSingleton<IReadOnlyList<FlowSignature>>(sp => sp.GetRequiredService<FlowSignatureProvider>().Signatures);
 
         services.AddSingleton<FuzzyMatchingConfig>(_ => new FuzzyMatchingConfig
         {

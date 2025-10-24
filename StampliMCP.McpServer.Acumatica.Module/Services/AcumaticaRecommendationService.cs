@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using StampliMCP.Shared.Erp;
 using StampliMCP.Shared.Models;
+using System;
 
 namespace StampliMCP.McpServer.Acumatica.Services;
 
@@ -24,18 +25,33 @@ public sealed class AcumaticaRecommendationService : IErpRecommendationService
     public async Task<FlowRecommendation> RecommendAsync(string useCase, CancellationToken ct)
     {
         var description = useCase ?? string.Empty;
-        var (flowName, confidenceLabel, reasoning) = _flowService.MatchFeatureToFlowAsync(description, ct);
+        var analysis = _flowService.MatchFeatureToFlow(description, ct);
+        var primary = analysis.Primary;
 
-        var detail = await BuildFlowDetailAsync(flowName, ct);
+        var detail = await BuildFlowDetailAsync(primary.FlowName, ct);
 
         var recommendation = new FlowRecommendation
         {
-            FlowName = flowName,
-            Confidence = MapConfidence(confidenceLabel),
-            Reasoning = reasoning,
+            FlowName = primary.FlowName,
+            Confidence = Math.Clamp(primary.OverallScore, 0.0, 1.0),
+            Reasoning = primary.Reasoning,
             Details = detail,
-            Summary = $"Recommended flow '{flowName}' ({confidenceLabel})",
-            AlternativeFlows = new List<AlternativeFlow>(),
+            Summary = $"Recommended flow '{primary.FlowName}' ({primary.ConfidenceLabel})",
+            AlternativeFlows = analysis.Alternatives
+                .Select(a => new AlternativeFlow
+                {
+                    Name = a.FlowName,
+                    Confidence = Math.Clamp(a.OverallScore, 0.0, 1.0),
+                    Reason = a.Reasoning
+                })
+                .ToList(),
+            Scores = new Dictionary<string, double>
+            {
+                ["overall"] = Math.Clamp(primary.OverallScore, 0.0, 1.0),
+                ["entity"] = Math.Clamp(primary.EntityScore, 0.0, 1.0),
+                ["action"] = Math.Clamp(primary.ActionScore, 0.0, 1.0),
+                ["keywords"] = Math.Clamp(primary.KeywordScore, 0.0, 1.0)
+            },
             NextActions = new List<ResourceLinkBlock>
             {
                 new()
@@ -45,8 +61,8 @@ public sealed class AcumaticaRecommendationService : IErpRecommendationService
                 },
                 new()
                 {
-                    Uri = $"mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow={Uri.EscapeDataString(flowName)}",
-                    Name = $"View {flowName} details"
+                    Uri = $"mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow={Uri.EscapeDataString(primary.FlowName)}",
+                    Name = $"View {primary.FlowName} details"
                 }
             }
         };
@@ -145,14 +161,4 @@ public sealed class AcumaticaRecommendationService : IErpRecommendationService
         return detail;
     }
 
-    private static double MapConfidence(string label)
-    {
-        return label.ToUpperInvariant() switch
-        {
-            "HIGH" => 0.9,
-            "MEDIUM" => 0.6,
-            "LOW" => 0.3,
-            _ => 0.5
-        };
-    }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
@@ -17,6 +18,7 @@ public abstract class KnowledgeServiceBase
     protected readonly IMemoryCache Cache;
     protected readonly Assembly Assembly;
     private readonly ConcurrentDictionary<string, List<Operation>> _operationsByCategory = new();
+    private readonly ConcurrentDictionary<string, Operation> _operationIndex = new(StringComparer.OrdinalIgnoreCase);
 
     protected static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -152,6 +154,11 @@ public abstract class KnowledgeServiceBase
                         }
                     }
 
+                    foreach (var op in ops)
+                    {
+                        _operationIndex.TryAdd(op.Method, op);
+                    }
+
                     // Also store in concurrent dictionary for fast lookup
                     _operationsByCategory.TryAdd(category, ops);
 
@@ -189,9 +196,31 @@ public abstract class KnowledgeServiceBase
         {
             var ops = await GetOperationsByCategoryAsync(category.Name, ct);
             allOperations.AddRange(ops);
+
+            foreach (var op in ops)
+            {
+                _operationIndex.TryAdd(op.Method, op);
+            }
         }
 
         return allOperations;
+    }
+
+    public async Task<Operation?> GetOperationByMethodAsync(string method, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(method))
+        {
+            return null;
+        }
+
+        if (_operationIndex.TryGetValue(method, out var op))
+        {
+            return op;
+        }
+
+        await GetAllOperationsAsync(ct);
+        _operationIndex.TryGetValue(method, out op);
+        return op;
     }
 
     public async Task<List<EnumMapping>> GetEnumsAsync(CancellationToken ct = default)
