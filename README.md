@@ -11,10 +11,10 @@ dotnet publish StampliMCP.McpServer.Unified -c Release -r win-x64 --self-contain
 - Try `mcp_overview()`, `erp__list_erps()`, `erp__list_flows(erp="acumatica")`.
 
 ## Documentation (Canonical)
-- docs/START_HERE.md — orientation for humans and LLMs
-- docs/ARCHITECTURE.md — unified host + modules (with code refs)
-- docs/TOOLS_AND_SCHEMAS.md — tools catalog + structured result schemas
-- docs/KNOWLEDGE_AND_FLOWS.md — knowledge/flows JSON shapes and usage
+- docs/LLM_START_HERE.md — orientation for humans and LLMs
+- docs/LLM_ARCHITECTURE.md — unified host + modules (with code refs)
+- docs/LLM_TOOLS_AND_SCHEMAS.md — tools catalog + structured result schemas
+- docs/LLM_KNOWLEDGE_AND_FLOWS.md — knowledge/flows JSON shapes and usage
 - docs/DEVELOPER_GUIDE.md — build/publish/extend/test
 - docs/MANAGER_BRIEF.md — value, KPIs, roadmap
 

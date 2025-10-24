@@ -133,7 +133,7 @@ Use this tool when:
                 new { step = "Browse Acumatica knowledge", action = "tool", name = "erp__query_knowledge", args = "erp=acumatica&query=*" },
                 new { step = "Browse Intacct stub knowledge", action = "tool", name = "erp__query_knowledge", args = "erp=intacct&query=*" },
                 new { step = "Check server health", action = "tool", name = "erp__health_check", args = (string?)null },
-                new { step = "Docs: Start Here", action = "doc", name = "docs/START_HERE.md", args = (string?)null },                new { step = "Docs: Architecture", action = "doc", name = "docs/ARCHITECTURE.md", args = (string?)null },                new { step = "Docs: Tools & Schemas", action = "doc", name = "docs/TOOLS_AND_SCHEMAS.md", args = (string?)null },                new { step = "Docs: Knowledge & Flows", action = "doc", name = "docs/KNOWLEDGE_AND_FLOWS.md", args = (string?)null },                new { step = "Docs: Developer Guide", action = "doc", name = "docs/DEVELOPER_GUIDE.md", args = (string?)null },                new { step = "Docs: Manager Brief", action = "doc", name = "docs/MANAGER_BRIEF.md", args = (string?)null }
+                new { step = "Docs: Start Here", action = "doc", name = "docs/LLM_START_HERE.md", args = (string?)null },                new { step = "Docs: Architecture", action = "doc", name = "docs/LLM_ARCHITECTURE.md", args = (string?)null },                new { step = "Docs: Tools & Schemas", action = "doc", name = "docs/LLM_TOOLS_AND_SCHEMAS.md", args = (string?)null },                new { step = "Docs: Knowledge & Flows", action = "doc", name = "docs/LLM_KNOWLEDGE_AND_FLOWS.md", args = (string?)null },                new { step = "Docs: Developer Guide", action = "doc", name = "docs/DEVELOPER_GUIDE.md", args = (string?)null },                new { step = "Docs: Manager Brief", action = "doc", name = "docs/MANAGER_BRIEF.md", args = (string?)null }
             }
         };
 
@@ -174,10 +174,10 @@ Use this tool when:
         }
 
         // Canonical docs quick links
-        result.Content.Add(new ResourceLinkBlock { Uri = "docs/START_HERE.md", Name = "Docs: Start Here", Description = "Orientation for humans and LLMs" });
-        result.Content.Add(new ResourceLinkBlock { Uri = "docs/ARCHITECTURE.md", Name = "Docs: Architecture", Description = "Unified host + modules (code refs)" });
-        result.Content.Add(new ResourceLinkBlock { Uri = "docs/TOOLS_AND_SCHEMAS.md", Name = "Docs: Tools & Schemas", Description = "Catalog + structured outputs" });
-        result.Content.Add(new ResourceLinkBlock { Uri = "docs/KNOWLEDGE_AND_FLOWS.md", Name = "Docs: Knowledge & Flows", Description = "JSON shapes and usage" });
+        result.Content.Add(new ResourceLinkBlock { Uri = "docs/LLM_START_HERE.md", Name = "Docs: Start Here", Description = "Orientation for humans and LLMs" });
+        result.Content.Add(new ResourceLinkBlock { Uri = "docs/LLM_ARCHITECTURE.md", Name = "Docs: Architecture", Description = "Unified host + modules (code refs)" });
+        result.Content.Add(new ResourceLinkBlock { Uri = "docs/LLM_TOOLS_AND_SCHEMAS.md", Name = "Docs: Tools & Schemas", Description = "Catalog + structured outputs" });
+        result.Content.Add(new ResourceLinkBlock { Uri = "docs/LLM_KNOWLEDGE_AND_FLOWS.md", Name = "Docs: Knowledge & Flows", Description = "JSON shapes and usage" });
         result.Content.Add(new ResourceLinkBlock { Uri = "docs/DEVELOPER_GUIDE.md", Name = "Docs: Developer Guide", Description = "Build, publish, extend, test" });
         result.Content.Add(new ResourceLinkBlock { Uri = "docs/MANAGER_BRIEF.md", Name = "Docs: Manager Brief", Description = "Value, KPIs, roadmap" });
 

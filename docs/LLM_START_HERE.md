@@ -39,9 +39,9 @@
 - `mcp__validate_embedded_knowledge()` → Validates categories/operations/flows linkage across ERPs.
 
 ## Where To Read Next
-- Architecture: `docs/ARCHITECTURE.md`
-- Tools catalog and schemas: `docs/TOOLS_AND_SCHEMAS.md`
-- Knowledge and flows: `docs/KNOWLEDGE_AND_FLOWS.md`
+- Architecture: `docs/LLM_ARCHITECTURE.md`
+- Tools catalog and schemas: `docs/LLM_TOOLS_AND_SCHEMAS.md`
+- Knowledge and flows: `docs/LLM_KNOWLEDGE_AND_FLOWS.md`
 - Developer guide: `docs/DEVELOPER_GUIDE.md`
 - Manager brief: `docs/MANAGER_BRIEF.md`
 
