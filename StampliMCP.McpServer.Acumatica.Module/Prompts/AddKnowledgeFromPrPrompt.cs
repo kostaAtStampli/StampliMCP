@@ -99,9 +99,9 @@ Extract and return as **Scan 1 JSON**:
 
 ### STEP 3: Challenge Your Findings (PREVENT HALLUCINATION)
 
-After Scan 1, call the MCP tool **challenge_scan_findings** with:
+After Scan 1, invoke the built-in second-scan challenge generator with:
 ```
-challenge_scan_findings(
+second_scan_challenge_generator(
   scan1Results: ""<your Scan 1 JSON from STEP 2>"",
   challengeAreas: [""validation_rules"", ""line_numbers"", ""constants""]
 )
@@ -268,7 +268,7 @@ Return a JSON object with this structure:
 
 ✅ **MANDATORY**: Call erp__query_knowledge(erp=""acumatica"") FIRST (prevent duplicates)
 ✅ **MANDATORY**: Scan code location and verify it exists (STEP 2)
-✅ **MANDATORY**: Call challenge_scan_findings tool (STEP 3)
+✅ **MANDATORY**: Run the built-in second-scan challenge generator (STEP 3)
 ✅ **MANDATORY**: Re-scan and verify findings (STEP 4)
 ✅ **MANDATORY**: Trust Scan 2 results over Scan 1 (prevent hallucination)
 ✅ **MANDATORY**: Code location (file + lines) required for ADD verdict

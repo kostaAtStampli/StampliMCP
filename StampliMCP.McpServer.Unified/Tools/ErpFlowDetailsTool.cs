@@ -1,99 +1,58 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
-using StampliMCP.McpServer.Unified.Services;
 using StampliMCP.Shared.Models;
 using StampliMCP.Shared.Services;
 
 namespace StampliMCP.McpServer.Unified.Tools;
 
-[McpServerToolType]
-public static class ErpFlowDetailsTool
+internal static class FlowDetailsBuilder
 {
-    [McpServerTool(
-        Name = "erp__get_flow_details",
-        Title = "ERP Flow Details",
-        UseStructuredContent = true)]
-    [Description("Get complete details for a flow within a specific ERP module.")]
-    public static async Task<CallToolResult> GetFlowDetails(
-        [Description("ERP identifier (e.g., acumatica)")] string erp,
-        [Description("Flow name as defined in the module's flow catalog") ] string flow,
-        ErpRegistry registry,
-        CancellationToken ct)
+    internal static async Task<FlowDetail?> BuildAsync(string erp, string flowName, FlowServiceBase flowService, CancellationToken ct)
     {
-        using var facade = registry.GetFacade(erp);
-        var flowService = facade.Flow ?? throw new InvalidOperationException($"ERP '{erp}' does not expose flow metadata.");
-
-        var doc = await flowService.GetFlowAsync(flow, ct);
-        if (doc is null)
+        var document = await flowService.GetFlowAsync(flowName, ct);
+        if (document is null)
         {
-            var notFound = new FlowDetail
-            {
-                Name = flow,
-                Description = $"Flow '{flow}' not found",
-                NextActions = new List<ResourceLinkBlock>
-                {
-                    new()
-                    {
-                        Uri = $"mcp://stampli-unified/erp__list_flows?erp={erp}",
-                        Name = "List available flows"
-                    }
-                }
-            };
-
-            var nfResult = new CallToolResult
-            {
-                StructuredContent = JsonSerializer.SerializeToNode(new { result = notFound })
-            };
-
-            nfResult.Content.Add(new TextContentBlock
-            {
-                Type = "text",
-                Text = JsonSerializer.Serialize(notFound, new JsonSerializerOptions { WriteIndented = true })
-            });
-
-            return nfResult;
+            return null;
         }
 
-        var root = doc.RootElement;
+        var root = document.RootElement;
         var detail = new FlowDetail
         {
-            Name = flow,
+            Name = flowName,
             Description = root.TryGetProperty("description", out var desc) ? desc.GetString() ?? string.Empty : string.Empty,
+            Anatomy = new FlowAnatomy(),
+            Constants = new Dictionary<string, ConstantInfo>(),
+            ValidationRules = new List<string>(),
+            CodeSnippets = new Dictionary<string, string>(),
+            CriticalFiles = new List<FileReference>(),
             NextActions = new List<ResourceLinkBlock>
             {
                 new()
                 {
-                    Uri = $"mcp://stampli-unified/erp__list_operations?erp={erp}",
-                    Name = "Review operations"
+                    Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(flowName)}&scope=flows",
+                    Name = "Search flow knowledge"
                 },
                 new()
                 {
-                    Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(flow)}",
-                    Name = "Search related knowledge"
+                    Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query=*&scope=operations",
+                    Name = "Browse operations"
                 }
             }
         };
 
         if (root.TryGetProperty("anatomy", out var anatomyNode))
         {
-            var anatomy = new FlowAnatomy
-            {
-                Flow = anatomyNode.TryGetProperty("flow", out var flowStep) ? flowStep.GetString() ?? string.Empty : string.Empty,
-                Validation = anatomyNode.TryGetProperty("validation", out var validation) ? validation.GetString() : null,
-                Mapping = anatomyNode.TryGetProperty("mapping", out var mapping) ? mapping.GetString() : null,
-            };
-
-            var additional = anatomyNode.EnumerateObject()
+            detail.Anatomy.Flow = anatomyNode.TryGetProperty("flow", out var flowStep) ? flowStep.GetString() ?? string.Empty : string.Empty;
+            detail.Anatomy.Validation = anatomyNode.TryGetProperty("validation", out var validation) ? validation.GetString() : null;
+            detail.Anatomy.Mapping = anatomyNode.TryGetProperty("mapping", out var mapping) ? mapping.GetString() : null;
+            detail.Anatomy.AdditionalInfo = anatomyNode.EnumerateObject()
                 .Where(p => p.Name is not "flow" and not "validation" and not "mapping")
                 .ToDictionary(p => p.Name, p => p.Value.GetString() ?? string.Empty);
-
-            anatomy.AdditionalInfo = additional;
-            detail.Anatomy = anatomy;
         }
 
         if (root.TryGetProperty("constants", out var constantsNode))
@@ -148,36 +107,22 @@ public static class ErpFlowDetailsTool
 
         if (root.TryGetProperty("usedByOperations", out var usedByNode))
         {
+            var operations = usedByNode.EnumerateArray()
+                .Select(e => e.GetString())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s!)
+                .ToList();
+
             detail.NextActions.Insert(0, new ResourceLinkBlock
             {
-                Uri = $"mcp://stampli-unified/erp__list_operations?erp={erp}",
-                Name = $"Operations using {flow}",
-                Description = string.Join(", ", usedByNode.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!))
+                Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(flowName)}&scope=operations",
+                Name = $"Operations using {flowName}",
+                Description = string.Join(", ", operations)
             });
         }
 
-        detail.Summary = $"{flow}: constants={detail.Constants.Count}, validationRules={detail.ValidationRules.Count}";
+        detail.Summary = $"{flowName}: constants={detail.Constants.Count}, validationRules={detail.ValidationRules.Count}";
 
-        var callResult = new CallToolResult
-        {
-            StructuredContent = JsonSerializer.SerializeToNode(new { result = detail })
-        };
-
-        callResult.Content.Add(new TextContentBlock
-        {
-            Type = "text",
-            Text = JsonSerializer.Serialize(detail, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-            })
-        });
-
-        foreach (var link in detail.NextActions)
-        {
-            callResult.Content.Add(link);
-        }
-
-        return callResult;
+        return detail;
     }
 }

@@ -348,7 +348,7 @@ public class FileReference
 
 // ================== Knowledge Extraction (Auto-Update from Code Scans) ==================
 
-[Description("Result from challenge_scan_findings MCP tool")]
+[Description("Result from built-in second-scan challenge generator")]
 public sealed class ChallengeScanResult
 {
     [Description("Summary of what Scan 1 found")]

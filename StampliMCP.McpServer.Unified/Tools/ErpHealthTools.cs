@@ -12,38 +12,6 @@ namespace StampliMCP.McpServer.Unified.Tools;
 [McpServerToolType]
 public static class ErpHealthTools
 {
-    [McpServerTool(Name = "erp__list_erps", Title = "List Registered ERPs", UseStructuredContent = true)]
-    [Description("Returns registered ERPs with aliases and capability flags.")]
-    public static CallToolResult ListErps(ErpRegistry registry)
-    {
-        var erps = registry.ListErps()
-            .Select(d => new
-            {
-                key = d.Key,
-                aliases = d.Aliases,
-                capabilities = ExpandCapabilities(d.Capabilities),
-                version = d.Version,
-                description = d.Description
-            })
-            .OrderBy(d => d.key)
-            .ToList();
-
-        var result = new CallToolResult
-        {
-            StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = erps })
-        };
-
-        result.Content.Add(new TextContentBlock
-        {
-            Type = "text",
-            Text = System.Text.Json.JsonSerializer.Serialize(erps, new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true
-            })
-        });
-
-        return result;
-    }
 
     [McpServerTool(Name = "erp__health_check", Title = "Unified MCP Health", UseStructuredContent = true)]
     [Description("Provides server health info plus registered ERP summary.")]

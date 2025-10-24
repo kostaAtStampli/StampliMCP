@@ -1,3 +1,4 @@
+#if DEV_TOOLS
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -59,7 +60,7 @@ Use this tool when:
                 version = ServerVersion,
                 binary = PublishPath,
                 toolNamespace = "erp__*",
-                registryTool = "erp__list_erps",
+                registryTool = "erp__health_check",
                 healthTool = "erp__health_check",
                 logDirectory = "%TEMP%/mcp_logs/unified"
             },
@@ -102,15 +103,15 @@ Use this tool when:
                 },
                 maintain = new[]
                 {
-                    "Validate module health with `erp__list_erps` and `erp__health_check`.",
+                    "Validate module health with `erp__health_check` (registered ERPs + diagnostics).",
                     "Search knowledge via `erp__query_knowledge` to confirm new content is embedded.",
-                    "Surface flows with `erp__list_flows` / `erp__get_flow_details` before releasing guidance.",
+                    "Surface flows with `erp__query_knowledge` (scope=flows) before releasing guidance.",
                     "Use `erp__validate_request` / `erp__diagnose_error` once validation hooks are implemented."
                 }
             },
             keyTools = new[]
             {
-                new { name = "erp__list_erps", purpose = "Inventory registered ERP modules and capability flags." },
+                new { name = "erp__health_check", purpose = "Inventory registered ERP modules and capability flags." },
                 new { name = "erp__query_knowledge", purpose = "Search operations/flows per ERP (requires `erp` argument)." },
                 new { name = "erp__recommend_flow", purpose = "Flow recommendations leveraging shared intelligence services." },
                 new { name = "erp__validate_request", purpose = "ERP-specific payload validation (where implemented)." },
@@ -129,7 +130,7 @@ Use this tool when:
             },
             nextActions = new List<object>
             {
-                new { step = "Discover registered ERPs", action = "tool", name = "erp__list_erps", args = (string?)null },
+                new { step = "Discover registered ERPs", action = "tool", name = "erp__health_check", args = (string?)null },
                 new { step = "Browse Acumatica knowledge", action = "tool", name = "erp__query_knowledge", args = "erp=acumatica&query=*" },
                 new { step = "Browse Intacct stub knowledge", action = "tool", name = "erp__query_knowledge", args = "erp=intacct&query=*" },
                 new { step = "Check server health", action = "tool", name = "erp__health_check", args = (string?)null },
@@ -151,7 +152,7 @@ Use this tool when:
 
         result.Content.Add(new ResourceLinkBlock
         {
-            Uri = "mcp://stampli-unified/erp__list_erps",
+            Uri = "mcp://stampli-unified/erp__health_check",
             Name = "List registered ERPs"
         });
 
@@ -200,3 +201,5 @@ Use this tool when:
         return flags;
     }
 }
+
+#endif

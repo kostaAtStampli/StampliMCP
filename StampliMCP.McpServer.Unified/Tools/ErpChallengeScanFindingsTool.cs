@@ -1,24 +1,14 @@
-using System.ComponentModel;
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
-using ModelContextProtocol.Server;
 
 namespace StampliMCP.McpServer.Unified.Tools;
 
-[McpServerToolType]
-public static class ErpChallengeScanFindingsTool
+internal static class ChallengeScanGenerator
 {
-    [McpServerTool(
-        Name = "erp__challenge_scan_findings",
-        Title = "Two-Scan Challenge Generator (ERP-agnostic)",
-        UseStructuredContent = true
-    )]
-    [Description("Generate skeptical verification questions from Scan 1 results to enforce a second, deeper scan.")]
-    public static ChallengeScanResult Execute(
-        [Description("Scan 1 results as JSON string")] string scan1Results,
-        [Description("Areas to challenge: validation_rules, line_numbers, constants, kotlin_files, test_coverage, operation_count")] string[] challengeAreas
-    )
+    internal static ChallengeScanResult Generate(string scan1Results, IReadOnlyCollection<string> challengeAreas)
     {
-        Serilog.Log.Information("Tool {Tool} started: ERP-agnostic Scan 2 challenges", "erp__challenge_scan_findings");
+        Serilog.Log.Information("Challenge scan generation started");
 
         try
         {
@@ -79,36 +69,30 @@ Return JSON with method count and scenario summaries.");
                 }
             }
 
-            return new ChallengeScanResult
-            {
-                Scan1Summary = string.Join("; ", summary),
-                ChallengeQuestions = challenges.ToArray(),
-                ChallengeCount = challenges.Count,
-                Instruction = @"SCAN 2 WORKFLOW:
+            return new ChallengeScanResult(
+                string.Join("; ", summary),
+                challenges.ToArray(),
+                challenges.Count,
+                @"SCAN 2 WORKFLOW:
 1) Ask these questions systematically
 2) Re-scan files and verify every claim
 3) Prefer Scan 2 where it corrects Scan 1
-4) Update knowledge using verified evidence"
-            };
+4) Update knowledge using verified evidence");
         }
         catch (Exception ex)
         {
-            Serilog.Log.Error(ex, "Tool {Tool} failed: {Error}", "erp__challenge_scan_findings", ex.Message);
-            return new ChallengeScanResult
-            {
-                Scan1Summary = "Error parsing Scan 1 results",
-                ChallengeQuestions = new[] { "Invalid Scan 1 JSON" },
-                ChallengeCount = 0,
-                Instruction = ex.Message
-            };
+            Serilog.Log.Error(ex, "Challenge scan generation failed: {Error}", ex.Message);
+            return new ChallengeScanResult(
+                "Error parsing Scan 1 results",
+                new[] { "Invalid Scan 1 JSON" },
+                0,
+                ex.Message);
         }
     }
 }
 
-public sealed class ChallengeScanResult
-{
-    public string? Scan1Summary { get; set; }
-    public string[] ChallengeQuestions { get; set; } = Array.Empty<string>();
-    public int ChallengeCount { get; set; }
-    public string? Instruction { get; set; }
-}
+internal sealed record ChallengeScanResult(
+    string? Scan1Summary,
+    IReadOnlyList<string> ChallengeQuestions,
+    int ChallengeCount,
+    string? Instruction);

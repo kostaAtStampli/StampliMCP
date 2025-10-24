@@ -8,7 +8,7 @@ One executable MCP server that exposes ERP‑specific knowledge and tools behind
 dotnet publish StampliMCP.McpServer.Unified -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
 ```
 - Point your MCP client at the published `stampli-mcp-unified.exe`.
-- Try `mcp_overview()`, `erp__list_erps()`, `erp__list_flows(erp="acumatica")`.
+- Try `erp__health_check()`, `erp__query_knowledge(erp="acumatica", query="vendor", scope="operations")`, `erp__recommend_flow(erp="acumatica", useCase="export vendors")`.
 
 ## Documentation (Canonical)
 - docs/LLM_START_HERE.md — orientation for humans and LLMs

@@ -16,7 +16,7 @@ public sealed class TwoScanEnforcementPrompt
     [Description(@"
 Enforces two-scan pattern for knowledge extraction to prevent LLM hallucination:
 1. Scan 1: Broad discovery scan with user-provided questions
-2. MCP Tool: challenge_scan_findings generates skeptical verification questions
+2. Built-in second-scan challenge generator produces skeptical verification questions
 3. Scan 2: Deep verification scan with generated challenges
 4. Result: ExtractedKnowledge with verified, accurate information
 
@@ -72,7 +72,7 @@ CRITICAL RULES FOR SCAN 1:
    }}
 
 ## SCAN 2: Challenge and Verification
-After Scan 1, call the MCP tool 'challenge_scan_findings' with:
+After Scan 1, run the built-in second-scan challenge generator with:
 - scan1Results: Your Scan 1 JSON results
 - challengeAreas: [{string.Join(", ", challengeAreasList.Select(a => $"\"{a}\""))}]
 

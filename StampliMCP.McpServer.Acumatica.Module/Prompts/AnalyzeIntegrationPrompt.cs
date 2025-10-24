@@ -29,9 +29,9 @@ public sealed class AnalyzeIntegrationPrompt
                 **Requirement**: {requirement}
 
                 **Available MCP Tools** (unified):
-                - `erp__query_knowledge(erp, query, scope?)` – Search operations/flows/constants
-                - `erp__list_operations(erp)` – List operations inventory
-                - `erp__list_flows(erp)` – List flows; `erp__get_flow_details(erp, flow)` – Details
+                - `erp__query_knowledge(erp, query, scope?)` – Search operations/flows/constants (use scope to narrow)
+                - `erp__recommend_flow(erp, useCase)` – Flow recommendations with anatomy/constants/validation
+                - `erp__validate_request(erp, operation, payload)` – Flow-driven payload validation
 
                 **Analysis Framework**:
                 Please provide:
@@ -55,9 +55,9 @@ public sealed class AnalyzeIntegrationPrompt
                 - Estimated operations needed: {EstimateOperationCount(requirement)}
 
                 Let me use the MCP tools to get detailed analysis:
-                1. First, I'll search for operations matching key entities via `erp__query_knowledge(erp='acumatica', query=...)`
-                2. Then list flows and inspect details via `erp__list_flows` + `erp__get_flow_details`
-                3. Finally, build effort/complexity assessment from flow constants and validation rules
+                1. First, I'll search for operations matching key entities via `erp__query_knowledge(erp='acumatica', query=..., scope='operations')`
+                2. Then I'll call `erp__recommend_flow(erp='acumatica', useCase=...)` to inspect flow anatomy/constants
+                3. Finally, I'll build effort/complexity assessment from flow validation rules and critical files
 
                 Starting analysis now...
                 """),

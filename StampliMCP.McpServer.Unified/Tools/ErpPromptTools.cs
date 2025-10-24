@@ -1,3 +1,4 @@
+#if DEV_TOOLS
 using System.ComponentModel;
 using System.Reflection;
 using ModelContextProtocol;
@@ -46,3 +47,5 @@ public static class ErpPromptTools
     }
 }
 
+
+#endif

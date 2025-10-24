@@ -38,7 +38,7 @@
 
 ## Observability
 - Logs include fuzzy matching, flow loads, initialization, elicitation actions (Debug).
-- `mcp__validate_embedded_knowledge` verifies categories/operations/flows linkage.
+- `erp__knowledge_update_plan(erp, mode="validate")` verifies categories/operations/flows linkage.
 
 ---
 ## Request Flow (End‑to‑End)
@@ -58,7 +58,7 @@
 - Each ERP ships its own `Knowledge/**` (categories, operations, flows, optional synonyms/signatures).
 - The host only wires modules; no cross‑module coupling.
 - Matching is per‑ERP configurable via `Knowledge/matching.json` and `Knowledge/flow-signatures.json`.
-- Knowledge schema validation tool (`mcp__validate_embedded_knowledge`) guards drift.
+- Knowledge schema validation tool (`erp__knowledge_update_plan(erp, mode="validate")`) guards drift.
 
 ## SDK Notes (Verified)
 - Elicitation uses typed `ElicitRequestParams` via `IMcpServer` (SDK 0.4.0‑preview.3). Code: `ElicitationCompat.TryElicitAsync`.

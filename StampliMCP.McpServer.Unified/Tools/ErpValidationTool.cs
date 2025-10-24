@@ -107,7 +107,7 @@ public static class ErpValidationTool
             {
                 new ResourceLinkBlock
                 {
-                    Uri = $"mcp://stampli-unified/erp__list_operations?erp={erp}",
+                    Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query=*&scope=operations",
                     Name = "Review operations"
                 }
             }
@@ -120,7 +120,7 @@ public static class ErpValidationTool
                 },
                 new ResourceLinkBlock
                 {
-                    Uri = $"mcp://stampli-unified/erp__get_flow_details?erp={erp}&flow={result.Flow}",
+                    Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(result.Flow ?? string.Empty)}&scope=flows",
                     Name = "Review flow rules"
                 }
             };

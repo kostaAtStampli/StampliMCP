@@ -16,10 +16,10 @@
   - Env: `MCP_DEBUG=true` (optional)
 
 ## First Calls To Try
-- `mcp_overview()` → High-level architecture and next actions.
-- `erp__list_erps()` → Registered ERPs + capabilities.
-- `erp__list_flows(erp="acumatica")` → Flow catalog for an ERP.
-- `erp__query_knowledge(erp="acumatica", query="*")` → Browse categories/operations/flows.
+- `erp__health_check()` → Server status + registered ERPs.
+- `erp__query_knowledge(erp="acumatica", query="vendor", scope="operations")` → Browse operation catalog.
+- `erp__query_knowledge(erp="acumatica", query="purchase order", scope="flows")` → Flow catalog with constants/rules.
+- `erp__recommend_flow(erp="acumatica", useCase="export vendors")` → Flow anatomy + guidance.
 
 ## Elicitation (Prompts)
 - The server may ask you to choose a scope (operations | flows | constants | all) or refine ambiguous queries.
@@ -34,8 +34,8 @@
 
 ## Useful Health/Debug
 - `erp__health_check()` → Status + ERP summary.
-- `erp__check_knowledge_files(erp)` → Lists embedded Knowledge resources for the ERP.
-- `mcp__validate_embedded_knowledge()` → Validates categories/operations/flows linkage across ERPs.
+- `erp__knowledge_update_plan(erp, mode="files")` → Lists embedded knowledge assets.
+- `erp__knowledge_update_plan(erp, mode="validate")` → Validates categories/operations/flows linkage.
 
 ## Where To Read Next
 - Architecture: `docs/LLM_ARCHITECTURE.md`
@@ -47,9 +47,9 @@
 ---
 ## Common Scenarios
 - Explore an ERP module
-  1) `erp__list_flows(erp="acumatica")`
-  2) `erp__get_flow_details(erp="acumatica", flow="vendor_export_flow")`
-  3) `erp__query_knowledge(erp="acumatica", query="vendor export", scope="flows")`
+  1) `erp__query_knowledge(erp="acumatica", query="vendor", scope="operations")`
+  2) `erp__query_knowledge(erp="acumatica", query="vendor", scope="flows")`
+  3) `erp__recommend_flow(erp="acumatica", useCase="vendor export")` for anatomy/constants/validation
 - Find the right flow for a vague ask
   1) `erp__recommend_flow(erp="acumatica", useCase="sync POs")`
   2) If prompted, pick between export/import/matching/bulk
@@ -64,9 +64,9 @@
   - Check client logs for `initialize.capabilities.elicitation`.
   - Server continues without prompts when the client declines; refine manually if needed.
 - Flow not found
-  - Verify name from `erp__list_flows(erp)` and try again.
+  - Run `erp__query_knowledge(erp, query="*", scope="flows")` to confirm the flow name.
 - Knowledge mismatch
-  - Run `mcp__validate_embedded_knowledge()`; rebuild if knowledge was edited.
+  - Run `erp__knowledge_update_plan(erp, mode="validate")`; rebuild if knowledge was edited.
 
 ## Tips
 - Use explicit `erp` everywhere—tools are unified.

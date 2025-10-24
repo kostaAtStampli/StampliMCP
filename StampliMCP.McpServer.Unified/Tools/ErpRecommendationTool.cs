@@ -29,6 +29,7 @@ public static class ErpRecommendationTool
     {
         using var facade = registry.GetFacade(erp);
         var recommender = facade.GetService<IErpRecommendationService>();
+        var flowService = facade.Flow;
 
         FlowRecommendation recommendation;
         if (recommender is null)
@@ -113,13 +114,33 @@ public static class ErpRecommendationTool
             }
 
             EnsureLowConfidenceFallbacks(recommendation, erp, useCase, lowConfidence, elicitationHandled);
-        }
 
-        recommendation.NextActions.Add(new ResourceLinkBlock
-        {
-            Uri = $"mcp://stampli-unified/erp__list_flows?erp={erp}",
-            Name = "Browse flows"
-        });
+            if (recommendation.Details is null && flowService is not null && !string.IsNullOrWhiteSpace(recommendation.FlowName) && !string.Equals(recommendation.FlowName, "UNKNOWN", StringComparison.OrdinalIgnoreCase))
+            {
+                var detail = await FlowDetailsBuilder.BuildAsync(erp, recommendation.FlowName, flowService, ct).ConfigureAwait(false);
+                if (detail is not null)
+                {
+                    recommendation.Details = detail;
+                }
+            }
+
+            recommendation.NextActions ??= new List<ResourceLinkBlock>();
+
+            if (!string.IsNullOrWhiteSpace(recommendation.FlowName) && !string.Equals(recommendation.FlowName, "UNKNOWN", StringComparison.OrdinalIgnoreCase))
+            {
+                AddLink(
+                    recommendation.NextActions,
+                    $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(recommendation.FlowName)}&scope=flows",
+                    $"Search {recommendation.FlowName}",
+                    "Open detailed flow guidance.");
+            }
+
+            AddLink(
+                recommendation.NextActions,
+                $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query=*&scope=flows",
+                "Browse flows",
+                "Explore flow catalog.");
+        }
 
         var callResult = new CallToolResult
         {

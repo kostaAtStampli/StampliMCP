@@ -1,3 +1,4 @@
+#if DEV_TOOLS
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -273,7 +274,8 @@ FAILURE TO CALL get_kotlin_golden_reference OR SCAN JAVA FILES = REJECTION OF TA
             },
 
             // TDD WORKFLOW
-            yourTddWorkflow = @"
+            yourTddWorkflow =
+            @"
 OUTPUT EXACTLY THIS FORMAT:
 
 ═══ KOTLIN GOLDEN REFERENCE (READ FIRST!) ═══
@@ -290,8 +292,8 @@ SCAN all 3 files to learn Kotlin patterns before implementing:
 2. [repeat for ALL files in criticalFiles below]
 ═══════════════════
 
-## TDD Steps
-1. [RED] Write test using Kotlin patterns from golden reference...
+            " + "## TDD Steps\n" +
+            @"1. [RED] Write test using Kotlin patterns from golden reference...
 2. [GREEN] Implement using Kotlin syntax from exportVendor example...
 
 PROOF REQUIRED: Your response must show you read BOTH Kotlin golden reference AND Java files.
@@ -728,3 +730,4 @@ override fun {operation.Method}(request: {GetRequestClassName(operation.Method)}
         };
     }
 }
+#endif

@@ -31,7 +31,7 @@ public sealed class KotlinFeaturePrompt
 
                 **Available MCP Tools** (unified):
                 - `erp__query_knowledge(erp, query, scope?)` – Find relevant operations
-                - `erp__get_flow_details(erp, flow)` – Get flow details (validation, constants, critical files)
+                - `erp__recommend_flow(erp, useCase)` – Get flow guidance (validation, constants, critical files)
                 - File reading tools - Scan legacy Java code
                 - File writing tools - Create Kotlin tests and implementation
                 - Bash tools - Run tests and verify RED/GREEN phases
@@ -78,7 +78,7 @@ public sealed class KotlinFeaturePrompt
                 """
                 Good! After you've identified operations, follow this sequence:
 
-                **Step 2**: Call `erp__get_flow_details(erp, flow)` for operations with known flows
+                **Step 2**: Call `erp__recommend_flow(erp, useCase)` for operations with known flows
                 **Step 3**: Read legacy code files (use file pointers from Step 2)
                 **Step 4**: Write tests FIRST (TDD RED phase)
                 **Step 5**: Run tests - VERIFY they FAIL

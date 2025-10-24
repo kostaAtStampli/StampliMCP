@@ -52,19 +52,7 @@ public sealed class AcumaticaRecommendationService : IErpRecommendationService
                 ["action"] = Math.Clamp(primary.ActionScore, 0.0, 1.0),
                 ["keywords"] = Math.Clamp(primary.KeywordScore, 0.0, 1.0)
             },
-            NextActions = new List<ResourceLinkBlock>
-            {
-                new()
-                {
-                    Uri = "mcp://stampli-unified/erp__list_flows?erp=acumatica",
-                    Name = "Browse all flows"
-                },
-                new()
-                {
-                    Uri = $"mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow={Uri.EscapeDataString(primary.FlowName)}",
-                    Name = $"View {primary.FlowName} details"
-                }
-            }
+            NextActions = new List<ResourceLinkBlock>()
         };
 
         return recommendation;

@@ -38,7 +38,7 @@
     "step2": "Build: dotnet build StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj -c Release --nologo",
     "step3": "Publish: dotnet publish StampliMCP.McpServer.Unified/StampliMCP.McpServer.Unified.csproj -c Release -r win-x64 --self-contained /p:PublishSingleFile=true --nologo",
     "step4": "Reconnect: /mcp (in Claude Code)",
-    "testing": "Run erp__health_check, erp__list_operations, erp__query_knowledge to verify"
+    "testing": "Run erp__health_check and erp__query_knowledge (scope=operations) to verify"
   },
 
   "note": "Operations loaded from operations/ subfolder (rich knowledge with flowTrace, scanThese, goldenTest) + custom-field-operations.json (special). AcumaticaKnowledgeService loads from operations/{category}.json.",

@@ -30,7 +30,7 @@ public sealed class TestPlanningPrompt
 
                 **Available MCP Tools** (unified):
                 - `erp__query_knowledge(erp, query, scope?)` – Operation specs, validation rules
-                - `erp__get_flow_details(erp, flow)` – Flow details + validation rules
+                - `erp__recommend_flow(erp, useCase)` – Flow details + validation rules
                 - `erp__diagnose_error(erp, errorMessage)` – Error patterns when needed
 
                 **Test Coverage Needed**:
@@ -52,7 +52,7 @@ public sealed class TestPlanningPrompt
 
                 **Test Design Strategy**:
                 1. First, I'll use `erp__query_knowledge(erp='acumatica', query=operationName)` to understand fields and rules
-                2. Then use `erp__get_flow_details` for flow-specific validation rules
+                2. Then use `erp__recommend_flow` for flow-specific validation rules
                 3. Synthesize comprehensive scenarios from rules and constants
                 4. Create detailed test plan organized by test type
                 5. Include actual test data and assertions you can copy-paste into Kotlin

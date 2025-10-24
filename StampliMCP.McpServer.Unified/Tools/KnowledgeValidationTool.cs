@@ -1,29 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
-using System.Text.Json;
-using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
-using StampliMCP.McpServer.Unified.Services;
-using StampliMCP.Shared.Erp;
-using StampliMCP.Shared.Services;
 using System.Threading;
 using System.Threading.Tasks;
+using StampliMCP.McpServer.Unified.Services;
+using StampliMCP.Shared.Services;
 
 namespace StampliMCP.McpServer.Unified.Tools;
 
-[McpServerToolType]
-public static class KnowledgeValidationTool
+internal static class KnowledgeValidationHelper
 {
-    [McpServerTool(
-        Name = "mcp__validate_embedded_knowledge",
-        Title = "Validate Embedded Knowledge",
-        UseStructuredContent = true)]
-    [Description("Validate embedded categories, operations, and flows across registered ERPs.")]
-    public static async Task<CallToolResult> Execute(ErpRegistry registry, CancellationToken ct)
+    internal static async Task<IReadOnlyList<KnowledgeValidationEntry>> BuildReportAsync(ErpRegistry registry, CancellationToken ct)
     {
-        var results = new List<object>();
+        var results = new List<KnowledgeValidationEntry>();
 
         foreach (var descriptor in registry.ListErps())
         {
@@ -33,7 +22,7 @@ public static class KnowledgeValidationTool
 
             var issues = new List<string>();
             var warnings = new List<string>();
-            var categorySummaries = new List<object>();
+            var categorySummaries = new List<KnowledgeValidationCategory>();
             var operationSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             var categories = await knowledge.GetCategoriesAsync(ct).ConfigureAwait(false);
@@ -46,28 +35,26 @@ public static class KnowledgeValidationTool
                     warnings.Add($"Category '{category.Name}' count mismatch: declared {category.Count}, found {operations.Count}.");
                 }
 
-                foreach (var op in operations)
+                foreach (var operation in operations)
                 {
-                    if (!operationSet.Add(op.Method))
+                    if (!operationSet.Add(operation.Method))
                     {
-                        issues.Add($"Duplicate operation method detected: {op.Method}.");
+                        issues.Add($"Duplicate operation method detected: {operation.Method}.");
                     }
 
-                    if (!string.Equals(op.Category, category.Name, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(operation.Category, category.Name, StringComparison.OrdinalIgnoreCase))
                     {
-                        warnings.Add($"Operation '{op.Method}' declares category '{op.Category}' but is stored under '{category.Name}'.");
+                        warnings.Add($"Operation '{operation.Method}' declares category '{operation.Category}' but is stored under '{category.Name}'.");
                     }
                 }
 
-                categorySummaries.Add(new
-                {
-                    name = category.Name,
-                    expected = category.Count,
-                    actual = operations.Count
-                });
+                categorySummaries.Add(new KnowledgeValidationCategory(
+                    category.Name,
+                    category.Count >= 0 ? category.Count : null,
+                    operations.Count));
             }
 
-            var flowSummaries = new List<object>();
+            var flowSummaries = new List<KnowledgeValidationFlow>();
             if (flowService is not null)
             {
                 var flowNames = await flowService.GetAllFlowNamesAsync(ct).ConfigureAwait(false);
@@ -89,17 +76,17 @@ public static class KnowledgeValidationTool
                     var referencedOperations = new List<string>();
                     if (root.TryGetProperty("usedByOperations", out var usedArray))
                     {
-                        foreach (var opEl in usedArray.EnumerateArray())
+                        foreach (var opElement in usedArray.EnumerateArray())
                         {
-                            var opName = opEl.GetString();
+                            var opName = opElement.GetString();
                             if (string.IsNullOrWhiteSpace(opName))
                             {
                                 continue;
                             }
 
                             referencedOperations.Add(opName);
-                            var op = await knowledge.GetOperationByMethodAsync(opName, ct).ConfigureAwait(false);
-                            if (op is null)
+                            var operation = await knowledge.GetOperationByMethodAsync(opName, ct).ConfigureAwait(false);
+                            if (operation is null)
                             {
                                 warnings.Add($"Flow '{flowName}' references unknown operation '{opName}'.");
                             }
@@ -110,48 +97,35 @@ public static class KnowledgeValidationTool
                         warnings.Add($"Flow '{flowName}' does not list 'usedByOperations'.");
                     }
 
-                    flowSummaries.Add(new
-                    {
-                        name = flowName,
-                        operations = referencedOperations
-                    });
+                    flowSummaries.Add(new KnowledgeValidationFlow(flowName, referencedOperations));
                 }
             }
 
-            results.Add(new
-            {
-                erp = descriptor.Key,
-                success = issues.Count == 0,
+            results.Add(new KnowledgeValidationEntry(
+                descriptor.Key,
+                issues.Count == 0,
                 issues,
                 warnings,
-                summary = new
-                {
-                    categories = categories.Count,
-                    operations = operationSet.Count,
-                    flows = flowSummaries.Count
-                },
-                categories = categorySummaries,
-                flows = flowSummaries
-            });
+                new KnowledgeValidationSummary(categories.Count, operationSet.Count, flowSummaries.Count),
+                categorySummaries,
+                flowSummaries));
         }
 
-        var payload = new { result = results };
-
-        var callResult = new CallToolResult
-        {
-            StructuredContent = JsonSerializer.SerializeToNode(payload)
-        };
-
-        callResult.Content.Add(new TextContentBlock
-        {
-            Type = "text",
-            Text = JsonSerializer.Serialize(payload, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-            })
-        });
-
-        return callResult;
+        return results;
     }
 }
+
+internal sealed record KnowledgeValidationEntry(
+    string Erp,
+    bool Success,
+    IReadOnlyList<string> Issues,
+    IReadOnlyList<string> Warnings,
+    KnowledgeValidationSummary Summary,
+    IReadOnlyList<KnowledgeValidationCategory> Categories,
+    IReadOnlyList<KnowledgeValidationFlow> Flows);
+
+internal sealed record KnowledgeValidationSummary(int Categories, int Operations, int Flows);
+
+internal sealed record KnowledgeValidationCategory(string Name, int? Expected, int Actual);
+
+internal sealed record KnowledgeValidationFlow(string Name, IReadOnlyList<string> Operations);

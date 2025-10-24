@@ -31,7 +31,7 @@ public sealed class TroubleshootingPrompt
                 **Available MCP Tools** (unified):
                 - `erp__diagnose_error(erp, errorMessage)` – Root cause + solutions
                 - `erp__query_knowledge(erp, query, scope?)` – Search operations and flows
-                - `erp__get_flow_details(erp, flow)` – Validation rules, constants, critical files
+                - `erp__recommend_flow(erp, useCase)` – Validation rules, constants, critical files
 
                 **Context**:
                 - This is from Acumatica integration code (Java or Kotlin)
@@ -56,7 +56,7 @@ public sealed class TroubleshootingPrompt
                 **Debugging Strategy**:
                 1. First, I'll use `erp__diagnose_error(erp='acumatica', errorMessage=...)` for root cause analysis
                 2. Then search knowledge via `erp__query_knowledge(erp='acumatica', query=...)`
-                3. Use `erp__get_flow_details` to understand validation context and constants
+                3. Use `erp__recommend_flow` to understand flow guidance and constants
                 4. Provide you with:
                    - Root cause explanation
                    - Affected field/operation

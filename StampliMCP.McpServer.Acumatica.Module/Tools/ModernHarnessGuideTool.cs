@@ -1,3 +1,4 @@
+#if DEV_TOOLS
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Acumatica.Services;
@@ -288,3 +289,5 @@ class ExportInvoiceTest : LiveErpTestBase() {
     }
 }
 
+
+#endif

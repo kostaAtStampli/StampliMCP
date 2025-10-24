@@ -1,66 +1,52 @@
-using System.ComponentModel;
+using System;
+using System.Collections.Generic;
 using System.Reflection;
-using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Unified.Services;
 
 namespace StampliMCP.McpServer.Unified.Tools;
 
-[McpServerToolType]
-public static class ErpKnowledgeFilesTool
+internal static class KnowledgeFilesHelper
 {
-    [McpServerTool(Name = "erp__check_knowledge_files", Title = "Check ERP Knowledge Files", UseStructuredContent = true)]
-    [Description("List embedded Knowledge resources for the given ERP module.")]
-    public static CallToolResult Execute([Description("ERP identifier (e.g., acumatica)")] string erp, ErpRegistry registry)
+    internal static KnowledgeFilesReport BuildReport(string erp, ErpRegistry registry)
     {
         using var facade = registry.GetFacade(erp);
         var assembly = facade.Knowledge.GetType().Assembly;
         var resourceNames = assembly.GetManifestResourceNames();
 
-        var results = new List<object>();
-        foreach (var r in resourceNames)
+        var files = new List<KnowledgeFileEntry>();
+        foreach (var resource in resourceNames)
         {
-            if (!r.Contains(".Knowledge.")) continue;
+            if (!resource.Contains(".Knowledge.", StringComparison.Ordinal))
+            {
+                continue;
+            }
 
-            string fileName = r;
+            var fileName = resource;
             try
             {
-                // Try to trim the assembly prefix leading to Knowledge folder
-                var idx = r.IndexOf(".Knowledge.", StringComparison.Ordinal);
+                var idx = resource.IndexOf(".Knowledge.", StringComparison.Ordinal);
                 if (idx > 0)
                 {
-                    fileName = r[(idx + ".Knowledge.".Length)..]
+                    fileName = resource[(idx + ".Knowledge.".Length)..]
                         .Replace(".operations.", "operations/")
                         .Replace(".kotlin.", "kotlin/");
                 }
             }
             catch
             {
-                // leave fileName as is
+                // Keep original resource name when trimming fails
             }
 
-            results.Add(new
-            {
-                resourceName = r,
-                fileName
-            });
+            files.Add(new KnowledgeFileEntry(resource, fileName));
         }
 
-        var payload = new
-        {
-            erp = erp,
-            totalFiles = results.Count,
-            files = results
-        };
-
-        var ret = new CallToolResult
-        {
-            StructuredContent = System.Text.Json.JsonSerializer.SerializeToNode(new { result = payload })
-        };
-
-        var json = System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
-        ret.Content.Add(new TextContentBlock { Type = "text", Text = json });
-        return ret;
+        return new KnowledgeFilesReport(erp, files);
     }
 }
 
+internal sealed record KnowledgeFilesReport(string Erp, IReadOnlyList<KnowledgeFileEntry> Files)
+{
+    public int TotalFiles => Files.Count;
+}
+
+internal sealed record KnowledgeFileEntry(string ResourceName, string FileName);

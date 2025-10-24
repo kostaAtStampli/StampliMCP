@@ -223,7 +223,7 @@ public sealed class AcumaticaDiagnosticService : IErpDiagnosticService
                 return;
             }
 
-            var linkUri = $"mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow={Uri.EscapeDataString(flowName)}";
+            var linkUri = $"mcp://stampli-unified/erp__query_knowledge?erp=acumatica&query={Uri.EscapeDataString(flowName)}&scope=flows";
             if (diagnostic.NextActions.Any(a => string.Equals(a.Uri, linkUri, StringComparison.OrdinalIgnoreCase)))
             {
                 return;
@@ -232,7 +232,7 @@ public sealed class AcumaticaDiagnosticService : IErpDiagnosticService
             diagnostic.NextActions.Add(new ResourceLinkBlock
             {
                 Uri = linkUri,
-                Name = $"Review flow details for {flowName}"
+                Name = $"Search flow guidance for {flowName}"
             });
         }
         catch (Exception ex)

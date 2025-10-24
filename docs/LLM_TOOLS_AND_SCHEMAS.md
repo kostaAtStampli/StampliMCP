@@ -3,56 +3,30 @@
 This is the canonical tool catalog and the structured results the server returns. All tool names and parameters are verified from code in `StampliMCP.McpServer.Unified/Tools`.
 
 ## Core Tools (Unified)
-- `erp__list_erps()`
-  - File: `ErpHealthTools.cs:14`
-  - Returns: registered ERPs with aliases, capability flags, version.
 - `erp__health_check()`
-  - File: `ErpHealthTools.cs:33`
-  - Returns: server status + ERP summary.
-- `mcp_overview()`
-  - File: `UnifiedOverviewTool.cs:17`
-  - Returns: architecture overview and next actions.
-- `mcp__validate_embedded_knowledge()`
-  - File: `KnowledgeValidationTool.cs`
-  - Purpose: Sanity-check embedded categories/operations/flows per ERP.
-
-## Knowledge/Flow Tools
-- `erp__list_operations(erp)` → ops per category, with optional flow mapping
-  - File: `ErpKnowledgeTools.cs:16`
-- `erp__list_flows(erp)` → list all flows; name, description, usedByOperations
-  - File: `ErpKnowledgeTools.cs:60`
-- `erp__get_flow_details(erp, flow)` → flow anatomy/constants/validationRules/codeSnippets/criticalFiles
-  - File: `ErpFlowDetailsTool.cs:15`
+  - File: `ErpHealthTools.cs`
+  - Returns server status plus the registered ERPs with aliases, descriptions, and capability flags.
 - `erp__query_knowledge(erp, query, scope?)`
-  - File: `ErpKnowledgeTools.cs:96`
-  - Scope is case-insensitive; if missing/invalid, the server may elicit a scope.
-  - Returns: operations, flows, constants, validationRules, code examples, NextActions.
-
-## Intelligence/Recommendation/Validation
+  - File: `ErpKnowledgeTools.cs`
+  - Normalizes scope (`operations|flows|constants|all`) and will elicit a scope when omitted; returns operations, flows, constants, validation rules, and code examples with next-action links.
 - `erp__recommend_flow(erp, useCase)`
-  - File: `ErpRecommendationTool.cs:18`
-  - Behavior: uses ERP recommendation service; may elicit clarification on low confidence.
-  - Returns FlowRecommendation with score breakdown.
+  - File: `ErpRecommendationTool.cs`
+  - Produces a `FlowRecommendation` with confidence scoring, flow details, and fallback refinement via elicitation.
 - `erp__validate_request(erp, operation, payload)`
-  - File: `ErpValidationTool.cs:16`
-  - Behavior: validates JSON against flow rules; may elicit “auto-fix” to propose a SuggestedPayload.
+  - File: `ErpValidationTool.cs`
+  - Validates payloads against flow rules; can elicit an auto-fix to populate a SuggestedPayload with placeholders.
 - `erp__diagnose_error(erp, errorMessage)`
-  - File: `ErpDiagnosticTool.cs:14`
-  - Behavior: diagnoses; may elicit context (operation/stage/recentChanges) if ambiguous.
+  - File: `ErpDiagnosticTool.cs`
+  - Catalog-driven diagnostics with optional elicitation for extra context; returns causes, solutions, and prevention tips.
+- `erp__knowledge_update_plan(erp, prNumber?, learnings?, currentBranch?, dryRun=true, mode="plan")`
+  - File: `ErpKnowledgeUpdateTool.cs`
+  - Modes: `plan|apply` (Acumatica PR planner), `validate` (embedded knowledge audit), `files` (embedded resource inventory).
 
-## Knowledge Maintenance
-- `erp__knowledge_update_plan(erp, prNumber?, learnings?, currentBranch?, dryRun=true)`
-  - File: `ErpKnowledgeUpdateTool.cs:16`
-  - Planner for PR-based knowledge updates; guarded to Knowledge/**.
-- `erp__challenge_scan_findings(scan1Results, challengeAreas[])`
-  - File: `ErpChallengeScanFindingsTool.cs:10`
-  - Generates mandatory second-scan questions.
-- `erp__check_knowledge_files(erp)`
-  - File: `ErpKnowledgeFilesTool.cs:12`
-  - Lists embedded knowledge resources per ERP.
-- `erp__list_prompts(erp)`
-  - File: `ErpPromptTools.cs:20`
-  - Lists module prompts available.
+### Developer-only (Debug builds)
+- `mcp_overview()` – Architecture orientation
+- `mcp__debug_elicitation()` – Capability probe
+- `erp__list_prompts(erp)` – Module prompts catalog
+- Kotlin helpers (`get_kotlin_golden_reference`, `kotlin_tdd_workflow`, `modern_harness_guide`) remain available in DEV builds only.
 
 ## Structured Results (Schemas)
 - FlowRecommendation (file: `StampliMCP.Shared/Models/StructuredResults.cs:116`)
@@ -175,7 +149,7 @@ Content: { scope: "flows", refine: "export" }
   },
   "AlternativeFlows": [ { "Name": "po_matching_flow", "Confidence": 0.52, "Reason": "entity match but action ambiguous" } ],
   "Scores": { "overall": 0.86, "entity": 1.0, "action": 0.8, "keywords": 0.5 },
-  "NextActions": [ { "Uri": "mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow=export_po_flow", "Name": "View export_po_flow details" } ]
+  "NextActions": [ { "Uri": "mcp://stampli-unified/erp__query_knowledge?erp=acumatica&query=export_po_flow&scope=flows", "Name": "Search export_po_flow guidance" } ]
 }
 ```
 
@@ -195,7 +169,7 @@ Content: { scope: "flows", refine: "export" }
   "VendorID": "<TODO: provide VendorID>"
 }",
   "NextActions": [
-    { "Uri": "mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow=vendor_export_flow", "Name": "Review flow rules" },
+    { "Uri": "mcp://stampli-unified/erp__query_knowledge?erp=acumatica&query=vendor_export_flow&scope=flows", "Name": "Review flow guidance" },
     { "Uri": "mcp://stampli-unified/erp__validate_request", "Name": "Re-run validation with SuggestedPayload" }
   ]
 }
@@ -212,6 +186,6 @@ Content: { scope: "flows", refine: "export" }
   "RelatedFlowRules": [ "VendorID: required; max 30" ],
   "PreventionTips": [ "Validate payload before sending" ],
   "AdditionalContext": { "operation": "exportVendor", "stage": "export", "recentChanges": "false" },
-  "NextActions": [ { "Uri": "mcp://stampli-unified/erp__get_flow_details?erp=acumatica&flow=vendor_export_flow", "Name": "Review flow rules" } ]
+  "NextActions": [ { "Uri": "mcp://stampli-unified/erp__query_knowledge?erp=acumatica&query=vendor_export_flow&scope=flows", "Name": "Review flow guidance" } ]
 }
 ```

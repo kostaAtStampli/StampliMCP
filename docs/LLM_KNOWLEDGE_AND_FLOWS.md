@@ -48,9 +48,9 @@ This explains the embedded knowledge model (categories, operations, flows) and h
   - For broad results, server may elicit `refine` and optional `scope` again.
 
 ## Validating Content
-- `mcp__validate_embedded_knowledge()` checks for common issues:
+- `erp__knowledge_update_plan(erp, mode="validate")` checks for common issues:
   - category count mismatches, duplicate operation methods, unknown operations referenced by flows, missing descriptions.
-- `erp__check_knowledge_files(erp)` lists actual embedded resource names.
+- `erp__knowledge_update_plan(erp, mode="files")` lists embedded resource names.
 
 ---
 ## JSON Shapes (Examples)
@@ -103,6 +103,6 @@ This explains the embedded knowledge model (categories, operations, flows) and h
 - `Knowledge/flow-signatures.json`: expected actions/entities/keywords per flow for better ranking.
 
 ## How Tools Use This
-- `erp__get_flow_details` reads constants/validation/snippets/files and turns them into a navigable summary with NextActions.
+- `erp__recommend_flow` returns flow anatomy/constants/validation and embeds navigation links; `erp__query_knowledge(..., scope="flows")` exposes the same metadata in bulk searches.
 - `erp__validate_request` parses flow rules and constants to enforce required fields and max lengths.
 - `erp__recommend_flow` uses signatures and synonyms to rank flows; elicitation augments when ambiguous.

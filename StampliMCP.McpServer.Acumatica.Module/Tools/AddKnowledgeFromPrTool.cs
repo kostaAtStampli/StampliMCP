@@ -11,7 +11,6 @@ using ModelContextProtocol.Server;
 
 namespace StampliMCP.McpServer.Acumatica.Tools;
 
-[McpServerToolType]
 public static class AddKnowledgeFromPrTool
 {
     private static readonly Dictionary<string, string> ErpModuleNames = new(StringComparer.OrdinalIgnoreCase)
@@ -20,10 +19,6 @@ public static class AddKnowledgeFromPrTool
         ["intacct"] = "Intacct"
     };
 
-    [McpServerTool(
-        Name = "add_knowledge_from_pr",
-        Title = "Knowledge Update Planning",
-        UseStructuredContent = true)]
     [Description(@"
 Plan and verify knowledge-base updates for a PR using live git + knowledge context (no direct file mutation).
 
@@ -37,7 +32,7 @@ Inputs:
 Workflow:
 1. Collect git status, diff summaries, and recent commits for the current branch.
 2. Load ERP-specific knowledge files (categories + operations) and build a structured snapshot.
-3. Perform host-level Scan 1 on referenced source files, call challenge_scan_findings, then perform Scan 2.
+3. Perform host-level Scan 1 on referenced source files, call built-in second-scan challenge generator, then perform Scan 2.
 4. Spawn Claude CLI with the captured evidence and require a JSON verdict (ADD/SKIP/DUPLICATE/BACKLOG).
 5. Return the structured response + audit context without mutating files (dry run) or with generated patches (non dry run).")]
     public static async Task<CallToolResult> Execute(
@@ -489,7 +484,7 @@ Workflow:
         promptBuilder.AppendLine("### Non-Negotiable Rules");
         promptBuilder.AppendLine("1. Never write to disk. Produce recommendations and, when dryRun=false, include `apply_patch` snippets (but do not execute them).");
         promptBuilder.AppendLine("2. Perform Scan 1 by reading the cited source files and returning a machine-readable summary (constants, validations, methods).");
-        promptBuilder.AppendLine("3. Call the `challenge_scan_findings` tool with your Scan 1 results; then perform Scan 2 addressing every challenge before finalising your verdict.");
+        promptBuilder.AppendLine("3. Use the built-in second-scan challenge generator with your Scan 1 results; then perform Scan 2 addressing every challenge before finalising your verdict.");
         promptBuilder.AppendLine("4. Limit all knowledge updates to files below `knowledgeRoot`; ignore other ERPs.");
         promptBuilder.AppendLine("5. Base your decision on both the git diff and developer learnings. If learnings are absent, infer from the diff only if evidence is conclusive.");
         promptBuilder.AppendLine();

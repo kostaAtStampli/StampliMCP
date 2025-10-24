@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json;
-using Serilog;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Serilog;
 using StampliMCP.McpServer.Unified.Services;
 using StampliMCP.Shared.Erp;
 using StampliMCP.Shared.Models;
@@ -16,129 +16,6 @@ namespace StampliMCP.McpServer.Unified.Tools;
 [McpServerToolType]
 public static class ErpKnowledgeTools
 {
-    [McpServerTool(
-        Name = "erp__list_operations",
-        Title = "List ERP Operations",
-        UseStructuredContent = true)]
-    [Description("List operations for the given ERP with optional flow information.")]
-    public static async Task<CallToolResult> ListOperations(
-        [Description("ERP identifier (e.g., acumatica)")] string erp,
-        ErpRegistry registry,
-        CancellationToken ct)
-    {
-        using var facade = registry.GetFacade(erp);
-
-        var knowledge = facade.Knowledge;
-        var flowService = facade.Flow;
-
-        var summaries = new List<object>();
-        var categories = await knowledge.GetCategoriesAsync(ct);
-
-        foreach (var category in categories)
-        {
-            var operations = await knowledge.GetOperationsByCategoryAsync(category.Name, ct);
-            foreach (var operation in operations)
-            {
-                string? flowName = null;
-                if (flowService is not null)
-                {
-                    flowName = await flowService.GetFlowForOperationAsync(operation.Method, ct);
-                }
-
-                summaries.Add(new
-                {
-                    method = operation.Method,
-                    summary = operation.Summary,
-                    category = category.Name,
-                    flow = flowName
-                });
-            }
-        }
-
-        var result = new CallToolResult
-        {
-            StructuredContent = JsonSerializer.SerializeToNode(new { result = summaries })
-        };
-
-        result.Content.Add(new TextContentBlock
-        {
-            Type = "text",
-            Text = JsonSerializer.Serialize(summaries, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            })
-        });
-
-        return result;
-    }
-
-    [McpServerTool(
-        Name = "erp__list_flows",
-        Title = "List ERP Flows",
-        UseStructuredContent = true)]
-    [Description("List integration flows for the given ERP.")]
-    public static async Task<CallToolResult> ListFlows(
-        [Description("ERP identifier (e.g., acumatica)")] string erp,
-        ErpRegistry registry,
-        CancellationToken ct)
-    {
-        using var facade = registry.GetFacade(erp);
-        var flowService = facade.Flow;
-
-        if (flowService is null)
-        {
-            throw new InvalidOperationException($"ERP '{erp}' does not expose flow metadata.");
-        }
-
-        var flows = new List<FlowSummary>();
-        var names = await flowService.GetAllFlowNamesAsync(ct);
-
-        foreach (var name in names)
-        {
-            var doc = await flowService.GetFlowAsync(name, ct);
-            if (doc is null)
-            {
-                continue;
-            }
-
-            var root = doc.RootElement;
-            var description = root.TryGetProperty("description", out var desc)
-                ? desc.GetString()
-                : null;
-
-            var usedBy = new List<string>();
-            if (root.TryGetProperty("usedByOperations", out var usedArray))
-            {
-                usedBy.AddRange(usedArray.EnumerateArray()
-                    .Select(e => e.GetString())
-                    .Where(s => !string.IsNullOrWhiteSpace(s))!);
-            }
-
-            flows.Add(new FlowSummary
-            {
-                Name = name,
-                Description = description ?? string.Empty,
-                UsedByOperations = usedBy
-            });
-        }
-
-        var result = new CallToolResult
-        {
-            StructuredContent = JsonSerializer.SerializeToNode(new { result = flows })
-        };
-
-        result.Content.Add(new TextContentBlock
-        {
-            Type = "text",
-            Text = JsonSerializer.Serialize(flows, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            })
-        });
-
-        return result;
-    }
-
     [McpServerTool(
         Name = "erp__query_knowledge",
         Title = "ERP Knowledge Search",
@@ -158,11 +35,11 @@ public static class ErpKnowledgeTools
         var flowService = facade.Flow;
         var fuzzyMatcher = facade.GetService<FuzzyMatchingService>();
 
-                // Normalize scope to be case-insensitive across all branches
+        // Normalize scope to be case-insensitive across all branches
         var normalizedScope = scope?.Trim().ToLowerInvariant();
+        var validScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "operations", "flows", "constants", "all" };
 
         // If scope is not provided or invalid, opportunistically elicit a scope from the user
-        var validScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "operations", "flows", "constants", "all" };
         if (normalizedScope is null || !validScopes.Contains(normalizedScope))
         {
             var fields = new[]
@@ -187,9 +64,9 @@ public static class ErpKnowledgeTools
 
                 if (string.Equals(outcome.Action, "accept", StringComparison.OrdinalIgnoreCase) &&
                     outcome.Content is { } content &&
-                    content.TryGetValue("scope", out var scopeEl) && scopeEl.ValueKind == JsonValueKind.String)
+                    content.TryGetValue("scope", out var scopeElement) && scopeElement.ValueKind == JsonValueKind.String)
                 {
-                    var chosen = scopeEl.GetString();
+                    var chosen = scopeElement.GetString();
                     if (!string.IsNullOrWhiteSpace(chosen))
                     {
                         normalizedScope = chosen!.Trim().ToLowerInvariant();
@@ -197,7 +74,6 @@ public static class ErpKnowledgeTools
                 }
             }
         }
-
 
         var structured = await BuildKnowledgeResult(erp, query, normalizedScope, knowledge, flowService, fuzzyMatcher, ct);
 
@@ -232,19 +108,19 @@ public static class ErpKnowledgeTools
                 if (string.Equals(outcome.Action, "accept", StringComparison.OrdinalIgnoreCase) &&
                     outcome.Content is { } content)
                 {
-                    var refine = content.TryGetValue("refine", out var refEl) && refEl.ValueKind == JsonValueKind.String ? refEl.GetString() : null;
-                    var scope2 = content.TryGetValue("scope", out var scEl) && scEl.ValueKind == JsonValueKind.String ? scEl.GetString() : null;
+                    var refine = content.TryGetValue("refine", out var refElement) && refElement.ValueKind == JsonValueKind.String ? refElement.GetString() : null;
+                    var scope2 = content.TryGetValue("scope", out var scopeElement) && scopeElement.ValueKind == JsonValueKind.String ? scopeElement.GetString() : null;
                     var newScope = string.IsNullOrWhiteSpace(scope2) ? normalizedScope : scope2!.Trim().ToLowerInvariant();
 
                     if (!string.IsNullOrWhiteSpace(refine) || !string.Equals(newScope, normalizedScope, StringComparison.Ordinal))
                     {
                         normalizedScope = newScope;
-                        structured = await BuildKnowledgeResult(erp, string.IsNullOrWhiteSpace(refine) ? query : refine!, normalizedScope, knowledge, flowService, fuzzyMatcher, ct);
+                        var refinedQuery = string.IsNullOrWhiteSpace(refine) ? query : refine!;
+                        structured = await BuildKnowledgeResult(erp, refinedQuery, normalizedScope, knowledge, flowService, fuzzyMatcher, ct);
                     }
                 }
             }
         }
-
 
         var result = new CallToolResult
         {
@@ -392,12 +268,12 @@ public static class ErpKnowledgeTools
         {
             new()
             {
-                Uri = $"mcp://stampli-unified/erp__list_operations?erp={erp}",
+                Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query=*&scope=operations",
                 Name = "Browse operations"
             },
             new()
             {
-                Uri = $"mcp://stampli-unified/erp__list_flows?erp={erp}",
+                Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query=*&scope=flows",
                 Name = "Browse flows"
             }
         };

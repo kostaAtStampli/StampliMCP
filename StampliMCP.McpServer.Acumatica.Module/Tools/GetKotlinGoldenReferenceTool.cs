@@ -1,3 +1,4 @@
+#if DEV_TOOLS
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -175,7 +176,7 @@ Use exportVendor patterns to implement new Kotlin operations.
                 });
                 ok.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
                 {
-                    Uri = "mcp://stampli-unified/erp__list_erps",
+                    Uri = "mcp://stampli-unified/erp__health_check",
                     Name = "List registered ERPs",
                     Description = "Verify available ERP modules"
                 });
@@ -318,7 +319,7 @@ Use exportVendor patterns to implement new Kotlin operations.
             });
             ret.Content.Add(new ModelContextProtocol.Protocol.ResourceLinkBlock
             {
-                Uri = "mcp://stampli-unified/erp__list_erps",
+                Uri = "mcp://stampli-unified/erp__health_check",
                 Name = "List registered ERPs",
                 Description = "Verify available ERP modules and capabilities"
             });
@@ -352,3 +353,5 @@ Use exportVendor patterns to implement new Kotlin operations.
         }
     }
 }
+
+#endif

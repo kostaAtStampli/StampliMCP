@@ -40,13 +40,13 @@ public class KnowledgeAndFlowsTests
     }
 
     [Fact]
-    public async Task GetFlowDetails_VendorExport_HasConstantsAndRules()
+    public async Task RecommendFlow_VendorExport_ReturnsDetails()
     {
         var client = _fx.Client!;
-        var res = await client.CallToolAsync("erp__get_flow_details", new Dictionary<string, object?>
+        var res = await client.CallToolAsync("erp__recommend_flow", new Dictionary<string, object?>
         {
             ["erp"] = "acumatica",
-            ["flow"] = "vendor_export_flow"
+            ["useCase"] = "export vendors"
         });
 
         // Extract the text content from MCP response
@@ -54,42 +54,37 @@ public class KnowledgeAndFlowsTests
         Assert.NotNull(textContent);
         var responseText = textContent.Text;
 
-        Assert.Contains("constants", responseText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vendor_export_flow", responseText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("validationRules", responseText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task UnifiedHelpers_ListPromptsAndKnowledgeFiles_Work()
+    public async Task KnowledgeMaintenance_Modes_Work()
     {
         var client = _fx.Client!;
-        var prompts = await client.CallToolAsync("erp__list_prompts", new Dictionary<string, object?>
+        var files = await client.CallToolAsync("erp__knowledge_update_plan", new Dictionary<string, object?>
         {
-            ["erp"] = "acumatica"
+            ["erp"] = "acumatica",
+            ["mode"] = "files"
         });
 
-        // Extract text content from prompts response
-        var promptsText = prompts.Content.FirstOrDefault(c => c.Type == "text") as TextContentBlock;
-        Assert.NotNull(promptsText);
-        var promptsResponse = promptsText.Text;
-
-        Assert.Contains("kotlin_tdd_tasklist", promptsResponse);
-        Assert.Contains("plan_comprehensive_tests", promptsResponse);
-
-        var files = await client.CallToolAsync("erp__check_knowledge_files", new Dictionary<string, object?>
-        {
-            ["erp"] = "acumatica"
-        });
-
-        // Extract text content from files response
         var filesText = files.Content.FirstOrDefault(c => c.Type == "text") as TextContentBlock;
         Assert.NotNull(filesText);
         var filesResponse = filesText.Text;
+        Assert.Contains("\"totalFiles\"", filesResponse, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vendors.json", filesResponse, StringComparison.OrdinalIgnoreCase);
 
-        // Verify response structure
-        Assert.Contains("\"erp\":", filesResponse);
-        Assert.Contains("\"totalFiles\":", filesResponse);
-        Assert.Contains("\"files\":", filesResponse);
-        Assert.Contains("vendors.json", filesResponse); // vendors.json should appear in fileName field
+        var validate = await client.CallToolAsync("erp__knowledge_update_plan", new Dictionary<string, object?>
+        {
+            ["erp"] = "acumatica",
+            ["mode"] = "validate"
+        });
+
+        var validateText = validate.Content.FirstOrDefault(c => c.Type == "text") as TextContentBlock;
+        Assert.NotNull(validateText);
+        var validateResponse = validateText.Text;
+        Assert.Contains("\"entries\"", validateResponse, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("\"issues\"", validateResponse, StringComparison.OrdinalIgnoreCase);
     }
 }
 

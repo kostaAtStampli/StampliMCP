@@ -28,7 +28,7 @@ taskkill /F /IM stampli-mcp-unified.exe
 ## Logs & Debug
 - Logs: `%TEMP%/mcp_logs/unified/structured.jsonl` (compact JSON) and console stderr.
 - Debug elicitation support (Debug builds only) via `mcp__debug_elicitation()`.
-- Validate knowledge with `mcp__validate_embedded_knowledge()` before publishing.
+- Validate knowledge with `erp__knowledge_update_plan(erp, mode="validate")` before publishing.
 
 ## Add A New ERP
 1) Create library project `StampliMCP.McpServer.<Erp>.Module`
@@ -36,7 +36,7 @@ taskkill /F /IM stampli-mcp-unified.exe
 3) Register services (KnowledgeServiceBase subclass, FlowServiceBase subclass, optional Validation/Diagnostic/Recommendation)
 4) Add knowledge assets under `Knowledge/` and mark as `<EmbeddedResource>` (see Acumatica module csproj)
 5) Reference the module from `StampliMCP.McpServer.Unified`, register instance in `Program.cs`
-6) Publish unified server and verify tools: `erp__list_erps`, `erp__query_knowledge`, `erp__list_flows`
+6) Publish unified server and verify tools: `erp__health_check`, `erp__query_knowledge`, `erp__recommend_flow`
 
 ## Knowledge Authoring
 - Files:
@@ -45,7 +45,7 @@ taskkill /F /IM stampli-mcp-unified.exe
   - `Knowledge/flows/*.json` – flow details (description, usedByOperations, constants, validationRules, codeSnippets, criticalFiles)
   - Optional: `Knowledge/matching.json` (synonyms) and `Knowledge/flow-signatures.json`
 - Validation:
-  - Run `mcp__validate_embedded_knowledge()` to detect count mismatches, unknown ops, missing descriptions
+  - Run `erp__knowledge_update_plan(erp, mode="validate")` to detect count mismatches, unknown ops, missing descriptions
 - Contribution discipline:
   - Keep counts correct; ensure usedByOperations map to real `Operation.Method`
   - Favor short, precise validation rules (`Field: required; max 30`)
@@ -58,7 +58,7 @@ taskkill /F /IM stampli-mcp-unified.exe
 ## Testing (Quick Pointers)
 - E2E test harness under `StampliMCP.E2E` spins up the published server and connects an MCP client
 - Manual smoke:
-  - `erp__list_erps`, `erp__list_flows`, `erp__query_knowledge`
+  - `erp__health_check`, `erp__query_knowledge`, `erp__recommend_flow`
   - `erp__recommend_flow` with an ambiguous use case to trigger elicitation
   - `erp__validate_request` with intentionally missing fields to test SuggestedPayload
 
