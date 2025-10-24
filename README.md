@@ -101,11 +101,14 @@ Modules/
 | `erp__get_flow_details` | Flow anatomy, constants, validation rules |
 | `erp__validate_request` | Pre-flight validation (if ERP module implements it) |
 | `erp__diagnose_error` | Error triage (module-provided) |
-| `erp__recommend_flow` | Flow recommendation (module-provided; may prompt to choose among alternatives) |
+| `erp__recommend_flow` | Flow recommendation (module-provided; prompts for alternatives when supported, adds quick links when confidence is low) |
 | `erp__knowledge_update_plan` | Plan/apply knowledge updates from PR context (two-scan enforced) |
 | `erp__challenge_scan_findings` | Generate Scan‑2 questions from Scan‑1 results (ERP‑agnostic) |
 | `erp__list_prompts` | List prompts registered for the ERP module |
 | `erp__check_knowledge_files` | List embedded Knowledge resources for the ERP |
+| `mcp__debug_elicitation` | Probe whether the connected MCP client supports elicitation prompts |
+
+Note: Some tools opportunistically prompt for missing details when the client supports elicitation. Behavior remains identical on clients without elicitation.
 
 Module-specific developer helpers (e.g., Kotlin TDD workflow) remain available and are registered via the module assembly.
 

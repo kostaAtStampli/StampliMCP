@@ -15,10 +15,11 @@ Call `erp__list_erps()` if you need the live list and capability flags.
 - `erp__get_flow_details(erp, flow)`
 - `erp__validate_request(erp, operation, payload)`
 - `erp__diagnose_error(erp, errorMessage)`
-- `erp__recommend_flow(erp, useCase)` (may prompt to choose among alternatives if confidence is low)
+- `erp__recommend_flow(erp, useCase)` (prompts for alternatives when supported; adds quick links when confidence stays low)
 - `erp__knowledge_update_plan(erp, prNumber?, learnings?, currentBranch?, dryRun=true)`
 - `erp__challenge_scan_findings(scan1Results, challengeAreas[])`
 - `erp__health_check()` / `erp__list_erps()`
+- `mcp__debug_elicitation()` (quick check to confirm the client can respond to elicitation prompts)
 
 Module-specific helpers (e.g., Kotlin TDD workflow, knowledge authoring) are still available—call `erp__list_prompts(erp)` to discover. Note: `get_kotlin_golden_reference` falls back to embedded reference when local files aren’t present.
 

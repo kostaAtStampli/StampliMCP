@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text.Json;
+using Serilog;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Unified.Services;
@@ -164,25 +165,29 @@ public static class ErpKnowledgeTools
         var validScopes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "operations", "flows", "constants", "all" };
         if (normalizedScope is null || !validScopes.Contains(normalizedScope))
         {
-            try
+            var fields = new[]
             {
-                var fields = new[]
-                {
-                    new Services.ElicitationCompat.Field(
-                        Name: "scope",
-                        Kind: "string",
-                        Description: "Choose scope: operations | flows | constants | all",
-                        Options: new[] { "operations", "flows", "constants", "all" }
-                    )
-                };
+                new Services.ElicitationCompat.Field(
+                    Name: "scope",
+                    Kind: "string",
+                    Description: "Choose scope: operations | flows | constants | all",
+                    Options: new[] { "operations", "flows", "constants", "all" }
+                )
+            };
 
-                var (accepted, content) = await Services.ElicitationCompat.TryElicitAsync(
-                    server,
-                    "Select a scope to narrow the knowledge search.",
-                    fields,
-                    ct);
+            var outcome = await Services.ElicitationCompat.TryElicitAsync(
+                server,
+                "Select a scope to narrow the knowledge search.",
+                fields,
+                ct);
 
-                if (accepted && content is not null && content.TryGetValue("scope", out var scopeEl) && scopeEl.ValueKind == System.Text.Json.JsonValueKind.String)
+            if (outcome.Supported)
+            {
+                Log.Debug("Elicitation for query scope: action={Action}", outcome.Action ?? "none");
+
+                if (string.Equals(outcome.Action, "accept", StringComparison.OrdinalIgnoreCase) &&
+                    outcome.Content is { } content &&
+                    content.TryGetValue("scope", out var scopeEl) && scopeEl.ValueKind == JsonValueKind.String)
                 {
                     var chosen = scopeEl.GetString();
                     if (!string.IsNullOrWhiteSpace(chosen))
@@ -190,10 +195,6 @@ public static class ErpKnowledgeTools
                         normalizedScope = chosen!.Trim().ToLowerInvariant();
                     }
                 }
-            }
-            catch
-            {
-                // Ignore elicitation failures; continue with existing scope
             }
         }
 
@@ -203,44 +204,44 @@ public static class ErpKnowledgeTools
         // If results are too broad, offer a refinement prompt
         if ((structured.MatchedOperations?.Count ?? 0) > 20 || (structured.RelevantFlows?.Count ?? 0) > 10)
         {
-            try
+            var fields = new[]
             {
-                var fields = new[]
-                {
-                    new Services.ElicitationCompat.Field(
-                        Name: "refine",
-                        Kind: "string",
-                        Description: "Add keywords to refine (e.g., 'vendor export validation')"
-                    ),
-                    new Services.ElicitationCompat.Field(
-                        Name: "scope",
-                        Kind: "string",
-                        Description: "Optionally narrow scope again: operations | flows | constants | all",
-                        Options: new[] { "operations", "flows", "constants", "all" }
-                    )
-                };
+                new Services.ElicitationCompat.Field(
+                    Name: "refine",
+                    Kind: "string",
+                    Description: "Add keywords to refine (e.g., 'vendor export validation')"
+                ),
+                new Services.ElicitationCompat.Field(
+                    Name: "scope",
+                    Kind: "string",
+                    Description: "Optionally narrow scope again: operations | flows | constants | all",
+                    Options: new[] { "operations", "flows", "constants", "all" }
+                )
+            };
 
-                var (accepted, content) = await Services.ElicitationCompat.TryElicitAsync(
-                    server,
-                    $"Found {structured.MatchedOperations.Count} operations and {structured.RelevantFlows.Count} flows. Refine your search?",
-                    fields,
-                    ct);
+            var outcome = await Services.ElicitationCompat.TryElicitAsync(
+                server,
+                $"Found {structured.MatchedOperations.Count} operations and {structured.RelevantFlows.Count} flows. Refine your search?",
+                fields,
+                ct);
 
-                if (accepted && content is not null)
+            if (outcome.Supported)
+            {
+                Log.Debug("Elicitation for query refinement: action={Action}", outcome.Action ?? "none");
+
+                if (string.Equals(outcome.Action, "accept", StringComparison.OrdinalIgnoreCase) &&
+                    outcome.Content is { } content)
                 {
-                    var refine = content.TryGetValue("refine", out var refEl) && refEl.ValueKind == System.Text.Json.JsonValueKind.String ? refEl.GetString() : null;
-                    var scope2 = content.TryGetValue("scope", out var scEl) && scEl.ValueKind == System.Text.Json.JsonValueKind.String ? scEl.GetString() : null;
+                    var refine = content.TryGetValue("refine", out var refEl) && refEl.ValueKind == JsonValueKind.String ? refEl.GetString() : null;
+                    var scope2 = content.TryGetValue("scope", out var scEl) && scEl.ValueKind == JsonValueKind.String ? scEl.GetString() : null;
                     var newScope = string.IsNullOrWhiteSpace(scope2) ? normalizedScope : scope2!.Trim().ToLowerInvariant();
+
                     if (!string.IsNullOrWhiteSpace(refine) || !string.Equals(newScope, normalizedScope, StringComparison.Ordinal))
                     {
                         normalizedScope = newScope;
                         structured = await BuildKnowledgeResult(erp, string.IsNullOrWhiteSpace(refine) ? query : refine!, normalizedScope, knowledge, flowService, fuzzyMatcher, ct);
                     }
                 }
-            }
-            catch
-            {
-                // Ignore elicitation failures
             }
         }
 
