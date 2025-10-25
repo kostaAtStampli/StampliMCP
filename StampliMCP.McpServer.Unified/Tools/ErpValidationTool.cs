@@ -213,6 +213,13 @@ public static class ErpValidationTool
         });
 
         callResult.Content.Add(new TextContentBlock { Type = "text", Text = json });
+
+        var instructionText = ToolLinkFormatter.BuildInstructionList(result.NextActions);
+        if (!string.IsNullOrWhiteSpace(instructionText))
+        {
+            callResult.Content.Add(new TextContentBlock { Type = "text", Text = instructionText });
+        }
+
         foreach (var link in result.NextActions ?? Enumerable.Empty<ResourceLinkBlock>())
         {
             callResult.Content.Add(link);

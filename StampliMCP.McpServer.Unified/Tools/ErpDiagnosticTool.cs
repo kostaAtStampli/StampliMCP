@@ -130,6 +130,13 @@ public static class ErpDiagnosticTool
         });
 
         callResult.Content.Add(new TextContentBlock { Type = "text", Text = json });
+
+        var instructionText = ToolLinkFormatter.BuildInstructionList(result.NextActions);
+        if (!string.IsNullOrWhiteSpace(instructionText))
+        {
+            callResult.Content.Add(new TextContentBlock { Type = "text", Text = instructionText });
+        }
+
         foreach (var link in result.NextActions)
         {
             callResult.Content.Add(link);

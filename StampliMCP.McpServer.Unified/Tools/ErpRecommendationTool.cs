@@ -154,6 +154,13 @@ public static class ErpRecommendationTool
         });
 
         callResult.Content.Add(new TextContentBlock { Type = "text", Text = json });
+
+        var instructionText = ToolLinkFormatter.BuildInstructionList(recommendation.NextActions);
+        if (!string.IsNullOrWhiteSpace(instructionText))
+        {
+            callResult.Content.Add(new TextContentBlock { Type = "text", Text = instructionText });
+        }
+
         foreach (var link in recommendation.NextActions)
         {
             callResult.Content.Add(link);
@@ -237,4 +244,3 @@ public static class ErpRecommendationTool
         });
     }
 }
-

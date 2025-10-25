@@ -139,6 +139,16 @@ public static class ErpKnowledgeTools
             Text = json
         });
 
+        var instructionText = ToolLinkFormatter.BuildInstructionList(structured.NextActions);
+        if (!string.IsNullOrWhiteSpace(instructionText))
+        {
+            result.Content.Add(new TextContentBlock
+            {
+                Type = "text",
+                Text = instructionText
+            });
+        }
+
         foreach (var link in structured.NextActions)
         {
             result.Content.Add(link);
