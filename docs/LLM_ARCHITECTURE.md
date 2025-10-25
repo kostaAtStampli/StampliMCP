@@ -16,6 +16,8 @@
   - Reads `Knowledge/categories.json` and `Knowledge/operations/<category>.json` (array or object format), caches and indexes operations.
 - Flow loading: `StampliMCP.Shared/Services/FlowServiceBase.cs`
   - Reads `Knowledge/flows/*.json`, lists names, loads JSON, builds op→flow and flow→ops indexes.
+- Resource catalog: `StampliMCP.McpServer.Unified/Services/UnifiedResourceCatalog.cs`
+  - Feeds `resources/list` and `resources/read` with stable URIs (`mcp://stampli-unified/erp/{erp}/flows[/<flow>]`) and renders JSON + Markdown responses.
 - Matching/intelligence:
   - Fuzzy: `StampliMCP.Shared/Services/FuzzyMatchingService.cs`
   - Smart matcher: `StampliMCP.McpServer.Acumatica.Module/Services/SmartFlowMatcher.cs` (SearchValues, aliases, typo distance).
@@ -45,6 +47,7 @@
 - Client → Unified host (stdio MCP)
 - Host → `ErpRegistry.Normalize(erp)` → scoped `IErpFacade`
 - Tool executes with facade services (Knowledge/Flow/Fuzzy/Validation/Diagnostic)
+- Tool populates `NextActions` with resource links; clients can hit `resources/read` to fetch the detailed flow doc without rerunning the tool.
 - Tool may call `server.ElicitAsync()` to gather inputs (optional)
 - Tool returns `CallToolResult` with `StructuredContent` + text + NextActions
 

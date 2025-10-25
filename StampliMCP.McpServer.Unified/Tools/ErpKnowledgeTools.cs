@@ -278,6 +278,12 @@ public static class ErpKnowledgeTools
         {
             new()
             {
+                Uri = $"mcp://stampli-unified/erp/{erp}/flows",
+                Name = $"{erp} flow catalog",
+                Description = "Open flow guidance via resources/read."
+            },
+            new()
+            {
                 Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query=*&scope=operations",
                 Name = "Browse operations"
             },

@@ -1,7 +1,8 @@
-using System.ComponentModel;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.ComponentModel;
+using System.IO;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using StampliMCP.McpServer.Unified.Services;
@@ -93,20 +94,34 @@ public static class ErpKnowledgeUpdateTool
         // Route by ERP until other modules implement their planners
         if (string.Equals(descriptor.Key, "acumatica", StringComparison.OrdinalIgnoreCase))
         {
-            var result = await AcuPlanner.Execute(descriptor.Key, prNumber, learnings, currentBranch, effectiveDryRun, ct).ConfigureAwait(false);
-
-            // Tag response with ERP + mode for clients
-            result.Content.Insert(0, new TextContentBlock { Type = "text", Text = $"[Unified] ERP = {descriptor.Key} | mode = {normalizedMode}" });
-
-            var wrapped = new
+            try
             {
-                erp = descriptor.Key,
-                mode = normalizedMode,
-                dryRun = effectiveDryRun,
-                result = result.StructuredContent
-            };
-            result.StructuredContent = JsonSerializer.SerializeToNode(wrapped);
-            return result;
+                var result = await AcuPlanner.Execute(descriptor.Key, prNumber, learnings, currentBranch, effectiveDryRun, ct).ConfigureAwait(false);
+
+                // Tag response with ERP + mode for clients
+                result.Content.Insert(0, new TextContentBlock { Type = "text", Text = $"[Unified] ERP = {descriptor.Key} | mode = {normalizedMode}" });
+
+                var wrapped = new
+                {
+                    erp = descriptor.Key,
+                    mode = normalizedMode,
+                    dryRun = effectiveDryRun,
+                    result = result.StructuredContent
+                };
+                result.StructuredContent = JsonSerializer.SerializeToNode(wrapped);
+                return result;
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                return BuildCallToolResult(new
+                {
+                    erp = descriptor.Key,
+                    mode = normalizedMode,
+                    status = "REPOSITORY_NOT_FOUND",
+                    message = ex.Message,
+                    hint = "Run from within the ERP repo or set repoRoot in DEV mode."
+                });
+            }
         }
 
         var unsupported = new

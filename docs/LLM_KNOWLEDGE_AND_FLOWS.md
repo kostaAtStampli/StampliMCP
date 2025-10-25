@@ -29,6 +29,7 @@ This explains the embedded knowledge model (categories, operations, flows) and h
   - `codeSnippets: object` (name → code)
   - `anatomy: object` (flow/validation/mapping/extra)
   - `criticalFiles: Array<{ file, lines?, purpose?, keyPatterns[]? }>`
+  - Unified resource catalog exports these flows at `mcp://stampli-unified/erp/{erp}/flows[/<flow>]` so clients can browse via `resources/list` and `resources/read`.
 
 ## Matching (No Vectors)
 - Fuzzy matching: `FuzzyMatchingService` (Fastenshtein), optimal pattern (one query → many patterns).
@@ -46,6 +47,12 @@ This explains the embedded knowledge model (categories, operations, flows) and h
   - `scope` is case-insensitive; accepts `operations | flows | constants | all`.
   - If scope is missing/invalid, server may elicit a choice.
   - For broad results, server may elicit `refine` and optional `scope` again.
+- Results include `NextActions` pointing at the flow resource URIs so clients can open the detailed doc without re-running the tool.
+
+## Resource URIs (Flows)
+- Base index: `resources/read(uri="mcp://stampli-unified/erp/acumatica/flows")` → JSON + Markdown list of all flows.
+- Flow detail: `resources/read(uri="mcp://stampli-unified/erp/acumatica/flows/vendor_export_flow")` → Full `FlowDetail` JSON plus Markdown summary.
+- `resources/list` emits both the index URI and every flow URI for each registered ERP.
 
 ## Validating Content
 - `erp__knowledge_update_plan(erp, mode="validate")` checks for common issues:

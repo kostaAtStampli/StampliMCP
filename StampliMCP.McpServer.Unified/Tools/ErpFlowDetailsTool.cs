@@ -34,6 +34,11 @@ internal static class FlowDetailsBuilder
             {
                 new()
                 {
+                    Uri = $"mcp://stampli-unified/erp/{erp}/flows/{Uri.EscapeDataString(flowName)}",
+                    Name = $"Open {flowName} resource"
+                },
+                new()
+                {
                     Uri = $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(flowName)}&scope=flows",
                     Name = "Search flow knowledge"
                 },

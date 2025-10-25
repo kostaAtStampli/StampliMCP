@@ -130,6 +130,12 @@ public static class ErpRecommendationTool
             {
                 AddLink(
                     recommendation.NextActions,
+                    $"mcp://stampli-unified/erp/{erp}/flows/{Uri.EscapeDataString(recommendation.FlowName)}",
+                    $"Open {recommendation.FlowName}",
+                    "View flow guidance via resources/read.");
+
+                AddLink(
+                    recommendation.NextActions,
                     $"mcp://stampli-unified/erp__query_knowledge?erp={erp}&query={Uri.EscapeDataString(recommendation.FlowName)}&scope=flows",
                     $"Search {recommendation.FlowName}",
                     "Open detailed flow guidance.");

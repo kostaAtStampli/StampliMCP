@@ -1,14 +1,10 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Web;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ModelContextProtocol;
-using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -63,6 +59,7 @@ try
     }
 
     builder.Services.AddSingleton<ErpRegistry>();
+    builder.Services.AddSingleton<UnifiedResourceCatalog>();
     builder.Services
         .AddMcpServer(options =>
         {
@@ -83,8 +80,19 @@ try
         .WithPrompts<AnalyzeIntegrationPrompt>()
         .WithPrompts<KotlinFeaturePrompt>()
         .WithPrompts<TwoScanEnforcementPrompt>()
-        .WithListResourcesHandler(ListResourcesAsync)
-        .WithReadResourceHandler(ReadResourceAsync)
+        .WithListResourcesHandler(static (context, cancellationToken) =>
+        {
+            var provider = context.Services ?? throw new InvalidOperationException("Service provider unavailable for resources/list.");
+            var catalog = provider.GetRequiredService<UnifiedResourceCatalog>();
+            return catalog.ListResourcesAsync(cancellationToken);
+        })
+        .WithReadResourceHandler(static (context, cancellationToken) =>
+        {
+            var provider = context.Services ?? throw new InvalidOperationException("Service provider unavailable for resources/read.");
+            var catalog = provider.GetRequiredService<UnifiedResourceCatalog>();
+            var uri = context.Params?.Uri;
+            return catalog.ReadResourceAsync(uri, cancellationToken);
+        })
         .WithResourcesFromAssembly()
         .WithResourcesFromAssembly(typeof(AcumaticaModule).Assembly)
         .WithResourcesFromAssembly(typeof(IntacctModule).Assembly);
@@ -108,116 +116,4 @@ catch (Exception ex)
 finally
 {
     await Log.CloseAndFlushAsync();
-}
-
-static ValueTask<ListResourcesResult> ListResourcesAsync(RequestContext<ListResourcesRequestParams> context, CancellationToken cancellationToken)
-{
-    var result = new ListResourcesResult
-    {
-        Resources =
-        [
-            new Resource
-            {
-                Uri = "mcp://stampli-unified/help/tool-link",
-                Name = "How to run tool links",
-                Description = "Open to see how to execute mcp:// tool links via tools/call"
-            }
-        ]
-    };
-
-    return ValueTask.FromResult(result);
-}
-
-static ValueTask<ReadResourceResult> ReadResourceAsync(RequestContext<ReadResourceRequestParams> context, CancellationToken cancellationToken)
-{
-    var uri = context.Params?.Uri ?? string.Empty;
-    if (!uri.StartsWith("mcp://stampli-unified/", StringComparison.OrdinalIgnoreCase))
-    {
-        throw new McpProtocolException($"Unknown resource: {uri}", null, McpErrorCode.MethodNotFound);
-    }
-
-    var parsed = new Uri(uri.Replace("mcp://", "http://"));
-    var toolName = parsed.AbsolutePath.Trim('/');
-    var query = HttpUtility.ParseQueryString(parsed.Query);
-    var arguments = query.AllKeys?.Where(k => k is not null)
-        .ToDictionary(k => k!, k => (object?)query[k], StringComparer.OrdinalIgnoreCase) ?? new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-
-    var payload = new
-    {
-        note = "This is a tool link. Use tools/call to execute.",
-        example = new { method = "tools/call", name = toolName, arguments }
-    };
-
-    var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
-
-    var result = new ReadResourceResult
-    {
-        Contents =
-        [
-            new TextResourceContents
-            {
-                MimeType = "application/json",
-                Text = json
-            }
-        ]
-    };
-
-    return ValueTask.FromResult(result);
-}
-
-static bool TryParseToolLink(string uri, out string toolName, out IDictionary<string, object?> arguments)
-{
-    const string prefix = "mcp://stampli-unified/";
-    toolName = string.Empty;
-    arguments = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-
-    if (!uri.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-    {
-        return false;
-    }
-
-    var remainder = uri[prefix.Length..];
-    if (string.IsNullOrWhiteSpace(remainder))
-    {
-        return false;
-    }
-
-    var parts = remainder.Split('?', 2);
-    toolName = NormalizeToolName(parts[0].Trim('/'));
-    if (string.IsNullOrWhiteSpace(toolName))
-    {
-        return false;
-    }
-
-    if (parts.Length == 2 && parts[1].Length > 0)
-    {
-        foreach (var pair in parts[1].Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var kv = pair.Split('=', 2);
-            var key = Uri.UnescapeDataString(kv[0]);
-            var value = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
-            arguments[key] = value;
-        }
-    }
-
-    return true;
-}
-
-static string NormalizeToolName(string raw)
-{
-    if (string.IsNullOrWhiteSpace(raw))
-    {
-        return raw;
-    }
-
-    return raw switch
-    {
-        "erpquery_knowledge" => "erp__query_knowledge",
-        "erprecommend_flow" => "erp__recommend_flow",
-        "erpvalidate_request" => "erp__validate_request",
-        "erpdiagnose_error" => "erp__diagnose_error",
-        "erphealth_check" => "erp__health_check",
-        "erpknowledge_update_plan" => "erp__knowledge_update_plan",
-        _ => raw
-    };
 }

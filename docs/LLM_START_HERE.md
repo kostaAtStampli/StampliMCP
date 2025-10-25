@@ -20,6 +20,8 @@
 - `erp__query_knowledge(erp="acumatica", query="vendor", scope="operations")` → Browse operation catalog.
 - `erp__query_knowledge(erp="acumatica", query="purchase order", scope="flows")` → Flow catalog with constants/rules.
 - `erp__recommend_flow(erp="acumatica", useCase="export vendors")` → Flow anatomy + guidance.
+- `resources/list` → Stable URIs for flow docs (e.g., `mcp://stampli-unified/erp/acumatica/flows`).
+- `resources/read(uri="mcp://stampli-unified/erp/acumatica/flows/export_po_flow")` → Flow detail as JSON + Markdown without invoking a tool.
 
 ## Elicitation (Prompts)
 - The server may ask you to choose a scope (operations | flows | constants | all) or refine ambiguous queries.
@@ -27,6 +29,7 @@
 
 ## Structured Results
 - Tools return structured content (JSON) plus a readable text view.
+- Flow/knowledge tools always include `resource_link` entries so clients can open detailed paths by default.
 - Key result types:
   - FlowRecommendation: name, confidence, reasoning, Alternatives, Scores, NextActions.
   - ValidationResult: IsValid, Errors, Warnings, AppliedRules, SuggestedPayload?, NextActions.
@@ -49,7 +52,8 @@
 - Explore an ERP module
   1) `erp__query_knowledge(erp="acumatica", query="vendor", scope="operations")`
   2) `erp__query_knowledge(erp="acumatica", query="vendor", scope="flows")`
-  3) `erp__recommend_flow(erp="acumatica", useCase="vendor export")` for anatomy/constants/validation
+  3) `resources/read(uri="mcp://stampli-unified/erp/acumatica/flows/vendor_export_flow")` to open the detailed flow doc
+  4) `erp__recommend_flow(erp="acumatica", useCase="vendor export")` for anatomy/constants/validation
 - Find the right flow for a vague ask
   1) `erp__recommend_flow(erp="acumatica", useCase="sync POs")`
   2) If prompted, pick between export/import/matching/bulk

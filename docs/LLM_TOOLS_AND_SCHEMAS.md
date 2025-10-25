@@ -12,6 +12,7 @@ This is the canonical tool catalog and the structured results the server returns
 - `erp__recommend_flow(erp, useCase)`
   - File: `ErpRecommendationTool.cs`
   - Produces a `FlowRecommendation` with confidence scoring, flow details, and fallback refinement via elicitation.
+  - Auto-attaches `resource_link` entries to open the flow doc (`resources/read`) and to browse the flow catalog.
 - `erp__validate_request(erp, operation, payload)`
   - File: `ErpValidationTool.cs`
   - Validates payloads against flow rules; can elicit an auto-fix to populate a SuggestedPayload with placeholders.
@@ -28,7 +29,16 @@ This is the canonical tool catalog and the structured results the server returns
 - `erp__list_prompts(erp)` – Module prompts catalog
 - Kotlin helpers (`get_kotlin_golden_reference`, `kotlin_tdd_workflow`, `modern_harness_guide`) remain available in DEV builds only.
 
+## Resource Catalog (MCP resources)
+- `resources/list`
+  - Enumerates flow resources per ERP using `mcp://stampli-unified/erp/{erp}/flows[/<flow>]`.
+- `resources/read`
+  - `uri="mcp://stampli-unified/erp/acumatica/flows"` → Flow index (JSON + Markdown).
+  - `uri="mcp://stampli-unified/erp/acumatica/flows/vendor_export_flow"` → Full flow detail without running a tool.
+  - Any unknown URI falls back to a helper payload explaining which `tools/call` to invoke.
+
 ## Structured Results (Schemas)
+- `NextActions` are expressed as `ResourceLinkBlock` entries with `mcp://stampli-unified/...` URIs so clients can fetch details via `resources/read`.
 - FlowRecommendation (file: `StampliMCP.Shared/Models/StructuredResults.cs:116`)
   - `Summary: string?`
   - `FlowName: string`
